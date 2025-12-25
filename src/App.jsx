@@ -20,6 +20,7 @@ import Scan from './pages/Scan';
 import Tracker from './pages/Tracker'; // For Analytics
 import Appointments from './pages/Appointments';
 import Result from './pages/Result';
+import Doctors from './pages/Doctors';
 // Components
 import PrivateRoute from './components/PrivateRoute';
 
@@ -48,6 +49,7 @@ function App() {
               <Route path="/analytics" element={<PrivateRoute><Tracker /></PrivateRoute>} />
               <Route path="/appointments" element={<PrivateRoute><Appointments /></PrivateRoute>} />
               <Route path="/result/:medicineName" element={<PrivateRoute><Result /></PrivateRoute>} />
+              <Route path="/doctors" element={<PrivateRoute><Doctors /></PrivateRoute>} />
             </Routes>
           </div>
         </Router>

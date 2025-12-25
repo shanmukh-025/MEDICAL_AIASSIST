@@ -101,7 +101,8 @@ const Home = () => {
             </div>
           </button>
 
-          <button onClick={() => window.open('https://www.google.com/maps/search/doctors+near+me', '_blank')} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center text-center gap-4 group">
+          {/* UPDATED: Navigates to /doctors instead of Google Maps */}
+          <button onClick={() => navigate('/doctors')} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center text-center gap-4 group">
             <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300 shadow-sm">
               <MapPin size={32} />
             </div>
@@ -119,6 +120,9 @@ const Home = () => {
              type="text" 
              placeholder={t.searchPlaceholder}
              className="w-full bg-white py-5 pl-14 pr-24 rounded-2xl shadow-sm border border-slate-100 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 font-medium text-slate-700 transition-all"
+             onKeyDown={(e) => {
+                if (e.key === 'Enter') navigate(`/result/${e.target.value}`);
+             }}
            />
            <button className="absolute right-2 top-2 bottom-2 bg-slate-900 text-white px-6 rounded-xl font-bold text-sm hover:bg-emerald-600 hover:shadow-lg transition-all">GO</button>
         </div>
