@@ -31,9 +31,14 @@ mongoose.connection.once('open', async () => {
 });
 // ----------------------------------------------
 
-// 2. Configure CORS
+// 2. Configure CORS (CRITICAL UPDATE FOR PWA/OFFLINE MODE)
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], 
+  origin: [
+    'http://localhost:5173',   // Dev Server
+    'http://127.0.0.1:5173',   // Dev Server (IP)
+    'http://localhost:4173',   // Preview/Build Server (PWA)
+    'http://127.0.0.1:4173'    // Preview/Build Server (IP)
+  ], 
   credentials: true
 }));
 
@@ -53,7 +58,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/wellness', require('./routes/wellness'));
 app.use('/api/records', require('./routes/records'));
-app.use('/api/appointments', require('./routes/appointments')); // <--- ADDED THIS FOR DOCTOR BOOKING
+app.use('/api/appointments', require('./routes/appointments')); 
 
 // 6. Test Route
 app.get('/', (req, res) => res.send('API is Running...'));
