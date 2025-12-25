@@ -10,6 +10,7 @@ router.get('/', auth, async (req, res) => {
     const records = await Record.find({ user: req.user.id }).sort({ date: -1 });
     res.json(records);
   } catch (err) {
+    console.error(err.message);
     res.status(500).send('Server Error');
   }
 });
@@ -18,7 +19,8 @@ router.get('/', auth, async (req, res) => {
 // @desc    Add a new record
 router.post('/', auth, async (req, res) => {
   try {
-    const { title, doctor, type, date, fileData } = req.body;
+    // UPDATED: Destructure 'image' instead of 'fileData'
+    const { title, doctor, type, date, image } = req.body;
     
     const newRecord = new Record({
       user: req.user.id,
@@ -26,7 +28,7 @@ router.post('/', auth, async (req, res) => {
       doctor,
       type,
       date,
-      fileData
+      image // UPDATED: Matches the new Schema field
     });
 
     const record = await newRecord.save();
@@ -41,9 +43,22 @@ router.post('/', auth, async (req, res) => {
 // @desc    Delete a record
 router.delete('/:id', auth, async (req, res) => {
   try {
+    const record = await Record.findById(req.params.id);
+
+    // Check if record exists
+    if (!record) {
+      return res.status(404).json({ msg: 'Record not found' });
+    }
+
+    // Check user (Make sure user owns the record)
+    if (record.user.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'User not authorized' });
+    }
+
     await Record.findByIdAndDelete(req.params.id);
     res.json({ msg: 'Record removed' });
   } catch (err) {
+    console.error(err.message);
     res.status(500).send('Server Error');
   }
 });

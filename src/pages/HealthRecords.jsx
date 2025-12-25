@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, FileText, Calendar, User, Upload, X, Loader2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Calendar, User, Upload, X, Loader2, Trash2, Eye, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
@@ -7,7 +7,10 @@ import toast from 'react-hot-toast';
 const HealthRecords = () => {
   const navigate = useNavigate();
   const { lang } = useLanguage();
+  
+  // State
   const [showModal, setShowModal] = useState(false);
+  const [viewFile, setViewFile] = useState(null); 
   const [loading, setLoading] = useState(false);
   const [records, setRecords] = useState([]);
 
@@ -29,7 +32,11 @@ const HealthRecords = () => {
     },
     upload: lang === 'en' ? 'Upload Image' : 'చిత్రం అప్‌లోడ్ చేయండి',
     save: lang === 'en' ? 'Save Record' : 'రికార్డును సేవ్ చేయండి',
-    saving: lang === 'en' ? 'Saving...' : 'సేవ్ చేస్తోంది...'
+    saving: lang === 'en' ? 'Saving...' : 'సేవ్ చేస్తోంది...',
+    deleteConfirm: lang === 'en' ? "Delete this record?" : "ఈ రికార్డును తొలగించాలా?",
+    deleted: lang === 'en' ? "Deleted" : "తొలగించబడింది",
+    added: lang === 'en' ? 'Record Added!' : 'రికార్డ్ జోడించబడింది!',
+    fileReady: lang === 'en' ? 'Image Ready' : 'చిత్రం సిద్ధంగా ఉంది'
   };
 
   const [formData, setFormData] = useState({ title: '', doctor: '', date: '', type: 'Prescription', image: '' });
@@ -47,12 +54,16 @@ const HealthRecords = () => {
 
   useEffect(() => { fetchRecords(); }, []);
 
-  // Handle File Upload (Base64)
+  // Handle File Upload (Robust Base64)
   const handleFile = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 8000000) return toast.error("File too large (Max 8MB)");
+      
       const reader = new FileReader();
-      reader.onloadend = () => setFormData({ ...formData, image: reader.result });
+      reader.onloadend = () => {
+          setFormData(prev => ({ ...prev, image: reader.result }));
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -60,6 +71,8 @@ const HealthRecords = () => {
   // Submit Form
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if(!formData.image) return toast.error("Please upload an image first");
+    
     setLoading(true);
     try {
       const res = await fetch('http://localhost:5000/api/records', {
@@ -67,35 +80,36 @@ const HealthRecords = () => {
         headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') },
         body: JSON.stringify(formData)
       });
+      
       if (res.ok) {
-        toast.success(lang === 'en' ? 'Record Added!' : 'రికార్డ్ జోడించబడింది!');
+        toast.success(t.added);
         setShowModal(false);
         fetchRecords();
         setFormData({ title: '', doctor: '', date: '', type: 'Prescription', image: '' });
       } else {
-        toast.error("Failed");
+        toast.error("Failed to save. File might be too big.");
       }
-    } catch (err) { toast.error("Error"); }
+    } catch (err) { toast.error("Server Error"); }
     finally { setLoading(false); }
   };
 
   // Delete Record
   const handleDelete = async (id) => {
-      if(!window.confirm(lang === 'en' ? "Delete this record?" : "ఈ రికార్డును తొలగించాలా?")) return;
+      if(!window.confirm(t.deleteConfirm)) return;
       try {
           await fetch(`http://localhost:5000/api/records/${id}`, {
              method: 'DELETE',
              headers: { 'x-auth-token': localStorage.getItem('token') }
           });
           setRecords(records.filter(r => r._id !== id));
-          toast.success("Deleted");
+          toast.success(t.deleted);
       } catch(e) { toast.error("Error"); }
   }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans p-6 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 sticky top-0 bg-slate-50 z-10 py-2">
         <div>
            <button onClick={() => navigate('/')} className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition mb-2">
              <ArrowLeft size={16}/> Back
@@ -112,76 +126,141 @@ const HealthRecords = () => {
       <div className="grid gap-4">
         {records.length === 0 ? (
           <div className="text-center py-20 text-slate-400">
-             <FileText size={48} className="mx-auto mb-4 opacity-20"/>
-             <p>{t.noRecords}</p>
+              <FileText size={48} className="mx-auto mb-4 opacity-20"/>
+              <p>{t.noRecords}</p>
           </div>
         ) : (
           records.map((rec) => (
-            <div key={rec._id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 group">
-               <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0">
-                  {rec.image ? <img src={rec.image} className="w-full h-full object-cover" alt="doc"/> : <FileText className="m-auto mt-4 text-slate-300"/>}
+            <div key={rec._id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 group hover:shadow-md transition">
+               
+               {/* Thumbnail */}
+               <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-200">
+                  {rec.image && rec.image.startsWith('data:image') ? (
+                      <img src={rec.image} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" alt="doc"/>
+                  ) : (
+                      <FileText className="text-slate-300"/>
+                  )}
                </div>
-               <div className="flex-1">
-                  <h3 className="font-bold text-slate-800">{rec.title}</h3>
-                  <div className="flex items-center gap-4 text-xs text-slate-400 mt-1">
-                     <span className="flex items-center gap-1"><User size={12}/> {rec.doctor}</span>
-                     <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(rec.date).toLocaleDateString()}</span>
+
+               {/* Info */}
+               <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-slate-800 truncate">{rec.title}</h3>
+                  <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                      <span className="flex items-center gap-1 truncate"><User size={10}/> {rec.doctor}</span>
+                      <span className="flex items-center gap-1 shrink-0"><Calendar size={10}/> {new Date(rec.date).toLocaleDateString()}</span>
                   </div>
-                  <span className="inline-block mt-2 bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase">{rec.type}</span>
+                  <span className="inline-block mt-2 bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wide border border-emerald-100">{rec.type}</span>
                </div>
-               <button onClick={() => handleDelete(rec._id)} className="text-slate-300 hover:text-red-500 p-2"><Trash2 size={18}/></button>
+
+               {/* Actions */}
+               <div className="flex gap-2">
+                   <button 
+                       onClick={() => setViewFile(rec)} 
+                       className="p-2 bg-slate-50 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition"
+                       title="View"
+                   >
+                       <Eye size={18}/>
+                   </button>
+                   <button 
+                       onClick={() => handleDelete(rec._id)} 
+                       className="p-2 bg-slate-50 text-slate-400 hover:bg-red-500 hover:text-white rounded-lg transition"
+                       title="Delete"
+                   >
+                       <Trash2 size={18}/>
+                   </button>
+               </div>
             </div>
           ))
         )}
       </div>
 
-      {/* MODAL */}
+      {/* ADD MODAL */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
            <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
               <div className="flex justify-between items-center mb-6">
                  <h2 className="text-xl font-bold text-slate-800">{t.modalTitle}</h2>
-                 <button onClick={() => setShowModal(false)}><X className="text-slate-400 hover:text-red-500"/></button>
+                 <button onClick={() => setShowModal(false)} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
                  <div>
                     <label className="text-xs font-bold text-slate-400 uppercase">{t.labelTitle}</label>
-                    <input type="text" className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1 outline-none focus:ring-2 focus:ring-emerald-500" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}/>
+                    <input type="text" className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1 outline-none focus:ring-2 focus:ring-emerald-500 font-medium" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})}/>
                  </div>
                  <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-xs font-bold text-slate-400 uppercase">{t.labelDoc}</label>
-                        <input type="text" className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1" required value={formData.doctor} onChange={e => setFormData({...formData, doctor: e.target.value})}/>
+                        <input type="text" className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1 font-medium" required value={formData.doctor} onChange={e => setFormData({...formData, doctor: e.target.value})}/>
                     </div>
                     <div>
                         <label className="text-xs font-bold text-slate-400 uppercase">{t.labelDate}</label>
-                        <input type="date" className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})}/>
+                        <input type="date" className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1 font-medium" required value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})}/>
                     </div>
                  </div>
                  <div>
                     <label className="text-xs font-bold text-slate-400 uppercase">{t.labelType}</label>
-                    <select className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                    <select className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1 font-medium" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
                        <option>{t.types.pres}</option>
                        <option>{t.types.report}</option>
                        <option>{t.types.invoice}</option>
                     </select>
                  </div>
                  
-                 <label className="block border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:bg-slate-50 hover:border-emerald-400 transition">
+                 <label className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${formData.image ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                     <input type="file" className="hidden" onChange={handleFile} accept="image/*"/>
-                    <Upload className="mx-auto text-emerald-500 mb-2"/>
-                    <span className="text-sm text-slate-500 font-medium">
-                       {formData.image ? <span className="text-emerald-600 font-bold">File Selected ✅</span> : t.upload}
-                    </span>
+                    {formData.image ? (
+                        <div className="text-emerald-600 flex flex-col items-center">
+                            <ImageIcon size={32} className="mb-2"/>
+                            <span className="text-sm font-bold">{t.fileReady} ✅</span>
+                        </div>
+                    ) : (
+                        <div className="text-slate-400 flex flex-col items-center">
+                            <Upload size={32} className="mb-2"/>
+                            <span className="text-sm font-medium">{t.upload}</span>
+                        </div>
+                    )}
                  </label>
 
-                 <button disabled={loading} className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition flex justify-center">
+                 <button disabled={loading} className="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition flex justify-center items-center gap-2">
                     {loading ? <Loader2 className="animate-spin"/> : t.save}
                  </button>
               </form>
            </div>
         </div>
       )}
+
+      {/* VIEW IMAGE MODAL (UPDATED WITH FALLBACK) */}
+      {viewFile && (
+        <div className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4 backdrop-blur-md" onClick={() => setViewFile(null)}>
+            <div className="relative w-full max-w-4xl h-full max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                <button 
+                    onClick={() => setViewFile(null)} 
+                    className="absolute top-4 right-4 bg-black/50 text-white p-3 rounded-full hover:bg-white/20 transition backdrop-blur-md z-10"
+                >
+                    <X size={24}/>
+                </button>
+                
+                <div className="flex-1 flex items-center justify-center bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl p-4">
+                    {/* Check if image exists and is a valid data URL */}
+                    {viewFile.image && viewFile.image.length > 100 ? (
+                        <img src={viewFile.image} alt="Full Record" className="max-w-full max-h-full object-contain" />
+                    ) : (
+                        <div className="text-center text-white/50 flex flex-col items-center">
+                            <AlertCircle size={48} className="mb-2 opacity-50"/>
+                            <p className="text-lg font-bold">Image Not Available</p>
+                            <p className="text-xs text-white/30 mt-1">The file might be corrupted or wasn't saved correctly.</p>
+                        </div>
+                    )}
+                </div>
+
+                <div className="mt-4 text-center">
+                    <h3 className="text-white text-lg font-bold">{viewFile.title}</h3>
+                    <p className="text-white/60 text-sm">{viewFile.doctor} • {new Date(viewFile.date).toLocaleDateString()}</p>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };

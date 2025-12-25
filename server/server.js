@@ -1,5 +1,5 @@
 const express = require('express');
-const mongoose = require('mongoose'); // Added mongoose import
+const mongoose = require('mongoose'); 
 const connectDB = require('./config/db');
 const cors = require('cors');
 require('dotenv').config();
@@ -37,7 +37,8 @@ app.use(cors({
   credentials: true
 }));
 
-// 3. Increase Data Limit (For Image Uploads)
+// 3. Increase Data Limit (CRITICAL for Image Uploads)
+// This allows large images to be sent to the database
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -52,6 +53,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/wellness', require('./routes/wellness'));
 app.use('/api/records', require('./routes/records'));
+app.use('/api/appointments', require('./routes/appointments')); // <--- ADDED THIS FOR DOCTOR BOOKING
 
 // 6. Test Route
 app.get('/', (req, res) => res.send('API is Running...'));
