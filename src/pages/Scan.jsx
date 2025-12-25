@@ -4,11 +4,13 @@ import Tesseract from 'tesseract.js';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Type, ScanBarcode, Image as ImageIcon, Zap, ZapOff, Search, RefreshCw, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../context/LanguageContext'; // 1. Import Context
 
 const Scan = () => {
   const navigate = useNavigate();
   const webcamRef = useRef(null);
-  const fileInputRef = useRef(null); // Reference for the hidden file input
+  const fileInputRef = useRef(null); 
+  const { lang } = useLanguage(); // 2. Get Language
   
   // MODES: 'text' | 'barcode'
   const [mode, setMode] = useState('text'); 
@@ -25,6 +27,28 @@ const Scan = () => {
   const [scannedText, setScannedText] = useState(''); 
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
+  // 3. Translations Dictionary
+  const t = {
+    textMode: lang === 'en' ? 'Text' : 'వచనం',
+    barcodeMode: lang === 'en' ? 'Barcode' : 'బార్‌కోడ్',
+    initCamera: lang === 'en' ? 'Initializing Camera...' : 'కెమెరా సిద్ధమవుతోంది...',
+    scanFailed: lang === 'en' ? 'Scan failed? Enter manually:' : 'స్కాన్ విఫలమైందా? మాన్యువల్‌గా నమోదు చేయండి:',
+    placeholderText: lang === 'en' ? 'Type Name...' : 'పేరు టైప్ చేయండి...',
+    placeholderCode: lang === 'en' ? 'Type Code...' : 'కోడ్ టైప్ చేయండి...',
+    analyzing: lang === 'en' ? 'Analyzing...' : 'విశ్లేషిస్తోంది...',
+    readingText: lang === 'en' ? 'Reading Text' : 'టెక్స్ట్ చదువుతోంది',
+    decoding: lang === 'en' ? 'Decoding Barcode' : 'బార్‌కోడ్ డీకోడ్ చేస్తోంది',
+    upload: lang === 'en' ? 'Upload' : 'అప్‌లోడ్',
+    resultFound: lang === 'en' ? 'Result Found' : 'ఫలితం దొరికింది',
+    verifyMsg: lang === 'en' ? 'We detected the following text. Edit if needed:' : 'మేము ఈ వచనాన్ని గుర్తించాము. అవసరమైతే సవరించండి:',
+    retake: lang === 'en' ? 'Retake' : 'మళ్ళీ తీయండి',
+    analyze: lang === 'en' ? 'Analyze Now' : 'ఇప్పుడే విశ్లేషించండి',
+    errorBlurry: lang === 'en' ? 'Text too blurry' : 'టెక్స్ట్ అస్పష్టంగా ఉంది',
+    errorRead: lang === 'en' ? 'Could not read text. Try uploading a clear photo.' : 'టెక్స్ట్ చదవడం కుదరలేదు. స్పష్టమైన ఫోటో అప్‌లోడ్ చేయండి.',
+    success: lang === 'en' ? 'Text Detected!' : 'టెక్స్ట్ గుర్తించబడింది!',
+    torchError: lang === 'en' ? 'Flashlight not supported' : 'ఫ్లాష్‌లైట్ పని చేయదు'
+  };
+
   // --- 1. HANDLE LIVE CAMERA CAPTURE ---
   const capture = useCallback(() => {
     const imageSrc = webcamRef.current?.getScreenshot();
@@ -35,22 +59,21 @@ const Scan = () => {
     }
   }, [webcamRef, mode]);
 
-  // --- 2. HANDLE GALLERY UPLOAD (New Feature) ---
+  // --- 2. HANDLE GALLERY UPLOAD ---
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        // Send the uploaded image to the SAME processing function
         processImage(reader.result);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // --- 3. INTELLIGENT PROCESSING (Works for Both) ---
+  // --- 3. INTELLIGENT PROCESSING ---
   const processImage = async (imgSrc) => {
-    setImage(imgSrc); // Show the captured/uploaded image
+    setImage(imgSrc); 
     setIsProcessing(true);
     setProgress(0);
     setError('');
@@ -68,20 +91,19 @@ const Scan = () => {
             }
           );
           
-          // Clean up text (remove special chars, keep alphanumeric)
           const cleanText = result.data.text.replace(/[^a-zA-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
           
-          if (cleanText.length < 3) throw new Error("Text too blurry");
+          if (cleanText.length < 3) throw new Error(t.errorBlurry);
           
           setScannedText(cleanText);
           setIsProcessing(false);
           setShowVerifyModal(true);
-          toast.success("Text Detected!");
+          toast.success(t.success);
 
         } catch (err) {
-          setError('Could not read text. Please try uploading a clear photo.');
+          setError(t.errorRead);
           setIsProcessing(false);
-          toast.error("Scan Failed. Try Upload.");
+          toast.error("Scan Failed");
         }
     } else {
         // BARCODE SIMULATION
@@ -100,7 +122,7 @@ const Scan = () => {
         track.applyConstraints({ advanced: [{ torch: !torch }] });
         setTorch(!torch);
     } else {
-        toast.error("Flashlight not supported on this device");
+        toast.error(t.torchError);
     }
   };
 
@@ -119,13 +141,13 @@ const Scan = () => {
                 onClick={() => setMode('text')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition ${mode === 'text' ? 'bg-white text-black' : 'text-white'}`}
             >
-                <Type size={14} /> Text
+                <Type size={14} /> {t.textMode}
             </button>
             <button 
                 onClick={() => setMode('barcode')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition ${mode === 'barcode' ? 'bg-white text-black' : 'text-white'}`}
             >
-                <ScanBarcode size={14} /> Barcode
+                <ScanBarcode size={14} /> {t.barcodeMode}
             </button>
         </div>
 
@@ -150,7 +172,7 @@ const Scan = () => {
         {!cameraReady && !image && (
              <div className="absolute z-40 text-white flex flex-col items-center">
                 <Loader2 className="animate-spin mb-4 text-emerald-500" size={48} />
-                <p className="font-bold tracking-widest uppercase text-xs">Initializing Camera...</p>
+                <p className="font-bold tracking-widest uppercase text-xs">{t.initCamera}</p>
              </div>
         )}
 
@@ -160,7 +182,7 @@ const Scan = () => {
               audio={false}
               ref={webcamRef}
               screenshotFormat="image/jpeg"
-              videoConstraints={{ facingMode: "environment" }} // Back Camera
+              videoConstraints={{ facingMode: "environment" }}
               onUserMedia={() => setCameraReady(true)}
               onUserMediaError={() => setError("Camera Access Denied")}
               className="absolute inset-0 w-full h-full object-cover"
@@ -181,18 +203,18 @@ const Scan = () => {
                 
                 {/* Manual Input Trigger */}
                 <div className="absolute -bottom-16 w-full px-4">
-                     <p className="text-white/70 text-center text-xs font-medium mb-2">Scan failed? Enter manually:</p>
-                     <div className="flex gap-2">
+                      <p className="text-white/70 text-center text-xs font-medium mb-2">{t.scanFailed}</p>
+                      <div className="flex gap-2">
                         <input 
                             type="text" 
-                            placeholder={mode === 'text' ? "Type Name..." : "Type Code..."}
+                            placeholder={mode === 'text' ? t.placeholderText : t.placeholderCode}
                             className="flex-1 bg-black/50 border border-white/30 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-500 transition"
                             onKeyDown={(e) => {
-                                if (e.key === 'Enter') navigate(`/result?search=${e.target.value}`);
+                                if (e.key === 'Enter') navigate(`/result/${e.target.value}`);
                             }}
                         />
                         <button className="bg-emerald-600 p-2 rounded-lg text-white"><Search size={16}/></button>
-                     </div>
+                      </div>
                 </div>
             </div>
         )}
@@ -201,9 +223,9 @@ const Scan = () => {
         {isProcessing && (
              <div className="absolute z-50 bg-black/80 backdrop-blur-xl p-8 rounded-3xl flex flex-col items-center border border-white/10 shadow-2xl">
                 <Loader2 className="text-emerald-500 animate-spin mb-4" size={56} />
-                <h3 className="text-white font-bold text-xl mb-1">Analyzing...</h3>
+                <h3 className="text-white font-bold text-xl mb-1">{t.analyzing}</h3>
                 <p className="text-gray-400 text-sm">
-                    {mode === 'text' ? `Reading Text (${progress}%)` : "Decoding Barcode"}
+                    {mode === 'text' ? `${t.readingText} (${progress}%)` : t.decoding}
                 </p>
              </div>
         )}
@@ -212,7 +234,7 @@ const Scan = () => {
       {/* BOTTOM CONTROLS */}
       <div className="h-36 bg-black flex items-center justify-around px-8 pb-6 z-30">
         
-        {/* --- UPLOAD BUTTON (THE FEATURE YOU REQUESTED) --- */}
+        {/* --- UPLOAD BUTTON --- */}
         <div className="flex flex-col items-center gap-2">
             <button 
                 onClick={() => fileInputRef.current.click()}
@@ -220,9 +242,8 @@ const Scan = () => {
             >
                 <ImageIcon size={20} />
             </button>
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Upload</span>
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{t.upload}</span>
             
-            {/* Hidden Input for File Selection */}
             <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -263,8 +284,8 @@ const Scan = () => {
             <div className="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom-10">
                 <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-6 sm:hidden"></div>
                 
-                <h3 className="text-gray-900 font-bold text-xl mb-1">Result Found</h3>
-                <p className="text-gray-500 text-sm mb-4">We detected the following text. Edit if needed:</p>
+                <h3 className="text-gray-900 font-bold text-xl mb-1">{t.resultFound}</h3>
+                <p className="text-gray-500 text-sm mb-4">{t.verifyMsg}</p>
                 
                 <div className="bg-gray-50 p-2 rounded-xl border border-gray-200 mb-6">
                     <input 
@@ -280,13 +301,13 @@ const Scan = () => {
                         onClick={() => {setImage(null); setShowVerifyModal(false);}} 
                         className="flex-1 py-3.5 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition"
                     >
-                        Retake
+                        {t.retake}
                     </button>
                     <button 
-                        onClick={() => navigate(`/result?search=${scannedText}`)} 
+                        onClick={() => navigate(`/result/${scannedText}`)} 
                         className="flex-1 py-3.5 rounded-xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition"
                     >
-                        Analyze Now
+                        {t.analyze}
                     </button>
                 </div>
             </div>

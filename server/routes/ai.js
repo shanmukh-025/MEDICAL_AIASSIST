@@ -176,4 +176,41 @@ router.post('/swap-food', auth, async (req, res) => {
   }
 });
 
+// --- NEW ROUTE: Medicine Info (for Scan Results) ---
+router.post('/medicine-info', auth, async (req, res) => {
+  try {
+    const { medicineName, language } = req.body;
+    
+    // Strict JSON Prompt
+    const prompt = `
+      You are a medical expert. 
+      Provide details for the medicine: "${medicineName}".
+      Language: ${language === 'te' ? 'TELUGU (Telugu Script)' : 'ENGLISH'}.
+      
+      Return valid JSON ONLY with this EXACT structure (keys must be English):
+      {
+        "uses": "Short explanation of what it treats (in requested language)",
+        "dosage": "General dosage advice (in requested language)",
+        "sideEffects": "Common side effects (in requested language)",
+        "warnings": "Important safety warnings (in requested language)"
+      }
+    `;
+
+    const text = await callGemini(prompt);
+    
+    // Clean JSON (remove markdown ticks)
+    const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    res.json(JSON.parse(cleanJson));
+
+  } catch (err) {
+    console.error("Medicine Info Error:", err);
+    res.json({ 
+        uses: "Could not fetch details.", 
+        dosage: "Consult Doctor",
+        sideEffects: "Unknown", 
+        warnings: "Please consult a doctor." 
+    });
+  }
+});
+
 module.exports = router;
