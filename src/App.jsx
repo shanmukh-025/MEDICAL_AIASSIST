@@ -6,6 +6,10 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext'; 
 
+// Components
+import PrivateRoute from './components/PrivateRoute';
+import OfflineIndicator from './components/OfflineIndicator'; // Import the offline banner
+
 // Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -13,24 +17,24 @@ import Register from './pages/Register';
 import Wellness from './pages/Wellness';
 import FirstAid from './pages/FirstAid';
 import HealthRecords from './pages/HealthRecords';
-
-// --- NEW IMPORTS (Based on your file names) ---
 import Reminders from './pages/Reminders';
 import Scan from './pages/Scan';
 import Tracker from './pages/Tracker'; // For Analytics
 import Appointments from './pages/Appointments';
 import Result from './pages/Result';
 import Doctors from './pages/Doctors';
-// Components
-import PrivateRoute from './components/PrivateRoute';
 
 function App() {
   return (
     <AuthProvider>
       <LanguageProvider>
         <Router>
-          <div className="App">
+          <div className="App min-h-screen bg-slate-50">
+            {/* Global Toaster for Notifications */}
             <Toaster position="top-center" />
+            
+            {/* Offline Indicator - Shows when internet is lost */}
+            <OfflineIndicator /> 
             
             <Routes>
               {/* Public Routes */}
@@ -38,12 +42,10 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               
-              {/* Protected Routes */}
+              {/* Protected Routes (Require Login) */}
               <Route path="/wellness" element={<PrivateRoute><Wellness /></PrivateRoute>} />
               <Route path="/first-aid" element={<PrivateRoute><FirstAid /></PrivateRoute>} />
               <Route path="/records" element={<PrivateRoute><HealthRecords /></PrivateRoute>} />
-              
-              {/* --- NEW ROUTES CONNECTED --- */}
               <Route path="/reminders" element={<PrivateRoute><Reminders /></PrivateRoute>} />
               <Route path="/scan" element={<PrivateRoute><Scan /></PrivateRoute>} />
               <Route path="/analytics" element={<PrivateRoute><Tracker /></PrivateRoute>} />
