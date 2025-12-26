@@ -38,9 +38,11 @@ function App() {
             
             <Routes>
               {/* Public Routes */}
-              <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+
+              {/* Protect the root/dashboard route */}
+              <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
               
               {/* Protected Routes (Require Login) */}
               <Route path="/wellness" element={<PrivateRoute><Wellness /></PrivateRoute>} />
