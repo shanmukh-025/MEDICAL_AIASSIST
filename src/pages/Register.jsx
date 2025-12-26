@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Lock, ArrowRight, Loader2, Heart } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API_URL } from '../config'; // Import the Central Config
 
 const Register = () => {
   const navigate = useNavigate();
@@ -21,7 +22,8 @@ const Register = () => {
     setLoading(true);
     
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/auth/register`, {
+      // Use API_URL here instead of import.meta.env
+      const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -35,11 +37,10 @@ const Register = () => {
         // Save token
         localStorage.setItem('token', data.token);
         
-        // --- FIX: Save Name so Home Page can display it ---
+        // Save Name so Home Page can display it immediately
         localStorage.setItem('userName', name);
         
         toast.success("Account created successfully!");
-        // Redirect to Home so they see the dashboard immediately
         navigate('/');
       } else {
         toast.error(data.msg || "Registration failed");
