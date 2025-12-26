@@ -23,7 +23,7 @@ const HealthCenter = () => {
   const fetchHistory = async () => {
     try {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/api/health/history', {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/health/history`, {
             headers: { 'x-auth-token': token }
         });
         const data = await res.json();
@@ -52,7 +52,7 @@ const HealthCenter = () => {
             ? { type: 'bmi', value: parseFloat(inputValue) }
             : { type: 'illness', description: inputDesc };
 
-        await fetch('http://localhost:5000/api/health/log', {
+        await fetch(`${import.meta.env.VITE_API_BASE}/api/health/log`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
             body: JSON.stringify(body)

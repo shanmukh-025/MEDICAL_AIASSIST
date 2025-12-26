@@ -209,7 +209,7 @@ const DoctorList = ({ onClose }) => {
             time: bookTime
         };
 
-        const res = await fetch('http://localhost:5000/api/appointments', {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/appointments`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
             body: JSON.stringify(appointmentData)

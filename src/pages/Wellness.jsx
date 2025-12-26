@@ -95,7 +95,7 @@ const Wellness = () => {
         if(!token) { setLoading(false); return; }
 
         try {
-            const res = await fetch('http://localhost:5000/api/wellness/today', { headers: { 'x-auth-token': token } });
+            const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/wellness/today`, { headers: { 'x-auth-token': token } });
             if(res.ok) {
                 const data = await res.json();
                 setHydration(data.hydration || 0);
@@ -104,7 +104,7 @@ const Wellness = () => {
         } catch (err) { console.error("Stats Error", err); } 
 
         try {
-            const histRes = await fetch('http://localhost:5000/api/wellness/history', { headers: { 'x-auth-token': token } });
+            const histRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/wellness/history`, { headers: { 'x-auth-token': token } });
             if(histRes.ok) {
                 const histData = await histRes.json();
                 setHistory(histData);
@@ -127,13 +127,13 @@ const Wellness = () => {
   const saveToDb = async (updates) => {
     try {
         const token = localStorage.getItem('token');
-        await fetch('http://localhost:5000/api/wellness/update', {
+        await fetch(`${import.meta.env.VITE_API_BASE}/api/wellness/update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
             body: JSON.stringify(updates)
         });
         
-        const histRes = await fetch('http://localhost:5000/api/wellness/history', { headers: { 'x-auth-token': token } });
+        const histRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/wellness/history`, { headers: { 'x-auth-token': token } });
         if(histRes.ok) setHistory(await histRes.json());
         
     } catch (err) { console.error("Save failed", err); }
@@ -177,7 +177,7 @@ const Wellness = () => {
     try {
         const token = localStorage.getItem('token');
         const bmi = bmiResult ? bmiResult.score : "24.0"; 
-        const res = await fetch('http://localhost:5000/api/ai/generate-diet', {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/ai/generate-diet`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
             body: JSON.stringify({ bmi, ...dietProfile, language: lang }) // Sending Language
@@ -193,7 +193,7 @@ const Wellness = () => {
     setSwappingIndex(index);
     try {
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5000/api/ai/swap-food', {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/ai/swap-food`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
             body: JSON.stringify({ originalFood: item, reason, language: lang })

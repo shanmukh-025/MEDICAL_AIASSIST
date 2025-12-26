@@ -1,6 +1,8 @@
 # ===== ENVIRONMENT & SECRETS =====
 # NEVER COMMIT THESE FILES - THEY CONTAIN SENSITIVE INFO!
 .env
+.env.development
+.env.production
 .env.local
 .env.*.local
 .env.production.local

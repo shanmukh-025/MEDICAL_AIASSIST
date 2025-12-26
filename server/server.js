@@ -37,7 +37,8 @@ app.use(cors({
     'http://localhost:5173',   // Dev Server
     'http://127.0.0.1:5173',   // Dev Server (IP)
     'http://localhost:4173',   // Preview/Build Server (PWA)
-    'http://127.0.0.1:4173'    // Preview/Build Server (IP)
+    'http://127.0.0.1:4173',   // Preview/Build Server (IP)
+    'https://medical-aiassist.vercel.app'  // Production Frontend (Vercel)
   ], 
   credentials: true
 }));

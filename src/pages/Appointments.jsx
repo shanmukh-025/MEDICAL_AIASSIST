@@ -41,7 +41,7 @@ const Appointments = () => {
             return;
         }
 
-        const res = await fetch('http://localhost:5000/api/appointments', {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/appointments`, {
             headers: { 'x-auth-token': token }
         });
 
@@ -64,7 +64,7 @@ const Appointments = () => {
   const deleteAppt = async (id) => {
     try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:5000/api/appointments/${id}`, {
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/appointments/${id}`, {
             method: 'DELETE',
             headers: { 'x-auth-token': token }
         });

@@ -44,7 +44,7 @@ const HealthRecords = () => {
   // Fetch Records
   const fetchRecords = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/records', {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/records`, {
         headers: { 'x-auth-token': localStorage.getItem('token') }
       });
       const data = await res.json();
@@ -75,7 +75,7 @@ const HealthRecords = () => {
     
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/records', {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/records`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') },
         body: JSON.stringify(formData)
@@ -97,7 +97,7 @@ const HealthRecords = () => {
   const handleDelete = async (id) => {
       if(!window.confirm(t.deleteConfirm)) return;
       try {
-          await fetch(`http://localhost:5000/api/records/${id}`, {
+          await fetch(`${import.meta.env.VITE_API_BASE}/api/records/${id}`, {
              method: 'DELETE',
              headers: { 'x-auth-token': localStorage.getItem('token') }
           });
