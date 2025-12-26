@@ -1,0 +1,4 @@
+# Ignore server files during frontend build
+server/
+.env.development
+.env
