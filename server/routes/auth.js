@@ -15,18 +15,34 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
     // 3. Create User
-    const newUser = new User({
+    const userData = {
       name: req.body.name,
       email: req.body.email,
-      password: hashedPassword
-    });
+      password: hashedPassword,
+      role: req.body.role || 'PATIENT'
+    };
 
+    // Add hospital-specific fields if role is HOSPITAL
+    if (req.body.role === 'HOSPITAL') {
+      if (req.body.address) userData.address = req.body.address;
+      if (req.body.location) userData.location = req.body.location;
+    }
+
+    const newUser = new User(userData);
     const savedUser = await newUser.save();
     
     // 4. Create Token
     const token = jwt.sign({ id: savedUser._id }, process.env.JWT_SECRET);
     
-    res.status(201).json({ token, user: { id: savedUser._id, name: savedUser.name, email: savedUser.email } });
+    res.status(201).json({ 
+      token, 
+      user: { 
+        id: savedUser._id, 
+        name: savedUser.name, 
+        email: savedUser.email,
+        role: savedUser.role
+      } 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -46,7 +62,15 @@ router.post('/login', async (req, res) => {
     // 3. Create Token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
 
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    res.json({ 
+      token, 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        email: user.email,
+        role: user.role || 'PATIENT'
+      } 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -13,6 +13,13 @@ const Home = () => {
   const [searchQuery, setSearchQuery] = useState(''); 
 
   useEffect(() => {
+    // Redirect hospitals to their dashboard
+    const userRole = localStorage.getItem('userRole');
+    if (userRole === 'HOSPITAL') {
+      navigate('/hospital-dashboard');
+      return;
+    }
+
     const savedName = localStorage.getItem('userName');
     if (savedName) setUserName(savedName);
   }, []);

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Heart, Menu, X, LogOut, FileText, Activity, MessageCircle } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center gap-4">
+            {token && <NotificationBell />}
             {token ? (
               <button onClick={handleLogout} className="flex items-center gap-2 text-slate-400 hover:text-red-500 font-bold text-xs uppercase border px-4 py-2 rounded-lg">
                 <LogOut size={14} /> Logout

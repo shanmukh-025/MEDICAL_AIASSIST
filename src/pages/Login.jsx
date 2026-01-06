@@ -23,17 +23,26 @@ const Login = () => {
         if (res.ok) {
             localStorage.setItem('token', data.token);
 
-            // --- FIX: Save Name from backend or use Email as fallback ---
-            if (data.user && data.user.name) {
-                localStorage.setItem('userName', data.user.name);
+            // --- Store user data including role ---
+            if (data.user) {
+                localStorage.setItem('user', JSON.stringify(data.user));
+                localStorage.setItem('userName', data.user.name || formData.email.split('@')[0]);
+                localStorage.setItem('userRole', data.user.role || 'PATIENT');
             } else {
-                // If backend doesn't send name, use the part before '@' in email
                 const fallbackName = formData.email.split('@')[0];
                 localStorage.setItem('userName', fallbackName.charAt(0).toUpperCase() + fallbackName.slice(1));
+                localStorage.setItem('userRole', 'PATIENT');
             }
 
             toast.success("Welcome back!");
-            navigate('/'); 
+            
+            // Redirect based on role
+            const userRole = data.user?.role || 'PATIENT';
+            if (userRole === 'HOSPITAL') {
+                navigate('/hospital-dashboard');
+            } else {
+                navigate('/');
+            }
         } else {
             toast.error(data.msg || "Invalid credentials");
         }

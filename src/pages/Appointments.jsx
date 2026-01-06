@@ -165,11 +165,15 @@ const Appointments = () => {
                         {/* Card Header */}
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <h3 className="font-bold text-lg text-gray-900 leading-tight">{appt.doctor}</h3>
-                                <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">{appt.hospital}</p>
+                                <h3 className="font-bold text-lg text-gray-900 leading-tight">{appt.hospitalName || 'Hospital'}</h3>
+                                <p className="text-xs font-bold text-gray-400 mt-1 uppercase tracking-wider">{appt.doctor || 'Doctor'}</p>
                             </div>
-                            <span className="bg-green-100 text-green-700 text-[10px] font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wide border border-green-200">
-                                {appt.status || t.confirmed}
+                            <span className={`text-[10px] font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wide border ${
+                                appt.status === 'CONFIRMED' ? 'bg-green-100 text-green-700 border-green-200' :
+                                appt.status === 'REJECTED' ? 'bg-red-100 text-red-700 border-red-200' :
+                                'bg-yellow-100 text-yellow-700 border-yellow-200'
+                            }`}>
+                                {appt.status || 'PENDING'}
                             </span>
                         </div>
 
@@ -178,17 +182,29 @@ const Appointments = () => {
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2.5">
                                     <div className="bg-blue-100 p-1.5 rounded-lg text-blue-600"><Calendar size={14} strokeWidth={3}/></div>
-                                    <span className="font-bold text-gray-700 text-sm">{appt.date}</span>
+                                    <span className="font-bold text-gray-700 text-sm">{appt.appointmentDate || 'Not set'}</span>
                                 </div>
                                 <div className="flex items-center gap-2.5">
                                     <div className="bg-orange-100 p-1.5 rounded-lg text-orange-600"><Clock size={14} strokeWidth={3}/></div>
-                                    <span className="font-bold text-gray-700 text-sm">{appt.time}</span>
+                                    <span className="font-bold text-gray-700 text-sm">{appt.appointmentTime || 'Not set'}</span>
                                 </div>
                             </div>
-                            {appt.specialty && (
+                            {appt.reason && (
                                 <div className="flex items-center gap-2 text-xs text-gray-500 border-t border-gray-200 pt-3 mt-1">
                                     <MapPin size={14} className="text-gray-400 shrink-0"/> 
-                                    <span className="truncate font-medium">{appt.specialty}</span>
+                                    <span className="truncate font-medium">{appt.reason}</span>
+                                </div>
+                            )}
+                            {appt.rejectionReason && (
+                                <div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-100 mt-2">
+                                    <AlertTriangle size={14} className="shrink-0"/> 
+                                    <span className="font-medium">{appt.rejectionReason}</span>
+                                </div>
+                            )}
+                            {appt.approvalMessage && (
+                                <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 p-2 rounded-lg border border-emerald-100 mt-2">
+                                    <CheckCircle size={14} className="shrink-0"/> 
+                                    <span className="font-medium">💡 {appt.approvalMessage}</span>
                                 </div>
                             )}
                         </div>

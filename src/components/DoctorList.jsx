@@ -107,9 +107,9 @@ const DoctorList = ({ onClose }) => {
   
   // Booking States
   const [bookingHospital, setBookingHospital] = useState(null);
-  const [patientName, setPatientName] = useState('');
   const [bookDate, setBookDate] = useState('');
   const [bookTime, setBookTime] = useState('');
+  const [reason, setReason] = useState('');
   const [step, setStep] = useState('form');
 
   // --- 1. SIMULATION ENGINE (The "Bulletproof" Fix) ---
@@ -153,7 +153,30 @@ const DoctorList = ({ onClose }) => {
   const fetchNearbyHospitals = async (lat, lng) => {
     setLoading(true);
     try {
-      // Improved Query: Searches 15km, includes Nodes (Points) AND Ways (Buildings)
+      // STEP 1: Fetch registered hospitals from database
+      const dbRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/hospitals/registered`);
+      const registeredHospitals = dbRes.ok ? await dbRes.json() : [];
+      
+      // Format registered hospitals WITH FULL PROFILE DATA
+      const formattedRegistered = registeredHospitals.map(h => ({
+        id: `db-${h._id}`,
+        name: h.name,
+        lat: h.location.latitude,
+        lng: h.location.longitude,
+        type: lang === 'en' ? '🏥 Registered Hospital' : '🏥 నమోదిత ఆసుపత్రి',
+        distance: "✅ Verified",
+        isRegistered: true,
+        // Include full profile
+        address: h.address,
+        phone: h.phone,
+        emergencyContact: h.emergencyContact,
+        workingHours: h.workingHours || '09:00 AM - 09:00 PM',
+        services: h.services || [],
+        doctors: h.doctors || [],
+        about: h.about
+      }));
+      
+      // STEP 2: Fetch nearby hospitals from OpenStreetMap
       const query = `
         [out:json][timeout:25];
         (
@@ -167,32 +190,38 @@ const DoctorList = ({ onClose }) => {
       const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
       const data = await res.json();
       
-      if (!data.elements || data.elements.length === 0) {
-        // --- FALLBACK TRIGGERED ---
+      let osmHospitals = [];
+      if (data.elements && data.elements.length > 0) {
+        osmHospitals = data.elements.map((place) => ({
+            id: place.id,
+            name: place.tags.name || (lang === 'en' ? "Local Medical Center" : "స్థానిక వైద్య కేంద్రం"),
+            lat: place.lat || place.center.lat,
+            lng: place.lon || place.center.lon,
+            type: (place.tags.amenity === 'hospital') ? (lang === 'en' ? 'Hospital' : 'ఆసుపత్రి') : (lang === 'en' ? 'Clinic' : 'క్లినిక్'),
+            distance: "📍 Nearby",
+            isRegistered: false
+        })).slice(0, 20);
+      }
+      
+      // STEP 3: Combine registered + OSM hospitals (registered first)
+      const combinedHospitals = [...formattedRegistered, ...osmHospitals];
+      
+      if (combinedHospitals.length === 0) {
         toast(t.fallbackMsg, { icon: '⚠️' });
         setHospitals(generateMockHospitals(lat, lng));
       } else {
-        // --- REAL DATA FOUND ---
-        const realHospitals = data.elements.map((place) => ({
-            id: place.id,
-            name: place.tags.name || (lang === 'en' ? "Local Medical Center" : "స్థానిక వైద్య కేంద్రం"),
-            lat: place.lat || place.center.lat, // Handle 'ways' which have center
-            lng: place.lon || place.center.lon,
-            type: (place.tags.amenity === 'hospital') ? (lang === 'en' ? 'Hospital' : 'ఆసుపత్రి') : (lang === 'en' ? 'Clinic' : 'క్లినిక్'),
-            distance: "📍 Nearby"
-        })).slice(0, 20);
-        setHospitals(realHospitals);
+        setHospitals(combinedHospitals);
       }
 
     } catch (err) {
       console.warn("Map API Failed. Using Mock Data.");
-      setHospitals(generateMockHospitals(lat, lng)); // Network fail -> Mock Data
+      setHospitals(generateMockHospitals(lat, lng));
     } finally {
       setLoading(false);
     }
   };
 
-  // --- 4. BOOKING LOGIC ---
+  // --- 4. BOOKING LOGIC (New Appointment Workflow) ---
   const handleBooking = async (e) => {
     e.preventDefault();
     setStep('loading');
@@ -202,11 +231,11 @@ const DoctorList = ({ onClose }) => {
         if (!token) throw new Error("Login required");
 
         const appointmentData = {
-            doctor: t.dutyDoctor, 
-            hospital: bookingHospital.name,
-            specialty: bookingHospital.type || t.opd,
-            date: bookDate,
-            time: bookTime
+            hospitalName: bookingHospital.name,
+            doctor: t.dutyDoctor,
+            appointmentDate: bookDate,
+            appointmentTime: bookTime,
+            reason: reason || `${bookingHospital.type || t.opd} consultation`
         };
 
         const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/appointments`, {
@@ -320,11 +349,68 @@ const DoctorList = ({ onClose }) => {
       {/* LIST AREA */}
       <div className="flex-1 overflow-y-auto bg-slate-50 p-4 space-y-3 pb-24">
         {hospitals.map(h => (
-            <div key={h.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-3 group hover:border-emerald-300 hover:shadow-md transition duration-300">
+            <div key={h.id} className={`bg-white p-5 rounded-2xl shadow-sm border ${h.isRegistered ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-100'} flex flex-col gap-3 group hover:border-emerald-300 hover:shadow-md transition duration-300`}>
                 <div className="flex justify-between items-start">
-                    <div>
-                        <h3 className="font-bold text-slate-800 text-base leading-tight">{h.name}</h3>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-slate-800 text-base leading-tight">{h.name}</h3>
+                            {h.isRegistered && (
+                                <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    ✓ VERIFIED
+                                </span>
+                            )}
+                        </div>
                         <p className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide text-emerald-600 bg-emerald-50 inline-block px-2 py-0.5 rounded">{h.type}</p>
+                        
+                        {/* Show profile details for registered hospitals */}
+                        {h.isRegistered && (
+                          <div className="mt-3 space-y-2 text-xs text-slate-600">
+                            {h.address && (
+                              <div className="flex items-start gap-2">
+                                <MapPin size={12} className="text-emerald-600 mt-0.5 shrink-0" />
+                                <span>{h.address}</span>
+                              </div>
+                            )}
+                            {h.phone && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-emerald-600">📞</span>
+                                <span>{h.phone}</span>
+                              </div>
+                            )}
+                            {h.workingHours && (
+                              <div className="flex items-center gap-2">
+                                <Clock size={12} className="text-emerald-600" />
+                                <span>{h.workingHours}</span>
+                              </div>
+                            )}
+                            {h.about && (
+                              <div className="bg-white p-2 rounded-lg border border-emerald-100 mt-2">
+                                <p className="text-xs text-slate-600 italic">{h.about}</p>
+                              </div>
+                            )}
+                            {h.doctors && h.doctors.length > 0 && (
+                              <div className="mt-2 bg-white p-2 rounded-lg border border-emerald-100">
+                                <p className="font-bold text-emerald-700 mb-1">👨‍⚕️ Doctors:</p>
+                                {h.doctors.slice(0, 3).map((doc, i) => (
+                                  <div key={i} className="text-[11px] ml-2 mb-1">
+                                    • <span className="font-semibold">{doc.name}</span> - <span className="text-emerald-600">{doc.specialty}</span>
+                                  </div>
+                                ))}
+                                {h.doctors.length > 3 && <p className="text-[10px] text-slate-400 ml-2">+{h.doctors.length - 3} more</p>}
+                              </div>
+                            )}
+                            {h.services && h.services.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                {h.services.slice(0, 4).map((service, i) => (
+                                  <span key={i} className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-medium">
+                                    {service}
+                                  </span>
+                                ))}
+                                {h.services.length > 4 && <span className="text-[10px] text-slate-400">+{h.services.length - 4}</span>}
+                              </div>
+                            )}
+                          </div>
+                        )}
                     </div>
                     <button 
                         onClick={() => openGoogleMaps(h.lat, h.lng)}
@@ -336,7 +422,7 @@ const DoctorList = ({ onClose }) => {
                 
                 <div className="flex items-center justify-between border-t border-slate-50 pt-3 mt-1">
                     <div className="text-xs text-slate-500 flex items-center gap-1.5">
-                        <Clock size={14} className="text-slate-400"/> {t.hours}
+                        <Clock size={14} className="text-slate-400"/> {h.workingHours || t.hours}
                     </div>
                     <button 
                         onClick={() => setBookingHospital(h)} 
@@ -376,8 +462,8 @@ const DoctorList = ({ onClose }) => {
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t.patientName}</label>
-                            <input required type="text" className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition" value={patientName} onChange={e => setPatientName(e.target.value)} />
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{lang === 'en' ? 'REASON' : 'కారణం'}</label>
+                            <input type="text" placeholder={lang === 'en' ? 'Optional' : 'ఐచ్ఛికం'} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition" value={reason} onChange={e => setReason(e.target.value)} />
                         </div>
 
                         <div className="grid grid-cols-2 gap-3">

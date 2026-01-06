@@ -1,47 +1,101 @@
 ﻿import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, ArrowRight, Loader2, Heart } from 'lucide-react';
+import { User, Mail, Lock, ArrowRight, Loader2, Heart, MapPin, Building2, Crosshair } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_URL } from '../config'; // Import the Central Config
 
 const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    password: ''
+    password: '',
+    role: 'PATIENT',
+    address: '',
+    latitude: '',
+    longitude: ''
   });
 
-  const { name, email, password } = formData;
+  const { name, email, password, role, address, latitude, longitude } = formData;
 
   const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
 
+  const getCurrentLocation = () => {
+    setGettingLocation(true);
+    if (!navigator.geolocation) {
+      toast.error('GPS not available on this device');
+      setGettingLocation(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData({
+          ...formData,
+          latitude: position.coords.latitude.toString(),
+          longitude: position.coords.longitude.toString()
+        });
+        toast.success('Location captured!');
+        setGettingLocation(false);
+      },
+      (error) => {
+        toast.error('Unable to get location');
+        setGettingLocation(false);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
   const onSubmit = async e => {
     e.preventDefault();
+    
+    // Validate hospital requirements
+    if (role === 'HOSPITAL') {
+      if (!address || !latitude || !longitude) {
+        toast.error('Hospitals must provide address and location');
+        return;
+      }
+    }
+    
     setLoading(true);
     
     try {
-      // Use API_URL here instead of import.meta.env
+      const payload = { name, email, password, role };
+      
+      // Include location data for hospitals
+      if (role === 'HOSPITAL') {
+        payload.address = address;
+        payload.location = {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude)
+        };
+      }
+      
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       const data = await res.json();
 
       if (res.ok) {
-        // Save token
         localStorage.setItem('token', data.token);
-        
-        // Save Name so Home Page can display it immediately
         localStorage.setItem('userName', name);
+        localStorage.setItem('userRole', role);
+        if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
         
         toast.success("Account created successfully!");
-        navigate('/');
+        
+        // Redirect based on role
+        if (role === 'HOSPITAL') {
+          navigate('/hospital-dashboard');
+        } else {
+          navigate('/');
+        }
       } else {
         toast.error(data.msg || "Registration failed");
       }
@@ -69,6 +123,21 @@ const Register = () => {
         {/* Form */}
         <form onSubmit={onSubmit} className="space-y-4">
           
+          {/* Role Selector */}
+          <div className="relative">
+            <Building2 className="absolute left-4 top-3.5 text-slate-400" size={20} />
+            <select
+              name="role"
+              value={role}
+              onChange={onChange}
+              className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none"
+              required
+            >
+              <option value="PATIENT">Patient / User</option>
+              <option value="HOSPITAL">Hospital / Clinic</option>
+            </select>
+          </div>
+
           {/* Name Input */}
           <div className="relative">
             <User className="absolute left-4 top-3.5 text-slate-400" size={20} />
@@ -77,7 +146,7 @@ const Register = () => {
               name="name" 
               value={name} 
               onChange={onChange} 
-              placeholder="Full Name" 
+              placeholder={role === 'HOSPITAL' ? 'Hospital/Clinic Name' : 'Full Name'}
               className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
               required 
             />
@@ -111,6 +180,67 @@ const Register = () => {
               minLength="6"
             />
           </div>
+
+          {/* Hospital-Specific Fields */}
+          {role === 'HOSPITAL' && (
+            <>
+              <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
+                <p className="text-xs font-bold text-blue-700">📍 Hospital Location Required</p>
+              </div>
+
+              {/* Address */}
+              <div className="relative">
+                <MapPin className="absolute left-4 top-3.5 text-slate-400" size={20} />
+                <input 
+                  type="text" 
+                  name="address" 
+                  value={address} 
+                  onChange={onChange} 
+                  placeholder="Full Address" 
+                  className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                  required={role === 'HOSPITAL'}
+                />
+              </div>
+
+              {/* Location Inputs */}
+              <div className="grid grid-cols-2 gap-3">
+                <input 
+                  type="number" 
+                  step="any"
+                  name="latitude" 
+                  value={latitude} 
+                  onChange={onChange} 
+                  placeholder="Latitude" 
+                  className="bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                  required={role === 'HOSPITAL'}
+                />
+                <input 
+                  type="number" 
+                  step="any"
+                  name="longitude" 
+                  value={longitude} 
+                  onChange={onChange} 
+                  placeholder="Longitude" 
+                  className="bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                  required={role === 'HOSPITAL'}
+                />
+              </div>
+
+              {/* Get Current Location Button */}
+              <button
+                type="button"
+                onClick={getCurrentLocation}
+                disabled={gettingLocation}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-blue-700 transition"
+              >
+                {gettingLocation ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <><Crosshair size={18} /> Use My Current Location</>
+                )}
+              </button>
+            </>
+          )}
 
           <button 
             type="submit" 

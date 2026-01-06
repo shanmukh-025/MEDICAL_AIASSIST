@@ -5,6 +5,8 @@ const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
+const http = require('http');
+const { Server } = require('socket.io');
 
 // 1. Connect Database
 connectDB();
@@ -59,10 +61,22 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/wellness', require('./routes/wellness'));
 app.use('/api/records', require('./routes/records'));
-app.use('/api/appointments', require('./routes/appointments')); 
+app.use('/api/appointments', require('./routes/appointments'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/hospitals', require('./routes/hospitals'));
 
 // 6. Test Route
 app.get('/', (req, res) => res.send('API is Running...'));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Backend Server running on port ${PORT}`));
+const server = http.createServer(app);
+
+// setup socket.io
+const io = new Server(server, { cors: { origin: '*' } });
+io.on('connection', (socket) => {
+  // clients should join room `user_<userId>` after authentication on client
+  socket.on('join', (room) => socket.join(room));
+});
+app.set('io', io);
+
+server.listen(PORT, () => console.log(`🚀 Backend Server running on port ${PORT}`));
