@@ -4,6 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 
 const FirstAid = () => {
+  // Function to convert markdown-style formatting to HTML
+  const parseMarkdown = (text) => {
+    let parsed = text
+      // Bold: **text** to <strong>text</strong>
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      // Italic: *text* to <em>text</em>
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      // Line breaks
+      .replace(/\n/g, '<br/>');
+    return parsed;
+  };
   const navigate = useNavigate();
   const { lang } = useLanguage();
   const messagesEndRef = useRef(null);
@@ -171,7 +182,7 @@ const FirstAid = () => {
                         ? 'bg-emerald-600 text-white rounded-tr-none' 
                         : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none'
               }`}>
-                {msg.text}
+                <div dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.text) }} />
               </div>
             </div>
           </div>
