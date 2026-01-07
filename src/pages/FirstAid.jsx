@@ -25,11 +25,11 @@ const FirstAid = () => {
   const [apiHistory, setApiHistory] = useState([
     {
       role: "user",
-      parts: [{ text: "You are a helpful village medical assistant. Provide simple, safe advice. If symptoms are severe, tell them to see a doctor immediately." }]
+      parts: [{ text: "You are MediBot, a village medical assistant. You ONLY answer medical and health-related questions. If someone asks non-medical questions (like sports, entertainment, general knowledge, etc.), politely decline and ask them to ask medical questions only. Provide simple, safe medical advice. If symptoms are severe, tell them to see a doctor immediately." }]
     },
     {
       role: "model",
-      parts: [{ text: "Understood. I will provide simple, clear, and safe medical advice." }]
+      parts: [{ text: "Understood. I will only answer medical and health-related questions and politely decline non-medical queries." }]
     }
   ]);
 
@@ -72,8 +72,8 @@ const FirstAid = () => {
   useEffect(() => {
      setMessages([{ role: 'bot', text: initialMsg }]);
      setApiHistory([
-        { role: "user", parts: [{ text: "You are a helpful medical assistant." }] },
-        { role: "model", parts: [{ text: "Understood." }] }
+        { role: "user", parts: [{ text: "You are MediBot, a village medical assistant. You ONLY answer medical and health-related questions. If someone asks non-medical questions (like sports, entertainment, general knowledge, etc.), politely decline and ask them to ask medical questions only. Provide simple, safe medical advice. If symptoms are severe, tell them to see a doctor immediately." }] },
+        { role: "model", parts: [{ text: "Understood. I will only answer medical and health-related questions and politely decline non-medical queries." }] }
      ]);
   }, [lang]);
 
@@ -161,8 +161,8 @@ const FirstAid = () => {
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`flex items-start gap-2 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-emerald-600'}`}>
-                {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200'}`}>
+                {msg.role === 'user' ? <User size={16} /> : <img src="/logo2.jpeg" alt="MediBot" className="w-full h-full rounded-full object-cover" />}
               </div>
               <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
                 msg.isError 
