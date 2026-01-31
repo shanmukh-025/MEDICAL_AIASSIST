@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, FileText, Calendar, User, Upload, X, Loader2, Trash2, Eye, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Calendar, User, Upload, X, Loader2, Trash2, Eye, Image as ImageIcon, AlertCircle, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
@@ -44,12 +44,27 @@ const HealthRecords = () => {
   // Fetch Records
   const fetchRecords = async () => {
     try {
+      const token = localStorage.getItem('token');
+      console.log('Fetching records with token:', token ? 'Token exists' : 'NO TOKEN');
+      console.log('API URL:', `${import.meta.env.VITE_API_BASE}/api/records`);
+      
       const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/records`, {
-        headers: { 'x-auth-token': localStorage.getItem('token') }
+        headers: { 'x-auth-token': token }
       });
+      
+      console.log('Response status:', res.status);
       const data = await res.json();
-      if (res.ok) setRecords(data);
-    } catch (err) { console.error(err); }
+      console.log('Fetched records:', data);
+      console.log('Number of records:', Array.isArray(data) ? data.length : 'Not an array');
+      
+      if (res.ok) {
+        setRecords(data);
+      } else {
+        console.error('API Error:', data);
+      }
+    } catch (err) { 
+      console.error('Error fetching records:', err); 
+    }
   };
 
   useEffect(() => { fetchRecords(); }, []);
@@ -144,11 +159,23 @@ const HealthRecords = () => {
 
                {/* Info */}
                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-slate-800 truncate">{rec.title}</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-bold text-slate-800 truncate">{rec.title}</h3>
+                    {rec.sentByHospital && (
+                      <span className="flex items-center gap-1 bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide border border-blue-200 shrink-0">
+                        <Building2 size={10} /> Hospital
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
-                      <span className="flex items-center gap-1 truncate"><User size={10}/> {rec.doctor}</span>
+                      <span className="flex items-center gap-1 truncate"><User size={10}/> {rec.doctor || 'N/A'}</span>
                       <span className="flex items-center gap-1 shrink-0"><Calendar size={10}/> {new Date(rec.date).toLocaleDateString()}</span>
                   </div>
+                  {rec.hospitalName && (
+                    <div className="text-xs text-blue-600 mt-1 font-medium">
+                      From: {rec.hospitalName}
+                    </div>
+                  )}
                   <span className="inline-block mt-2 bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wide border border-emerald-100">{rec.type}</span>
                </div>
 
