@@ -6,6 +6,10 @@ const RecordSchema = new mongoose.Schema({
     ref: 'User', // References the User model
     required: true
   },
+  familyMember: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FamilyMember' // Link to family member (optional - if null, it's for the user themselves)
+  },
   title: { type: String, required: true }, 
   doctor: { type: String }, 
   type: { type: String },   // e.g., "Prescription", "Lab Report"

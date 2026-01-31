@@ -13,6 +13,7 @@ router.get('/', auth, async (req, res) => {
     const records = await Record.find({ user: req.user.id })
       .sort({ createdAt: -1 })
       .populate('hospitalId', 'name')
+      .populate('familyMember', 'name relationship')
       .lean();
     console.log(`✅ Found ${records.length} records for user ${req.user.id}`);
     res.json(records);
@@ -28,7 +29,7 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res) => {
   try {
     // UPDATED: Destructure 'image' instead of 'fileData'
-    const { title, doctor, type, date, image } = req.body;
+    const { title, doctor, type, date, image, familyMember } = req.body;
     
     const newRecord = new Record({
       user: req.user.id,
@@ -37,6 +38,7 @@ router.post('/', auth, async (req, res) => {
       type,
       date,
       image, // UPDATED: Matches the new Schema field
+      familyMember: familyMember || null,
       sentByHospital: false
     });
 

@@ -26,6 +26,7 @@ import Result from './pages/Result';
 import Doctors from './pages/Doctors';
 import PatientAppointments from './pages/PatientAppointments';
 import HospitalDashboard from './pages/HospitalDashboard';
+import FamilyProfile from './pages/FamilyProfile';
 
 function App() {
   return (
@@ -52,6 +53,7 @@ function App() {
                 <Route path="/wellness" element={<PrivateRoute><Wellness /></PrivateRoute>} />
                 <Route path="/first-aid" element={<PrivateRoute><FirstAid /></PrivateRoute>} />
                 <Route path="/records" element={<PrivateRoute><HealthRecords /></PrivateRoute>} />
+                <Route path="/family" element={<PrivateRoute><FamilyProfile /></PrivateRoute>} />
                 <Route path="/reminders" element={<PrivateRoute><Reminders /></PrivateRoute>} />
                 <Route path="/scan" element={<PrivateRoute><Scan /></PrivateRoute>} />
                 <Route path="/analytics" element={<PrivateRoute><Tracker /></PrivateRoute>} />

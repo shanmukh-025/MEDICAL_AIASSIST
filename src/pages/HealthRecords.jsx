@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, FileText, Calendar, User, Upload, X, Loader2, Trash2, Eye, Image as ImageIcon, AlertCircle, Building2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Plus, FileText, Calendar, User, Upload, X, Loader2, Trash2, Eye, Image as ImageIcon, AlertCircle, Building2, Users } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
 
 const HealthRecords = () => {
   const navigate = useNavigate();
   const { lang } = useLanguage();
+  const [searchParams] = useSearchParams();
+  const selectedMemberId = searchParams.get('member');
   
   // State
   const [showModal, setShowModal] = useState(false);
   const [viewFile, setViewFile] = useState(null); 
   const [loading, setLoading] = useState(false);
   const [records, setRecords] = useState([]);
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const [selectedMember, setSelectedMember] = useState(null);
 
   // --- TRANSLATIONS ---
   const t = {
@@ -39,7 +43,7 @@ const HealthRecords = () => {
     fileReady: lang === 'en' ? 'Image Ready' : 'చిత్రం సిద్ధంగా ఉంది'
   };
 
-  const [formData, setFormData] = useState({ title: '', doctor: '', date: '', type: 'Prescription', image: '' });
+  const [formData, setFormData] = useState({ title: '', doctor: '', date: '', type: 'Prescription', image: '', familyMember: '' });
 
   // Fetch Records
   const fetchRecords = async () => {
@@ -67,7 +71,31 @@ const HealthRecords = () => {
     }
   };
 
-  useEffect(() => { fetchRecords(); }, []);
+  // Fetch Family Members
+  const fetchFamilyMembers = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/family`, {
+        headers: { 'x-auth-token': localStorage.getItem('token') }
+      });
+      const data = await res.json();
+      if (res.ok) setFamilyMembers(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => { 
+    fetchRecords(); 
+    fetchFamilyMembers();
+  }, []);
+
+  // Set selected member from URL params
+  useEffect(() => {
+    if (selectedMemberId && familyMembers.length > 0) {
+      const member = familyMembers.find(m => m._id === selectedMemberId);
+      setSelectedMember(member || null);
+    }
+  }, [selectedMemberId, familyMembers]);
 
   // Handle File Upload (Robust Base64)
   const handleFile = (e) => {
@@ -90,17 +118,22 @@ const HealthRecords = () => {
     
     setLoading(true);
     try {
+      const payload = {
+        ...formData,
+        familyMember: formData.familyMember || null
+      };
+
       const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/records`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
       
       if (res.ok) {
         toast.success(t.added);
         setShowModal(false);
         fetchRecords();
-        setFormData({ title: '', doctor: '', date: '', type: 'Prescription', image: '' });
+        setFormData({ title: '', doctor: '', date: '', type: 'Prescription', image: '', familyMember: '' });
       } else {
         toast.error("Failed to save. File might be too big.");
       }
@@ -121,6 +154,11 @@ const HealthRecords = () => {
       } catch(e) { toast.error("Error"); }
   }
 
+  // Filter records by selected member
+  const filteredRecords = selectedMember 
+    ? records.filter(r => r.familyMember?._id === selectedMember._id)
+    : records.filter(r => !r.familyMember); // Show only user's own records if no member selected
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans p-6 pb-24">
       {/* Header */}
@@ -137,15 +175,56 @@ const HealthRecords = () => {
         </button>
       </div>
 
+      {/* Family Member Filter */}
+      {familyMembers.length > 0 && (
+        <div className="mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+          <div className="flex items-center gap-2 mb-3">
+            <Users size={16} className="text-emerald-600" />
+            <h3 className="text-sm font-bold text-slate-700">
+              {lang === 'en' ? 'View Records For:' : 'రికార్డులు చూడండి:'}
+            </h3>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => { setSelectedMember(null); navigate('/records'); }}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
+                !selectedMember 
+                  ? 'bg-emerald-600 text-white' 
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {lang === 'en' ? 'My Records' : 'నా రికార్డులు'}
+            </button>
+            {familyMembers.map(member => (
+              <button
+                key={member._id}
+                onClick={() => { setSelectedMember(member); navigate(`/records?member=${member._id}`); }}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition flex items-center gap-2 ${
+                  selectedMember?._id === member._id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <User size={14} />
+                {member.name}
+                {member.relationship && (
+                  <span className="text-xs opacity-75">({member.relationship})</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Records Grid */}
       <div className="grid gap-4">
-        {records.length === 0 ? (
+        {filteredRecords.length === 0 ? (
           <div className="text-center py-20 text-slate-400">
               <FileText size={48} className="mx-auto mb-4 opacity-20"/>
               <p>{t.noRecords}</p>
           </div>
         ) : (
-          records.map((rec) => (
+          filteredRecords.map((rec) => (
             <div key={rec._id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 group hover:shadow-md transition">
                
                {/* Thumbnail */}
@@ -232,6 +311,29 @@ const HealthRecords = () => {
                        <option>{t.types.invoice}</option>
                     </select>
                  </div>
+
+                 {/* Family Member Selection */}
+                 {familyMembers.length > 0 && (
+                   <div>
+                     <label className="text-xs font-bold text-slate-400 uppercase">
+                       {lang === 'en' ? 'Record For' : 'రికార్డు ఎవరికి'}
+                     </label>
+                     <select 
+                       className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1 font-medium"
+                       value={formData.familyMember}
+                       onChange={e => setFormData({...formData, familyMember: e.target.value})}
+                     >
+                       <option value="">
+                         {lang === 'en' ? 'Myself' : 'నాకు'}
+                       </option>
+                       {familyMembers.map(member => (
+                         <option key={member._id} value={member._id}>
+                           {member.name} ({member.relationship})
+                         </option>
+                       ))}
+                     </select>
+                   </div>
+                 )}
                  
                  <label className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${formData.image ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                     <input type="file" className="hidden" onChange={handleFile} accept="image/*"/>

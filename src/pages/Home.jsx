@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils, 
-  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2
+  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -54,6 +54,7 @@ const Home = () => {
     medibot: lang === 'en' ? 'MediBot AI' : 'మెడి బాట్',
     analytics: lang === 'en' ? 'Analytics' : 'విశ్లేషణ',
     records: lang === 'en' ? 'Records' : 'రికార్డులు',
+    family: lang === 'en' ? 'Family' : 'కుటుంబం',
     diet: lang === 'en' ? 'Diet / BMI' : 'ఆహారం / BMI',
     appointments: lang === 'en' ? 'My Appointments' : 'నా అపాయింట్‌మెంట్లు',
     viewBookings: lang === 'en' ? 'View Bookings' : 'బుకింగ్‌లను చూడండి'
@@ -164,6 +165,7 @@ const Home = () => {
               <ToolCard icon={BrainCircuit} color="pink" label={t.medibot} onClick={() => navigate('/first-aid')} />
               <ToolCard icon={BarChart2} color="blue" label={t.analytics} onClick={() => navigate('/analytics')} />
               <ToolCard icon={FileText} color="teal" label={t.records} onClick={() => navigate('/records')} />
+              <ToolCard icon={Users} color="emerald" label={t.family} onClick={() => navigate('/family')} />
               <ToolCard icon={Utensils} color="orange" label={t.diet} onClick={() => navigate('/wellness')} />
            </div>
         </div>
