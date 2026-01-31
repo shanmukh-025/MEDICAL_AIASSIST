@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Loader2, ArrowLeft, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Send, User, Bot, Loader2, ArrowLeft, RefreshCw, AlertTriangle, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -21,6 +21,11 @@ const FirstAid = () => {
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(true);
+  const recognitionRef = useRef(null);
+  const synthRef = useRef(window.speechSynthesis);
   
   // Store the auto-detected model name here
   const [activeModel, setActiveModel] = useState(null); 
@@ -86,7 +91,100 @@ const FirstAid = () => {
         { role: "user", parts: [{ text: "You are MediBot, a village medical assistant. You ONLY answer medical and health-related questions. If someone asks non-medical questions (like sports, entertainment, general knowledge, etc.), politely decline and ask them to ask medical questions only. Provide simple, safe medical advice. If symptoms are severe, tell them to see a doctor immediately." }] },
         { role: "model", parts: [{ text: "Understood. I will only answer medical and health-related questions and politely decline non-medical queries." }] }
      ]);
+     
+     // Speak initial greeting
+     if (autoSpeak) {
+       speakText(initialMsg);
+     }
   }, [lang]);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      
+      // Set language based on current language setting
+      recognitionRef.current.lang = lang === 'te' ? 'te-IN' : 'en-US';
+      
+      recognitionRef.current.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        setInput(transcript);
+        setIsListening(false);
+      };
+      
+      recognitionRef.current.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+      
+      recognitionRef.current.onend = () => {
+        setIsListening(false);
+      };
+    }
+    
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      stopSpeaking();
+    };
+  }, [lang]);
+
+  // Text-to-Speech Function
+  const speakText = (text) => {
+    if (!autoSpeak) return;
+    
+    // Stop any ongoing speech
+    stopSpeaking();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = lang === 'te' ? 'te-IN' : 'en-US';
+    utterance.rate = 0.9; // Slightly slower for better comprehension
+    utterance.pitch = 1;
+    
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+    
+    synthRef.current.speak(utterance);
+  };
+
+  // Stop Speaking
+  const stopSpeaking = () => {
+    synthRef.current.cancel();
+    setIsSpeaking(false);
+  };
+
+  // Toggle Voice Input
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      alert(lang === 'en' 
+        ? 'Voice input not supported in this browser. Please use Chrome or Edge.' 
+        : 'ఈ బ్రౌజర్‌లో వాయిస్ ఇన్‌పుట్ సపోర్ట్ చేయబడదు. దయచేసి Chrome లేదా Edge ఉపయోగించండి.');
+      return;
+    }
+    
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      // Update language before starting
+      recognitionRef.current.lang = lang === 'te' ? 'te-IN' : 'en-US';
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
+  // Toggle Auto-Speak
+  const toggleAutoSpeak = () => {
+    setAutoSpeak(!autoSpeak);
+    if (!autoSpeak === false) {
+      stopSpeaking();
+    }
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -135,6 +233,11 @@ const FirstAid = () => {
         { role: "model", parts: [{ text: botText }] }
       ]);
 
+      // Speak the response
+      if (autoSpeak) {
+        speakText(botText);
+      }
+
     } catch (err) {
       console.error("Chat Error:", err);
       let msg = lang === 'en' ? "Connection Error." : "కనెక్షన్ లోపం.";
@@ -162,9 +265,29 @@ const FirstAid = () => {
             </p>
             </div>
         </div>
-        <button onClick={() => window.location.reload()} className="text-slate-400 hover:text-emerald-600 p-2">
-            <RefreshCw size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+            <button 
+              onClick={toggleAutoSpeak}
+              className={`p-2 rounded-full transition ${autoSpeak ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}
+              title={autoSpeak ? 'Voice responses ON' : 'Voice responses OFF'}
+            >
+              {autoSpeak ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            </button>
+            <button onClick={() => window.location.reload()} className="text-slate-400 hover:text-emerald-600 p-2">
+                <RefreshCw size={18} />
+            </button>
+        </div>
+      </div>
+
+      {/* Voice Feature Banner */}
+      <div className="bg-gradient-to-r from-blue-50 to-emerald-50 px-4 py-2 border-b border-blue-100">
+        <p className="text-xs text-center text-slate-600">
+          <span className="font-bold text-blue-600">🎤 {lang === 'en' ? 'Voice Enabled!' : 'వాయిస్ సౌలభ్యం!'}</span>
+          {' '}
+          {lang === 'en' 
+            ? 'Speak your symptoms in your language - MediBot will respond in voice + text!' 
+            : 'మీ భాషలో లక్షణాలు చెప్పండి - మెడిబాట్ వాయిస్ + టెక్స్ట్‌లో స్పందిస్తుంది!'}
+        </p>
       </div>
 
       {/* Chat Area */}
@@ -204,9 +327,21 @@ const FirstAid = () => {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={lang === 'en' ? 'Type here...' : 'ఇక్కడ టైప్ చేయండి...'}
+            placeholder={lang === 'en' ? 'Type or speak your symptoms...' : 'మీ లక్షణాలను టైప్ చేయండి లేదా మాట్లాడండి...'}
             className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition font-medium"
           />
+          <button 
+            type="button"
+            onClick={toggleListening}
+            className={`p-3 rounded-xl transition shadow-lg ${
+              isListening 
+                ? 'bg-red-500 text-white animate-pulse' 
+                : 'bg-blue-500 text-white hover:bg-blue-600'
+            }`}
+            title={lang === 'en' ? 'Voice Input' : 'వాయిస్ ఇన్‌పుట్'}
+          >
+            {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+          </button>
           <button 
             type="submit" 
             disabled={loading || !input.trim()}
@@ -215,6 +350,23 @@ const FirstAid = () => {
             <Send size={20} />
           </button>
         </form>
+        {isListening && (
+          <div className="mt-2 text-center">
+            <p className="text-sm text-blue-600 font-medium animate-pulse">
+              🎤 {lang === 'en' ? 'Listening...' : 'వింటోంది...'}
+            </p>
+          </div>
+        )}
+        {isSpeaking && (
+          <div className="mt-2 text-center">
+            <button 
+              onClick={stopSpeaking}
+              className="text-sm text-emerald-600 font-medium hover:underline"
+            >
+              🔊 {lang === 'en' ? 'Speaking... (Click to stop)' : 'మాట్లాడుతోంది... (ఆపడానికి క్లిక్ చేయండి)'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
