@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { User, Mail, Lock, ArrowRight, Loader2, Heart, MapPin, Building2, Crosshair } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_URL } from '../config'; // Import the Central Config
+import { GoogleLogin } from '@react-oauth/google';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -21,6 +22,34 @@ const Register = () => {
   const { name, email, password, role, address, latitude, longitude } = formData;
 
   const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const res = await fetch(`${API_URL}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: credentialResponse.credential })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('userName', data.user.name);
+        localStorage.setItem('userRole', data.user.role || 'PATIENT');
+        localStorage.setItem('autoLogin', 'true'); // Auto-enable for Google sign-ups
+        
+        toast.success(`Welcome ${data.user.name}!`);
+        navigate('/');
+      } else {
+        toast.error(data.error || 'Google sign-up failed');
+      }
+    } catch (err) {
+      console.error('Google auth error:', err);
+      toast.error('Failed to sign up with Google');
+    }
+  };
 
   const getCurrentLocation = () => {
     setGettingLocation(true);
@@ -250,6 +279,30 @@ const Register = () => {
             {loading ? <Loader2 className="animate-spin" /> : <>Sign Up <ArrowRight size={20} /></>}
           </button>
         </form>
+
+        {role === 'PATIENT' && (
+          <>
+            <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                    <span className="px-4 bg-white text-slate-500 font-medium">Or sign up with</span>
+                </div>
+            </div>
+
+            <div className="flex justify-center">
+                <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => toast.error('Google sign-up failed')}
+                    theme="outline"
+                    size="large"
+                    text="signup_with"
+                    shape="rectangular"
+                />
+            </div>
+          </>
+        )}
 
         {/* Footer */}
         <div className="text-center mt-8 text-sm font-medium text-slate-500">

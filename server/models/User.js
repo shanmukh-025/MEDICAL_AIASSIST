@@ -56,6 +56,14 @@ const UserSchema = new mongoose.Schema({
   emergencyContact: {
     type: String
   },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true
+  },
+  photoUrl: {
+    type: String
+  },
   date: {
     type: Date,
     default: Date.now

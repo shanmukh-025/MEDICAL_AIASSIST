@@ -7,19 +7,41 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Safer Local Storage Loading
-    try {
+    // Check for auto-login
+    const checkAutoLogin = async () => {
+      try {
+        const autoLogin = localStorage.getItem('autoLogin');
         const savedUser = localStorage.getItem('user');
         const token = localStorage.getItem('token');
-        if (savedUser && token && savedUser !== "undefined") {
+        
+        if (autoLogin === 'true' && savedUser && token && savedUser !== "undefined") {
+          // Verify token is still valid
+          const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/auth/verify`, {
+            headers: { 'x-auth-token': token }
+          });
+          
+          if (res.ok) {
             setUser(JSON.parse(savedUser));
+            console.log('Auto-login successful');
+          } else {
+            // Token expired, clear auto-login
+            localStorage.removeItem('autoLogin');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }
+        } else if (savedUser && token && savedUser !== "undefined") {
+          // Normal login (no auto-login)
+          setUser(JSON.parse(savedUser));
         }
-    } catch (e) {
+      } catch (e) {
         console.error("Auth Load Error:", e);
-        localStorage.clear();
-    } finally {
+        localStorage.removeItem('autoLogin');
+      } finally {
         setLoading(false);
-    }
+      }
+    };
+    
+    checkAutoLogin();
   }, []);
 
   const API_URL = `${import.meta.env.VITE_API_BASE}/api/auth`;

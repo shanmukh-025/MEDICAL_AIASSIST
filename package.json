@@ -11,12 +11,15 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@react-oauth/google": "^0.13.4",
+    "axios": "^1.4.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.4",
     "lodash": "^4.17.21",
     "lucide-react": "^0.562.0",
@@ -29,9 +32,8 @@
     "react-webcam": "^7.2.0",
     "react-zxing": "^2.1.0",
     "recharts": "^3.6.0",
+    "socket.io-client": "^4.7.2",
     "tesseract.js": "^7.0.0"
-    ,"axios": "^1.4.0",
-    "socket.io-client": "^4.7.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
