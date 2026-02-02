@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, FileText, Calendar, User, Upload, X, Loader2, Trash2, Eye, Image as ImageIcon, AlertCircle, Building2, Users } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Calendar, User, Upload, X, Loader2, Trash2, Eye, Image as ImageIcon, AlertCircle, Building2, Users, WifiOff } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
+import api from '../utils/apiWrapper';
+import offlineStorage from '../utils/offlineStorage';
 
 const HealthRecords = () => {
   const navigate = useNavigate();
@@ -44,41 +46,29 @@ const HealthRecords = () => {
   };
 
   const [formData, setFormData] = useState({ title: '', doctor: '', date: '', type: 'Prescription', image: '', familyMember: '' });
+  const [isFromCache, setIsFromCache] = useState(false);
 
-  // Fetch Records
+  // Fetch Records with offline support
   const fetchRecords = async () => {
     try {
-      const token = localStorage.getItem('token');
-      console.log('Fetching records with token:', token ? 'Token exists' : 'NO TOKEN');
-      console.log('API URL:', `${import.meta.env.VITE_API_BASE}/api/records`);
+      const result = await api.getRecords();
+      setRecords(result.data);
+      setIsFromCache(result.fromCache);
       
-      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/records`, {
-        headers: { 'x-auth-token': token }
-      });
-      
-      console.log('Response status:', res.status);
-      const data = await res.json();
-      console.log('Fetched records:', data);
-      console.log('Number of records:', Array.isArray(data) ? data.length : 'Not an array');
-      
-      if (res.ok) {
-        setRecords(data);
-      } else {
-        console.error('API Error:', data);
+      if (result.fromCache) {
+        toast('📦 Viewing offline data', { icon: '📱', duration: 2000 });
       }
     } catch (err) { 
-      console.error('Error fetching records:', err); 
+      console.error('Error fetching records:', err);
+      toast.error('Could not load records');
     }
   };
 
-  // Fetch Family Members
+  // Fetch Family Members with offline support
   const fetchFamilyMembers = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/family`, {
-        headers: { 'x-auth-token': localStorage.getItem('token') }
-      });
-      const data = await res.json();
-      if (res.ok) setFamilyMembers(data);
+      const result = await api.getFamilyMembers();
+      setFamilyMembers(result.data);
     } catch (err) {
       console.error(err);
     }
@@ -111,10 +101,15 @@ const HealthRecords = () => {
     }
   };
 
-  // Submit Form
+  // Submit Form with offline check
   const handleSubmit = async (e) => {
     e.preventDefault();
     if(!formData.image) return toast.error("Please upload an image first");
+    
+    if (!navigator.onLine) {
+      toast.error("Cannot add records offline. Please connect to internet.");
+      return;
+    }
     
     setLoading(true);
     try {
@@ -123,21 +118,14 @@ const HealthRecords = () => {
         familyMember: formData.familyMember || null
       };
 
-      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/records`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-auth-token': localStorage.getItem('token') },
-        body: JSON.stringify(payload)
-      });
-      
-      if (res.ok) {
-        toast.success(t.added);
-        setShowModal(false);
-        fetchRecords();
-        setFormData({ title: '', doctor: '', date: '', type: 'Prescription', image: '', familyMember: '' });
-      } else {
-        toast.error("Failed to save. File might be too big.");
-      }
-    } catch (err) { toast.error("Server Error"); }
+      await api.createRecord(payload);
+      toast.success(t.added);
+      setShowModal(false);
+      fetchRecords();
+      setFormData({ title: '', doctor: '', date: '', type: 'Prescription', image: '', familyMember: '' });
+    } catch (err) { 
+      toast.error(err.message || "Failed to save");
+    }
     finally { setLoading(false); }
   };
 

@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Loader2, ArrowLeft, RefreshCw, AlertTriangle, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Send, User, Bot, Loader2, ArrowLeft, RefreshCw, AlertTriangle, Mic, MicOff, Volume2, VolumeX, WifiOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import api from '../utils/apiWrapper';
+import { searchOfflineTips } from '../data/offlineFirstAid';
 
 const FirstAid = () => {
   // Function to convert markdown-style formatting to HTML
@@ -198,6 +200,33 @@ const FirstAid = () => {
     setMessages(prev => [...prev, { role: 'user', text: userText }]);
 
     try {
+      // Check if offline
+      if (!navigator.onLine) {
+        // Try offline first aid tips
+        const offlineTip = searchOfflineTips(userText, lang);
+        
+        if (offlineTip) {
+          const response = `📱 **${offlineTip.title}** (Offline Mode)\n\n**Symptoms:** ${offlineTip.symptoms}\n\n**Remedy:**\n${offlineTip.remedy}\n\n**Prevention:** ${offlineTip.prevention}\n\n⚠️ This is offline guidance. For serious conditions, please see a doctor when possible.`;
+          
+          setMessages(prev => [...prev, { role: 'bot', text: response }]);
+          
+          if (autoSpeak) {
+            speakText(response);
+          }
+          
+          setLoading(false);
+          return;
+        }
+        
+        const offlineMsg = lang === 'en' 
+          ? "⚠️ You are offline. AI Assistant requires internet.\n\nI can help with basic first aid offline:\n• Fever\n• Headache\n• Cough & Cold\n• Stomach pain\n• Diarrhea\n• Cuts & wounds\n• Burns\n• Sprains\n• Snake bite (emergency)\n• Dehydration\n\nType your symptom above!" 
+          : "⚠️ మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. AI సహాయకుడికి ఇంటర్నెట్ కావాలి.\n\nనేను ఆఫ్‌లైన్‌లో ప్రాథమిక చికిత్సలో సహాయపడగలను:\n• జ్వరం\n• తలనొప్పి\n• దగ్గు మరియు జలుబు\n• కడుపు నొప్పి\n• విరేచనాలు\n• కోతలు మరియు గాయాలు\n• కాలిన గాయాలు\n• బెణుకులు\n• పాము కాటు (అత్యవసరం)\n• నిర్జలీకరణం\n\nమీ లక్షణాన్ని పైన టైప్ చేయండి!";
+        
+        setMessages(prev => [...prev, { role: 'bot', text: offlineMsg, isError: true }]);
+        setLoading(false);
+        return;
+      }
+
       if (!apiKey) throw new Error("API Key Missing");
       if (!activeModel) throw new Error("Initializing AI... Please try again in 2 seconds.");
 

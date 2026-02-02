@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Calendar, Clock, User, FileText, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, User, FileText, Send, Loader2, WifiOff } from 'lucide-react';
+import api from '../utils/apiWrapper';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
@@ -11,6 +12,7 @@ const PatientAppointments = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ hospitalName: '', doctor: '', appointmentDate: '', appointmentTime: '', reason: '' });
+  const [isFromCache, setIsFromCache] = useState(false);
 
   const token = localStorage.getItem('token');
 
@@ -19,8 +21,13 @@ const PatientAppointments = () => {
   const fetchList = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API}/api/appointments/patient`, { headers: { 'x-auth-token': token } });
-      setAppointments(res.data);
+      const result = await api.getAppointments();
+      setAppointments(result.data);
+      setIsFromCache(result.fromCache);
+      
+      if (result.fromCache) {
+        toast('📦 Viewing offline appointments', { icon: '📱', duration: 2000 });
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load appointments');
@@ -29,6 +36,12 @@ const PatientAppointments = () => {
 
   const submit = async (e) => {
     e.preventDefault();
+    
+    if (!navigator.onLine) {
+      toast.error('Cannot book appointments offline. Please connect to internet.');
+      return;
+    }
+    
     try {
       await axios.post(`${API}/api/appointments`, form, { headers: { 'x-auth-token': token } });
       toast.success('✅ Appointment requested');
@@ -47,7 +60,15 @@ const PatientAppointments = () => {
         <button onClick={() => navigate('/')} className="bg-slate-100 p-2.5 rounded-full hover:bg-slate-200 transition text-slate-700">
           <ArrowLeft size={20} />
         </button>
-        <h1 className="text-xl font-bold text-slate-900">Book Appointment</h1>
+        <div className="flex-1">
+          <h1 className="text-xl font-bold text-slate-900">Book Appointment</h1>
+          {isFromCache && (
+            <div className="flex items-center gap-1 text-xs text-orange-600 mt-0.5">
+              <WifiOff size={10} />
+              <span>Viewing offline data</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Booking Form */}

@@ -10,6 +10,7 @@ import { SocketProvider } from './context/SocketContext';
 // Components
 import PrivateRoute from './components/PrivateRoute';
 import OfflineIndicator from './components/OfflineIndicator'; // Import the offline banner
+import PWAInstallPrompt from './components/PWAInstallPrompt'; // PWA install prompt
 
 // Pages
 import Home from './pages/Home';
@@ -40,6 +41,9 @@ function App() {
               
               {/* Offline Indicator - Shows when internet is lost */}
               <OfflineIndicator /> 
+              
+              {/* PWA Install Prompt */}
+              <PWAInstallPrompt />
               
               <Routes>
                 {/* Public Routes */}

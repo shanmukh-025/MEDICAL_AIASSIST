@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, User, Edit2, Trash2, Users, Heart, X, Save, Calendar, Phone, Droplet, AlertCircle, FileText, Upload, Download } from 'lucide-react';
+import { ArrowLeft, Plus, User, Edit2, Trash2, Users, Heart, X, Save, Calendar, Phone, Droplet, AlertCircle, FileText, Upload, Download, WifiOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
+import api from '../utils/apiWrapper';
 
 const FamilyProfile = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ const FamilyProfile = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isFromCache, setIsFromCache] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -54,36 +56,31 @@ const FamilyProfile = () => {
 
   useEffect(() => {
     fetchMembers();
-    fetchFamilyMembers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchMembers = async () => {
     try {
-      const res = await fetch(`${API}/api/family`, {
-        headers: { 'x-auth-token': localStorage.getItem('token') }
-      });
-      const data = await res.json();
-      if (res.ok) setMembers(data);
+      const result = await api.getFamilyMembers();
+      setMembers(result.data);
+      setIsFromCache(result.fromCache);
+      
+      if (result.fromCache) {
+        toast('📦 Viewing offline family data', { icon: '📱', duration: 2000 });
+      }
     } catch (err) {
       console.error(err);
-    }
-  };
-
-  const fetchFamilyMembers = async () => {
-    try {
-      const res = await fetch(`${API}/api/family`, {
-        headers: { 'x-auth-token': localStorage.getItem('token') }
-      });
-      const data = await res.json();
-      if (res.ok) setMembers(data);
-    } catch (error) {
-      console.error(error);
+      toast.error('Could not load family members');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!navigator.onLine) {
+      toast.error('Cannot add/edit family members offline. Please connect to internet.');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -236,6 +233,12 @@ const FamilyProfile = () => {
             {t.header}
           </h1>
           <p className="text-slate-400 text-sm">{t.subHeader}</p>
+          {isFromCache && (
+            <div className="flex items-center gap-1 text-xs text-orange-600 mt-1">
+              <WifiOff size={12} />
+              <span>Viewing offline data</span>
+            </div>
+          )}
         </div>
         <button onClick={openAddModal} className="bg-emerald-600 text-white p-3 rounded-xl shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition flex items-center gap-2">
           <Plus size={20}/> <span className="hidden md:inline">{t.addMember}</span>
