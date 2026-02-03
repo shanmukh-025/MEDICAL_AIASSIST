@@ -149,6 +149,154 @@ const DoctorList = ({ onClose }) => {
 
   useEffect(() => { handleLocateMe(); }, []);
 
+  // --- CHECK FOR VANI APPOINTMENT DATA ON LOAD ---
+  useEffect(() => {
+    const vaniBooking = localStorage.getItem('vani_appointment_booking');
+    if (vaniBooking) {
+      try {
+        const data = JSON.parse(vaniBooking);
+        // Check if data is recent (within last 10 seconds)
+        if (Date.now() - data.timestamp < 10000) {
+          console.log('🎤 Vani appointment data found:', data);
+          
+          // Find matching hospital by name
+          setTimeout(() => {
+            const matchedHospital = hospitals.find(h => 
+              h.name.toLowerCase().includes(data.hospitalName.toLowerCase()) ||
+              data.hospitalName.toLowerCase().includes(h.name.toLowerCase())
+            );
+            
+            if (matchedHospital) {
+              console.log('✅ Found matching hospital:', matchedHospital.name);
+              setBookingHospital(matchedHospital);
+              setBookDate(data.appointmentDate);
+              setBookTime(convertTo12Hour(data.appointmentTime));
+              toast.success(`Opening booking form for ${matchedHospital.name}`, { duration: 3000 });
+            } else {
+              // If no exact match, open first hospital with a message
+              if (hospitals.length > 0) {
+                setBookingHospital(hospitals[0]);
+                setBookDate(data.appointmentDate);
+                setBookTime(convertTo12Hour(data.appointmentTime));
+                toast(`Requested: ${data.hospitalName}. Showing available hospital. You can select another.`, { 
+                  icon: 'ℹ️', 
+                  duration: 4000 
+                });
+              }
+            }
+          }, 500); // Wait for hospitals to load
+        }
+        
+        // Clear the booking data
+        localStorage.removeItem('vani_appointment_booking');
+      } catch (e) {
+        console.error('Error parsing Vani booking data:', e);
+      }
+    }
+  }, [hospitals]);
+
+  // Convert 24-hour time to 12-hour format
+  const convertTo12Hour = (time24) => {
+    if (!time24) return '';
+    const [hours, minutes] = time24.split(':');
+    let hour = parseInt(hours);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12;
+    return `${hour.toString().padStart(2, '0')}:${minutes} ${ampm}`;
+  };
+
+  // --- VOICE ASSISTANT EVENT LISTENER ---
+  useEffect(() => {
+    const handleVoiceBooking = (event) => {
+      console.log('🎤 Voice booking event received:', event.detail);
+      const { hospital, date, time } = event.detail;
+      
+      // Find matching hospital by name (case-insensitive)
+      if (hospital) {
+        const matchedHospital = hospitals.find(h => 
+          h.name.toLowerCase().includes(hospital.toLowerCase()) ||
+          hospital.toLowerCase().includes(h.name.toLowerCase())
+        );
+        
+        if (matchedHospital) {
+          console.log('✅ Found matching hospital:', matchedHospital.name);
+          setBookingHospital(matchedHospital);
+          
+          // Set date if provided
+          if (date) {
+            // Convert date like "3rd February" to YYYY-MM-DD format
+            const parsedDate = parseVoiceDate(date);
+            if (parsedDate) {
+              setBookDate(parsedDate);
+              console.log('📅 Set date:', parsedDate);
+            }
+          }
+          
+          // Set time if provided
+          if (time) {
+            // Convert time like "22:00" to "10:00 PM" format
+            const formattedTime = formatTime(time);
+            if (formattedTime) {
+              setBookTime(formattedTime);
+              console.log('⏰ Set time:', formattedTime);
+            }
+          }
+          
+          toast.success(`Opening booking form for ${matchedHospital.name}`);
+        } else {
+          console.log('❌ No matching hospital found for:', hospital);
+          toast.error(`Could not find ${hospital}. Please select from the list.`);
+        }
+      }
+    };
+    
+    window.addEventListener('vani-book-appointment', handleVoiceBooking);
+    return () => window.removeEventListener('vani-book-appointment', handleVoiceBooking);
+  }, [hospitals]);
+
+  // Helper: Parse voice date to YYYY-MM-DD
+  const parseVoiceDate = (voiceDate) => {
+    const lower = voiceDate.toLowerCase();
+    const today = new Date();
+    
+    if (lower === 'today') {
+      return today.toISOString().split('T')[0];
+    }
+    
+    if (lower === 'tomorrow') {
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow.toISOString().split('T')[0];
+    }
+    
+    // Parse "3rd February", "5th March", etc.
+    const match = voiceDate.match(/(\d+)(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)/i);
+    if (match) {
+      const day = parseInt(match[1]);
+      const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+      const month = monthNames.indexOf(match[2].toLowerCase()) + 1;
+      const year = today.getFullYear();
+      
+      // Format as YYYY-MM-DD
+      return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+    
+    return null;
+  };
+
+  // Helper: Format time from 24hr to 12hr with AM/PM
+  const formatTime = (time24) => {
+    // time24 is like "22:00"
+    const [hours, minutes] = time24.split(':').map(Number);
+    
+    if (isNaN(hours) || isNaN(minutes)) return null;
+    
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12;
+    
+    return `${String(hours12).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
+  };
+
   // --- 3. FETCH DATA (With Fallback) ---
   const fetchNearbyHospitals = async (lat, lng) => {
     setLoading(true);

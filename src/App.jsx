@@ -11,6 +11,7 @@ import { SocketProvider } from './context/SocketContext';
 import PrivateRoute from './components/PrivateRoute';
 import OfflineIndicator from './components/OfflineIndicator'; // Import the offline banner
 import PWAInstallPrompt from './components/PWAInstallPrompt'; // PWA install prompt
+import VoiceAssistant from './components/VoiceAssistant'; // Voice assistant
 
 // Pages
 import Home from './pages/Home';
@@ -44,6 +45,9 @@ function App() {
               
               {/* PWA Install Prompt */}
               <PWAInstallPrompt />
+              
+              {/* Voice Assistant - Available on all pages */}
+              <VoiceAssistant />
               
               <Routes>
                 {/* Public Routes */}

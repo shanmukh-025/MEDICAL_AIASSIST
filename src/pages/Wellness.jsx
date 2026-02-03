@@ -123,6 +123,36 @@ const Wellness = () => {
     return () => { if (reminderInterval.current) clearInterval(reminderInterval.current); };
   }, []);
 
+  // Listen for Vani voice commands
+  useEffect(() => {
+    const handleAddWater = () => {
+      addWater();
+    };
+    
+    const handleSetMood = (event) => {
+      const moodValue = event.detail.mood;
+      if (moodValue === 'happy') setMood('Happy');
+      else if (moodValue === 'neutral') setMood('Neutral');
+      else if (moodValue === 'sad') setMood('Sad');
+      saveToDb({ mood: moodValue.charAt(0).toUpperCase() + moodValue.slice(1) });
+      toast.success(`Mood set to ${moodValue}`);
+    };
+    
+    const handleSwitchTab = (event) => {
+      setActiveTab(event.detail.tab);
+    };
+    
+    window.addEventListener('vani-add-water', handleAddWater);
+    window.addEventListener('vani-set-mood', handleSetMood);
+    window.addEventListener('vani-switch-tab', handleSwitchTab);
+    
+    return () => {
+      window.removeEventListener('vani-add-water', handleAddWater);
+      window.removeEventListener('vani-set-mood', handleSetMood);
+      window.removeEventListener('vani-switch-tab', handleSwitchTab);
+    };
+  }, [hydration, mood]);
+
   // --- DATABASE SAVING ---
   const saveToDb = async (updates) => {
     try {

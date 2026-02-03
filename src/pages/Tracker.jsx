@@ -55,6 +55,53 @@ const Tracker = () => {
     setLogs(savedLogs);
   }, []);
 
+  // Listen for Vani voice commands
+  useEffect(() => {
+    const handleSetSeverity = (event) => {
+      const newSeverity = event.detail.severity;
+      setSeverity(newSeverity);
+      toast.success(`Severity set to ${newSeverity}`);
+    };
+    
+    const handleSetSymptom = (event) => {
+      const newSymptom = event.detail.symptom;
+      setSymptom(newSymptom);
+      setIsCustomInput(false);
+      toast.success(`Symptom changed to ${newSymptom}`);
+    };
+    
+    const handleSaveLog = () => {
+      if (!symptom.trim()) {
+        toast.error("Please enter a symptom name");
+        return;
+      }
+
+      const newLog = {
+        id: Date.now(),
+        type: symptom.trim(),
+        severity: parseInt(severity),
+        date: new Date().toLocaleDateString('en-US', { weekday: 'short', hour: 'numeric' }),
+        timestamp: Date.now()
+      };
+
+      const updatedLogs = [...logs, newLog];
+      setLogs(updatedLogs);
+      localStorage.setItem('symptom_logs', JSON.stringify(updatedLogs));
+      setIsCustomInput(false);
+      toast.success(t.saved);
+    };
+    
+    window.addEventListener('vani-set-severity', handleSetSeverity);
+    window.addEventListener('vani-set-symptom', handleSetSymptom);
+    window.addEventListener('vani-save-log', handleSaveLog);
+    
+    return () => {
+      window.removeEventListener('vani-set-severity', handleSetSeverity);
+      window.removeEventListener('vani-set-symptom', handleSetSymptom);
+      window.removeEventListener('vani-save-log', handleSaveLog);
+    };
+  }, [symptom, severity, logs, t.saved]);
+
   // Get list of all unique symptoms (Defaults + History)
   const uniqueSymptoms = Array.from(new Set([
     ...DEFAULT_SYMPTOMS, 
