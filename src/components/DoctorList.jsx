@@ -301,13 +301,27 @@ const DoctorList = ({ onClose }) => {
   const fetchNearbyHospitals = async (lat, lng) => {
     setLoading(true);
     try {
+      // Helper function to calculate distance between two points (Haversine formula)
+      const calculateDistance = (lat1, lon1, lat2, lon2) => {
+        const R = 6371; // Earth's radius in kilometers
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = 
+          Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        const distance = R * c; // Distance in km
+        return distance;
+      };
+
       // STEP 1: Fetch registered hospitals from database
       const dbRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/hospitals/registered`);
       const registeredHospitals = dbRes.ok ? await dbRes.json() : [];
       
       console.log('📊 Fetched registered hospitals:', registeredHospitals);
       
-      // Format registered hospitals WITH FULL PROFILE DATA
+      // Format registered hospitals WITH FULL PROFILE DATA and calculate distance
       const formattedRegistered = registeredHospitals.map(h => {
         // Construct logo URL properly
         let logoUrl = null;
@@ -321,7 +335,10 @@ const DoctorList = ({ onClose }) => {
           }
         }
         
-        console.log('🏥 Hospital:', h.name, '| Logo from DB:', h.logo, '| Constructed URL:', logoUrl);
+        // Calculate distance from user's location
+        const distanceKm = calculateDistance(lat, lng, h.location.latitude, h.location.longitude);
+        
+        console.log('🏥 Hospital:', h.name, '| Distance:', distanceKm.toFixed(2), 'km | Logo:', logoUrl);
         
         return {
           id: `db-${h._id}`,
@@ -329,7 +346,8 @@ const DoctorList = ({ onClose }) => {
           lat: h.location.latitude,
           lng: h.location.longitude,
           type: lang === 'en' ? '🏥 Registered Hospital' : '🏥 నమోదిత ఆసుపత్రి',
-          distance: "✅ Verified",
+          distance: `${distanceKm.toFixed(1)} km`,
+          distanceValue: distanceKm, // For filtering
           isRegistered: true,
           // Include full profile
           address: h.address,
@@ -341,7 +359,13 @@ const DoctorList = ({ onClose }) => {
           about: h.about,
           logo: logoUrl
         };
-      });
+      })
+      // Filter: Only show registered hospitals within 15km radius
+      .filter(h => h.distanceValue <= 15)
+      // Sort by distance (nearest first)
+      .sort((a, b) => a.distanceValue - b.distanceValue);
+      
+      console.log(`✅ Filtered ${formattedRegistered.length} registered hospitals within 15km`);
       
       // STEP 2: Fetch nearby hospitals from OpenStreetMap
       const query = `
@@ -359,19 +383,27 @@ const DoctorList = ({ onClose }) => {
       
       let osmHospitals = [];
       if (data.elements && data.elements.length > 0) {
-        osmHospitals = data.elements.map((place) => ({
+        osmHospitals = data.elements.map((place) => {
+          const placeLat = place.lat || place.center.lat;
+          const placeLng = place.lon || place.center.lon;
+          const distanceKm = calculateDistance(lat, lng, placeLat, placeLng);
+          
+          return {
             id: place.id,
             name: place.tags.name || (lang === 'en' ? "Local Medical Center" : "స్థానిక వైద్య కేంద్రం"),
-            lat: place.lat || place.center.lat,
-            lng: place.lon || place.center.lon,
+            lat: placeLat,
+            lng: placeLng,
             type: (place.tags.amenity === 'hospital') ? (lang === 'en' ? 'Hospital' : 'ఆసుపత్రి') : (lang === 'en' ? 'Clinic' : 'క్లినిక్'),
-            distance: "📍 Nearby",
+            distance: `${distanceKm.toFixed(1)} km`,
+            distanceValue: distanceKm,
             isRegistered: false
-        })).slice(0, 20);
+          };
+        }).slice(0, 20);
       }
       
-      // STEP 3: Combine registered + OSM hospitals (registered first)
-      const combinedHospitals = [...formattedRegistered, ...osmHospitals];
+      // STEP 3: Combine registered + OSM hospitals and sort by distance (nearest first)
+      const combinedHospitals = [...formattedRegistered, ...osmHospitals]
+        .sort((a, b) => (a.distanceValue || 999) - (b.distanceValue || 999));
       
       if (combinedHospitals.length === 0) {
         toast(t.fallbackMsg, { icon: '⚠️' });
