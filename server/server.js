@@ -2,11 +2,20 @@ const express = require('express');
 const mongoose = require('mongoose'); 
 const connectDB = require('./config/db');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 const http = require('http');
 const { Server } = require('socket.io');
+
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads', 'logos');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('✅ Created uploads/logos directory');
+}
 
 // 1. Connect Database
 connectDB();
@@ -49,6 +58,9 @@ app.use(cors({
 // This allows large images to be sent to the database
 app.use(express.json({ limit: '50mb' })); 
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// 3.5. Serve static files for uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // 4. Request Logger
 app.use((req, res, next) => {

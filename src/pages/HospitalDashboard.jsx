@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2 } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
@@ -18,6 +18,9 @@ const HospitalDashboard = () => {
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [reportForm, setReportForm] = useState({ title: '', doctor: '', type: 'Lab Report', image: '' });
   const [uploadingReport, setUploadingReport] = useState(false);
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = React.useRef(null);
   const token = localStorage.getItem('token');
 
   useEffect(() => { 
@@ -30,6 +33,17 @@ const HospitalDashboard = () => {
       const res = await axios.get(`${API}/api/hospitals/profile`, { headers: { 'x-auth-token': token } });
       setProfile(res.data);
       setEditData(res.data);
+      
+      // Properly construct logo URL
+      if (res.data.logo) {
+        const logoUrl = res.data.logo.startsWith('http') 
+          ? res.data.logo 
+          : `${API}${res.data.logo}`;
+        console.log('Logo URL:', logoUrl);
+        setLogoPreview(logoUrl);
+      } else {
+        setLogoPreview(null);
+      }
     } catch (err) {
       console.error(err);
     }
@@ -132,6 +146,82 @@ const HospitalDashboard = () => {
         console.error(error);
       }
     );
+  };
+
+  const handleLogoSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo should be less than 2MB');
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Upload logo
+    try {
+      setUploadingLogo(true);
+      const formDataUpload = new FormData();
+      formDataUpload.append('logo', file);
+
+      console.log('📤 Uploading logo to:', `${API}/api/hospitals/upload-logo`);
+
+      const response = await axios.post(
+        `${API}/api/hospitals/upload-logo`,
+        formDataUpload,
+        { headers: { 'x-auth-token': token } }
+      );
+
+      console.log('📥 Server response:', response.data);
+
+      if (response.data.logoUrl) {
+        // Use the full URL from response, don't prepend API again
+        const logoUrl = response.data.logoUrl.startsWith('http') 
+          ? response.data.logoUrl 
+          : `${API}${response.data.logoUrl}`;
+        
+        console.log('🖼️ Constructed logo URL:', logoUrl);
+        console.log('🔗 Testing URL accessibility...');
+        
+        // Test if URL is accessible
+        fetch(logoUrl)
+          .then(res => {
+            console.log('✅ URL is accessible, status:', res.status);
+            if (!res.ok) {
+              console.error('❌ URL returned error status:', res.status);
+            }
+          })
+          .catch(err => {
+            console.error('❌ URL is NOT accessible:', err);
+          });
+        
+        setLogoPreview(logoUrl);
+        setEditData({ ...editData, logo: logoUrl });
+        toast.success('Logo uploaded successfully!');
+        
+        // Save the logo URL to profile immediately
+        await axios.put(`${API}/api/hospitals/profile`, 
+          { ...editData, logo: logoUrl }, 
+          { headers: { 'x-auth-token': token } }
+        );
+        
+        fetchProfile(); // Refresh profile
+      } else {
+        console.error('❌ No logoUrl in response:', response.data);
+        toast.error('Upload failed - no URL returned');
+      }
+    } catch (error) {
+      console.error('❌ Upload error:', error);
+      console.error('Error response:', error.response?.data);
+      toast.error(error.response?.data?.msg || 'Failed to upload logo');
+    } finally {
+      setUploadingLogo(false);
+    }
   };
 
   const approve = async (id) => {
@@ -351,6 +441,89 @@ const HospitalDashboard = () => {
                 </div>
 
                 <div className="space-y-4">
+                  {/* Logo Upload Section - in edit mode */}
+                  {editMode && (
+                    <div className="mb-4 pb-4 border-b border-slate-200">
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Hospital Logo</label>
+                      <div className="flex items-center gap-4">
+                        <div className="w-32 h-32 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 flex items-center justify-center relative">
+                          {uploadingLogo && (
+                            <div className="absolute inset-0 bg-white/90 flex items-center justify-center z-10">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                            </div>
+                          )}
+                          {logoPreview ? (
+                            <img 
+                              key={logoPreview}
+                              src={logoPreview} 
+                              alt="Logo" 
+                              className="w-full h-full object-contain p-2"
+                              onLoad={() => {
+                                console.log('✅ Logo loaded successfully:', logoPreview);
+                              }}
+                              onError={(e) => {
+                                console.error('❌ Logo failed to load:', logoPreview);
+                                e.target.onerror = null; // Prevent infinite loop
+                              }}
+                            />
+                          ) : (
+                            <div className="text-center">
+                              <Building2 size={48} className="text-gray-300 mx-auto mb-2" />
+                              <p className="text-xs text-gray-400">No logo uploaded</p>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            onClick={() => logoInputRef.current?.click()}
+                            disabled={uploadingLogo}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {uploadingLogo ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <Upload size={16} />
+                                Upload Logo
+                              </>
+                            )}
+                          </button>
+                          <input
+                            ref={logoInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoSelect}
+                            className="hidden"
+                          />
+                          <p className="text-xs text-gray-500 mt-2">PNG or SVG recommended • Max 2MB</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Logo Display in View Mode */}
+                  {!editMode && logoPreview && (
+                    <div className="mb-4 pb-4 border-b border-slate-200">
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Hospital Logo</label>
+                      <div className="w-32 h-32 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
+                        <img 
+                          key={logoPreview}
+                          src={logoPreview} 
+                          alt="Logo" 
+                          className="w-full h-full object-contain p-2"
+                          onError={(e) => {
+                            console.error('❌ Logo failed to load in view mode:', logoPreview);
+                            e.target.onerror = null;
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Hospital Name</label>
                     <div className="bg-slate-50 p-3 rounded-xl font-bold text-slate-900">{profile.name}</div>

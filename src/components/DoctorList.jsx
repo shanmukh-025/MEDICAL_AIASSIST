@@ -305,24 +305,43 @@ const DoctorList = ({ onClose }) => {
       const dbRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/hospitals/registered`);
       const registeredHospitals = dbRes.ok ? await dbRes.json() : [];
       
+      console.log('📊 Fetched registered hospitals:', registeredHospitals);
+      
       // Format registered hospitals WITH FULL PROFILE DATA
-      const formattedRegistered = registeredHospitals.map(h => ({
-        id: `db-${h._id}`,
-        name: h.name,
-        lat: h.location.latitude,
-        lng: h.location.longitude,
-        type: lang === 'en' ? '🏥 Registered Hospital' : '🏥 నమోదిత ఆసుపత్రి',
-        distance: "✅ Verified",
-        isRegistered: true,
-        // Include full profile
-        address: h.address,
-        phone: h.phone,
-        emergencyContact: h.emergencyContact,
-        workingHours: h.workingHours || '09:00 AM - 09:00 PM',
-        services: h.services || [],
-        doctors: h.doctors || [],
-        about: h.about
-      }));
+      const formattedRegistered = registeredHospitals.map(h => {
+        // Construct logo URL properly
+        let logoUrl = null;
+        if (h.logo) {
+          if (h.logo.startsWith('http://') || h.logo.startsWith('https://')) {
+            logoUrl = h.logo;
+          } else if (h.logo.startsWith('/')) {
+            logoUrl = `${import.meta.env.VITE_API_BASE}${h.logo}`;
+          } else {
+            logoUrl = `${import.meta.env.VITE_API_BASE}/${h.logo}`;
+          }
+        }
+        
+        console.log('🏥 Hospital:', h.name, '| Logo from DB:', h.logo, '| Constructed URL:', logoUrl);
+        
+        return {
+          id: `db-${h._id}`,
+          name: h.name,
+          lat: h.location.latitude,
+          lng: h.location.longitude,
+          type: lang === 'en' ? '🏥 Registered Hospital' : '🏥 నమోదిత ఆసుపత్రి',
+          distance: "✅ Verified",
+          isRegistered: true,
+          // Include full profile
+          address: h.address,
+          phone: h.phone,
+          emergencyContact: h.emergencyContact,
+          workingHours: h.workingHours || '09:00 AM - 09:00 PM',
+          services: h.services || [],
+          doctors: h.doctors || [],
+          about: h.about,
+          logo: logoUrl
+        };
+      });
       
       // STEP 2: Fetch nearby hospitals from OpenStreetMap
       const query = `
@@ -498,13 +517,35 @@ const DoctorList = ({ onClose }) => {
       <div className="flex-1 overflow-y-auto bg-slate-50 p-4 space-y-3 pb-24">
         {hospitals.map(h => (
             <div key={h.id} className={`bg-white p-5 rounded-2xl shadow-sm border ${h.isRegistered ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-100'} flex flex-col gap-3 group hover:border-emerald-300 hover:shadow-md transition duration-300`}>
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-start gap-3">
+                    {/* Hospital Logo - Always show for registered hospitals */}
+                    {h.isRegistered && (
+                      <div className="shrink-0">
+                        <div className="w-20 h-20 rounded-xl overflow-hidden bg-white border-2 border-emerald-300 flex items-center justify-center shadow-sm">
+                          {h.logo ? (
+                            <img 
+                              src={h.logo} 
+                              alt={`${h.name} logo`}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                console.error('Logo failed to load:', h.logo);
+                                e.target.style.display = 'none';
+                                e.target.parentElement.innerHTML = '<div class="text-3xl">🏥</div>';
+                              }}
+                            />
+                          ) : (
+                            <div className="text-3xl">🏥</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-bold text-slate-800 text-base leading-tight">{h.name}</h3>
                             {h.isRegistered && (
-                                <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                                    ✓ VERIFIED
+                                <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <CheckCircle size={10} /> VERIFIED
                                 </span>
                             )}
                         </div>

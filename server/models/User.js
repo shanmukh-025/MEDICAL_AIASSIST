@@ -64,6 +64,9 @@ const UserSchema = new mongoose.Schema({
   photoUrl: {
     type: String
   },
+  logo: {
+    type: String
+  },
   date: {
     type: Date,
     default: Date.now

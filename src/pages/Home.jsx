@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils, 
-  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users
+  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -192,6 +192,8 @@ const ToolCard = ({ icon: Icon, color, label, onClick }) => {
         blue: "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-600 hover:text-white hover:border-blue-600",
         teal: "bg-teal-50 text-teal-600 border-teal-100 hover:bg-teal-600 hover:text-white hover:border-teal-600",
         orange: "bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-600 hover:text-white hover:border-orange-600",
+        emerald: "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600",
+        indigo: "bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600",
     };
     return (
         <div onClick={onClick} className={`${colors[color]} transition-all duration-300 p-4 rounded-2xl border cursor-pointer flex flex-col items-center justify-center gap-3 text-center h-32 group shadow-sm hover:shadow-md`}>
