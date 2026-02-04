@@ -4,6 +4,7 @@ const connectDB = require('./config/db');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { startReminderScheduler } = require('./services/reminderScheduler');
 require('dotenv').config();
 
 const app = express();
@@ -77,6 +78,7 @@ app.use('/api/appointments', require('./routes/appointments'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/hospitals', require('./routes/hospitals'));
 app.use('/api/family', require('./routes/family'));
+app.use('/api/reminders', require('./routes/reminders'));
 
 // 6. Test Route
 app.get('/', (req, res) => res.send('API is Running...'));
@@ -91,5 +93,8 @@ io.on('connection', (socket) => {
   socket.on('join', (room) => socket.join(room));
 });
 app.set('io', io);
+
+// Start medicine reminder scheduler
+startReminderScheduler();
 
 server.listen(PORT, () => console.log(`🚀 Backend Server running on port ${PORT}`));

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils, 
-  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User
+  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -55,6 +55,7 @@ const Home = () => {
     analytics: lang === 'en' ? 'Analytics' : 'విశ్లేషణ',
     records: lang === 'en' ? 'Records' : 'రికార్డులు',
     family: lang === 'en' ? 'Family' : 'కుటుంబం',
+    medicineReminders: lang === 'en' ? 'Medicine' : 'మందులు',
     diet: lang === 'en' ? 'Diet / BMI' : 'ఆహారం / BMI',
     appointments: lang === 'en' ? 'My Appointments' : 'నా అపాయింట్‌మెంట్లు',
     viewBookings: lang === 'en' ? 'View Bookings' : 'బుకింగ్‌లను చూడండి'
@@ -160,8 +161,9 @@ const Home = () => {
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.toolsTitle}</h3>
            </div>
            
-           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
               <ToolCard icon={Bell} color="purple" label={t.reminders} onClick={() => navigate('/reminders')} />
+              <ToolCard icon={Pill} color="red" label={t.medicineReminders} onClick={() => navigate('/medicine-reminders')} />
               <ToolCard icon={BrainCircuit} color="pink" label={t.medibot} onClick={() => navigate('/first-aid')} />
               <ToolCard icon={BarChart2} color="blue" label={t.analytics} onClick={() => navigate('/analytics')} />
               <ToolCard icon={FileText} color="teal" label={t.records} onClick={() => navigate('/records')} />
@@ -194,6 +196,7 @@ const ToolCard = ({ icon: Icon, color, label, onClick }) => {
         orange: "bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-600 hover:text-white hover:border-orange-600",
         emerald: "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600",
         indigo: "bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600",
+        red: "bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white hover:border-red-600",
     };
     return (
         <div onClick={onClick} className={`${colors[color]} transition-all duration-300 p-4 rounded-2xl border cursor-pointer flex flex-col items-center justify-center gap-3 text-center h-32 group shadow-sm hover:shadow-md`}>

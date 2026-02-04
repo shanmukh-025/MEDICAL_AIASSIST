@@ -32,6 +32,7 @@ import HospitalDashboard from './pages/HospitalDashboard';
 import FamilyProfile from './pages/FamilyProfile';
 import UserProfile from './pages/UserProfile';
 import HospitalBranding from './pages/HospitalBranding';
+import MedicineReminders from './pages/MedicineReminders';
 
 // Conditional Voice Assistant - only show when authenticated
 const ConditionalVoiceAssistant = () => {
@@ -81,6 +82,7 @@ function App() {
                 <Route path="/records" element={<PrivateRoute><HealthRecords /></PrivateRoute>} />
                 <Route path="/family" element={<PrivateRoute><FamilyProfile /></PrivateRoute>} />
                 <Route path="/reminders" element={<PrivateRoute><Reminders /></PrivateRoute>} />
+                <Route path="/medicine-reminders" element={<PrivateRoute><MedicineReminders /></PrivateRoute>} />
                 <Route path="/scan" element={<PrivateRoute><Scan /></PrivateRoute>} />
                 <Route path="/analytics" element={<PrivateRoute><Tracker /></PrivateRoute>} />
                 <Route path="/appointments" element={<PrivateRoute><Appointments /></PrivateRoute>} />
