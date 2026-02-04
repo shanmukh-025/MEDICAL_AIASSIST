@@ -3,16 +3,23 @@ const webpush = require('web-push');
 const MedicineReminder = require('../models/MedicineReminder');
 const User = require('../models/User');
 
-// Configure web-push (you'll need to generate VAPID keys)
-// Run: npx web-push generate-vapid-keys
-const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'YOUR_PUBLIC_KEY';
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'YOUR_PRIVATE_KEY';
+// Configure web-push with VAPID keys from environment variables
+// To generate new VAPID keys, run: npx web-push generate-vapid-keys
+// IMPORTANT: Add the generated keys to your .env file
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
 
-webpush.setVapidDetails(
-  'mailto:your-email@example.com',
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
+  console.error('⚠️  WARNING: VAPID keys not configured! Push notifications will not work.');
+  console.error('   Run: npx web-push generate-vapid-keys');
+  console.error('   Then add the keys to your .env file');
+} else {
+  webpush.setVapidDetails(
+    'mailto:your-email@example.com',
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+}
 
 // Telugu translations for voice notifications
 const teluguMessages = {
