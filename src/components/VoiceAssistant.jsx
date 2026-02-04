@@ -9,15 +9,16 @@ const VoiceAssistant = () => {
   const location = useLocation();
   const { lang, setLang } = useLanguage();
   
-  // Hide Vani on first-aid page (MediBot has its own voice)
-  if (location.pathname === '/firstaid' || location.pathname === '/first-aid') {
-    return null;
-  }
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const recognitionRef = useRef(null);
+  
+  // Hide Vani on first-aid page (MediBot has its own voice)
+  if (location.pathname === '/firstaid' || location.pathname === '/first-aid') {
+    return null;
+  }
 
   // Initialize speech recognition
   useEffect(() => {
