@@ -163,7 +163,6 @@ const Home = () => {
            
            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
               <ToolCard icon={Bell} color="purple" label={t.reminders} onClick={() => navigate('/reminders')} />
-              <ToolCard icon={Pill} color="red" label={t.medicineReminders} onClick={() => navigate('/medicine-reminders')} />
               <ToolCard icon={BrainCircuit} color="pink" label={t.medibot} onClick={() => navigate('/first-aid')} />
               <ToolCard icon={BarChart2} color="blue" label={t.analytics} onClick={() => navigate('/analytics')} />
               <ToolCard icon={FileText} color="teal" label={t.records} onClick={() => navigate('/records')} />

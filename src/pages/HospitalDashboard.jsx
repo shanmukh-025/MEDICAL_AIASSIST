@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -369,10 +371,23 @@ const HospitalDashboard = () => {
             </div>
           </div>
           {profile && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
                 {totalAppointments} Total
               </div>
+              <button 
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to logout?')) {
+                    logout();
+                    navigate('/login');
+                    toast.success('Logged out successfully');
+                  }
+                }}
+                className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-xl font-semibold text-sm transition"
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
             </div>
           )}
         </div>
