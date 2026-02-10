@@ -1,5 +1,5 @@
 const express = require('express');
-const mongoose = require('mongoose'); 
+const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const cors = require('cors');
 const path = require('path');
@@ -27,11 +27,11 @@ mongoose.connection.once('open', async () => {
   try {
     // Access the users collection directly
     const collection = mongoose.connection.db.collection('users');
-    
+
     // Check if the specific bad index exists
     const indexes = await collection.indexes();
     const indexExists = indexes.some(index => index.name === 'clerkId_1');
-    
+
     if (indexExists) {
       await collection.dropIndex('clerkId_1');
       console.log("✅ SUCCESS: Bad database rule (clerkId) deleted. Registration will work now!");
@@ -48,16 +48,18 @@ app.use(cors({
   origin: [
     'http://localhost:5173',   // Dev Server
     'http://127.0.0.1:5173',   // Dev Server (IP)
+    'http://localhost:5174',   // Dev Server (alternate port)
+    'http://127.0.0.1:5174',   // Dev Server (alternate port IP)
     'http://localhost:4173',   // Preview/Build Server (PWA)
     'http://127.0.0.1:4173',   // Preview/Build Server (IP)
     'https://medical-aiassist.vercel.app'  // Production Frontend (Vercel)
-  ], 
+  ],
   credentials: true
 }));
 
 // 3. Increase Data Limit (CRITICAL for Image Uploads)
 // This allows large images to be sent to the database
-app.use(express.json({ limit: '50mb' })); 
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // 3.5. Serve static files for uploads
@@ -75,6 +77,7 @@ app.use('/api/ai', require('./routes/ai'));
 app.use('/api/wellness', require('./routes/wellness'));
 app.use('/api/records', require('./routes/records'));
 app.use('/api/appointments', require('./routes/appointments'));
+app.use('/api/smart-queue', require('./routes/smartQueue')); // NEW: Smart OPD Queue Manager
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/hospitals', require('./routes/hospitals'));
 app.use('/api/family', require('./routes/family'));
@@ -89,8 +92,15 @@ const server = http.createServer(app);
 // setup socket.io
 const io = new Server(server, { cors: { origin: '*' } });
 io.on('connection', (socket) => {
+  console.log('🔌 New socket connection:', socket.id);
   // clients should join room `user_<userId>` after authentication on client
-  socket.on('join', (room) => socket.join(room));
+  socket.on('join', (room) => {
+    socket.join(room);
+    console.log('✅ Socket joined room:', room, 'Socket ID:', socket.id);
+  });
+  socket.on('disconnect', () => {
+    console.log('❌ Socket disconnected:', socket.id);
+  });
 });
 app.set('io', io);
 

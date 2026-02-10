@@ -2,15 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils, 
-  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill
+  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee
 } from 'lucide-react';
+import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
+import { useSocket } from '../context/SocketContext';
+
+
+const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
 const Home = () => {
   const navigate = useNavigate();
   const { lang, toggleLanguage } = useLanguage();
+  const { socket, reminders, setReminders, doctorBreak, doctorDelay, emergencyAlert } = useSocket();
   const [userName, setUserName] = useState('User');
-  const [searchQuery, setSearchQuery] = useState(''); 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [liveQueueData, setLiveQueueData] = useState({});
+  const [userAppointments, setUserAppointments] = useState([]);
+  const [breakSeconds, setBreakSeconds] = useState(0);
+  const [delaySeconds, setDelaySeconds] = useState(0);
+  const [emergencySeconds, setEmergencySeconds] = useState(0);
 
   useEffect(() => {
     // Redirect hospitals to their dashboard
@@ -22,7 +33,140 @@ const Home = () => {
 
     const savedName = localStorage.getItem('userName');
     if (savedName) setUserName(savedName);
+    
+    // Fetch user appointments to verify hospital matches
+    fetchUserAppointments();
+    
+    // Clean up old reminders (older than 24 hours)
+    if (reminders && reminders.length > 0) {
+      const now = Date.now();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const filtered = reminders.filter(r => {
+        const reminderTime = new Date(r.timestamp).getTime();
+        return (now - reminderTime) < oneDayMs;
+      });
+      if (filtered.length !== reminders.length) {
+        setReminders(filtered);
+      }
+    }
   }, []);
+
+  // Fetch user's appointments to check hospital matches
+  const fetchUserAppointments = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+      const res = await axios.get(`${API}/api/appointments`, {
+        headers: { 'x-auth-token': token }
+      });
+      if (res.data) {
+        // Only include TODAY's active appointments (not completed/rejected/past)
+        const today = new Date().toISOString().split('T')[0];
+        const activeAppts = res.data.filter(appt => {
+          const isNotCompleted = !['COMPLETED', 'REJECTED', 'NO_SHOW'].includes(appt.status);
+          const isToday = appt.appointmentDate === today;
+          return isNotCompleted && isToday;
+        });
+        setUserAppointments(activeAppts);
+      }
+    } catch (err) {
+      console.error('Failed to fetch user appointments:', err);
+    }
+  };
+
+  // Check if user has an appointment at the affected hospital
+  const hasAppointmentAtHospital = (hospitalId) => {
+    if (!hospitalId || !userAppointments || userAppointments.length === 0) return false;
+    return userAppointments.some(appt => 
+      appt.hospitalId && appt.hospitalId.toString() === hospitalId.toString()
+    );
+  };
+
+  // Fetch live queue data for active reminders
+  const fetchLiveQueueData = async () => {
+    if (!reminders || reminders.length === 0) return;
+    
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    for (const reminder of reminders) {
+      if (reminder.apptId) {
+        try {
+          const res = await axios.get(
+            `${API}/api/appointments/live-queue/${reminder.apptId}`,
+            { headers: { 'x-auth-token': token } }
+          );
+          setLiveQueueData(prev => ({ ...prev, [reminder.apptId]: res.data }));
+        } catch (err) {
+          console.error('Failed to fetch live queue for reminder:', reminder.apptId, err);
+        }
+      }
+    }
+  };
+
+  // Auto-refresh live queue data
+  useEffect(() => {
+    fetchLiveQueueData();
+    
+    const interval = setInterval(() => {
+      fetchLiveQueueData();
+    }, 15000); // Refresh every 15 seconds
+    
+    return () => clearInterval(interval);
+  }, [reminders]);
+
+  // Socket.IO listener for real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleQueueUpdate = (data) => {
+      console.log('🔔 Queue updated on home page:', data);
+      fetchLiveQueueData();
+    };
+
+    socket.on('queueUpdated', handleQueueUpdate);
+
+    return () => {
+      socket.off('queueUpdated', handleQueueUpdate);
+    };
+  }, [socket, reminders]);
+
+  // Break countdown for summary card
+  useEffect(() => {
+    if (!doctorBreak) { setBreakSeconds(0); return; }
+    const tick = () => {
+      const diff = Math.max(0, Math.floor((new Date(doctorBreak.breakEndTime) - new Date()) / 1000));
+      setBreakSeconds(diff);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [doctorBreak]);
+
+  // Delay countdown for summary card
+  useEffect(() => {
+    if (!doctorDelay) { setDelaySeconds(0); return; }
+    const tick = () => {
+      const diff = Math.max(0, Math.floor((new Date(doctorDelay.delayEndTime) - new Date()) / 1000));
+      setDelaySeconds(diff);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [doctorDelay]);
+
+  // Emergency countdown for summary card
+  useEffect(() => {
+    if (!emergencyAlert) { setEmergencySeconds(0); return; }
+    const tick = () => {
+      const diff = Math.max(0, Math.floor((new Date(emergencyAlert.alertEndTime) - new Date()) / 1000));
+      setEmergencySeconds(diff);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [emergencyAlert]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -101,6 +245,92 @@ const Home = () => {
       {/* BODY CONTENT */}
       <div className="max-w-7xl mx-auto px-6 -mt-16 relative z-20 space-y-6">
         
+        {/* Queue Status Summary Card — links to dedicated Queue Dashboard */}
+        {((doctorBreak && breakSeconds > 0 && hasAppointmentAtHospital(doctorBreak.hospitalId)) || (doctorDelay && delaySeconds > 0 && hasAppointmentAtHospital(doctorDelay.hospitalId)) || (emergencyAlert && emergencySeconds > 0 && hasAppointmentAtHospital(emergencyAlert.hospitalId)) || (reminders && reminders.length > 0)) && (
+          <div
+            onClick={() => navigate('/queue-dashboard')}
+            className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-md transition group"
+          >
+            {/* Break mini-banner - only show if user has appointment at this hospital */}
+            {doctorBreak && breakSeconds > 0 && hasAppointmentAtHospital(doctorBreak.hospitalId) && (
+              <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-3 text-white flex items-center gap-3">
+                <Coffee size={18} className="animate-pulse" />
+                <div className="flex-1">
+                  <span className="font-bold text-sm">Doctor on {doctorBreak.breakDurationMinutes}-min Break</span>
+                  <span className="text-purple-200 text-xs ml-2">
+                    ends at {new Date(doctorBreak.breakEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <span className="font-mono font-bold text-lg tabular-nums bg-white/15 px-3 py-1 rounded-xl">
+                  {String(Math.floor(breakSeconds / 60)).padStart(2, '0')}:{String(breakSeconds % 60).padStart(2, '0')}
+                </span>
+              </div>
+            )}
+
+            {/* Emergency mini-banner - only show if user has appointment at this hospital */}
+            {emergencyAlert && emergencySeconds > 0 && hasAppointmentAtHospital(emergencyAlert.hospitalId) && (
+              <div className="bg-gradient-to-r from-red-600 to-red-700 px-5 py-3 text-white flex items-center gap-3">
+                <Activity size={18} className="animate-pulse" />
+                <div className="flex-1">
+                  <span className="font-bold text-sm">🚨 Emergency Case — Queue Paused</span>
+                  <span className="text-red-200 text-xs ml-2">
+                    est. ~{emergencyAlert.estimatedDuration} min
+                  </span>
+                </div>
+                <span className="font-mono font-bold text-lg tabular-nums bg-white/15 px-3 py-1 rounded-xl">
+                  {String(Math.floor(emergencySeconds / 60)).padStart(2, '0')}:{String(emergencySeconds % 60).padStart(2, '0')}
+                </span>
+              </div>
+            )}
+
+            {/* Delay mini-banner - only show if user has appointment at this hospital */}
+            {doctorDelay && delaySeconds > 0 && hasAppointmentAtHospital(doctorDelay.hospitalId) && (
+              <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-3 text-white flex items-center gap-3">
+                <Clock size={18} className="animate-pulse" />
+                <div className="flex-1">
+                  <span className="font-bold text-sm">Doctor Delayed by {doctorDelay.delayMinutes} min</span>
+                  {doctorDelay.delayReason && (
+                    <span className="text-orange-100 text-xs ml-2">({doctorDelay.delayReason})</span>
+                  )}
+                  <span className="text-orange-100 text-xs ml-2">
+                    resumes at {new Date(doctorDelay.delayEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <span className="font-mono font-bold text-lg tabular-nums bg-white/15 px-3 py-1 rounded-xl">
+                  {String(Math.floor(delaySeconds / 60)).padStart(2, '0')}:{String(delaySeconds % 60).padStart(2, '0')}
+                </span>
+              </div>
+            )}
+
+            {/* Reminders summary */}
+            {reminders && reminders.length > 0 && (
+              <div className="px-5 py-4 flex items-center gap-3">
+                <div className="bg-orange-100 p-2.5 rounded-full">
+                  <Bell size={18} className="text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-sm text-slate-900">
+                    {lang === 'en' ? 'Your Turn Approaching!' : 'మీ వంతు సమీపిస్తోంది!'}
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {reminders.length} active {reminders.length === 1 ? 'reminder' : 'reminders'} — tap to view details
+                  </p>
+                </div>
+                <ChevronRight size={20} className="text-slate-300 group-hover:text-slate-500 transition" />
+              </div>
+            )}
+
+            {/* CTA footer */}
+            <div className="bg-indigo-50 px-5 py-2.5 flex items-center justify-center gap-2 group-hover:bg-indigo-100 transition">
+              <Activity size={14} className="text-indigo-500" />
+              <span className="text-xs font-bold text-indigo-600">
+                {lang === 'en' ? 'Open Queue Dashboard' : 'క్యూ డాష్‌బోర్డ్ తెరవండి'}
+              </span>
+              <ChevronRight size={14} className="text-indigo-400" />
+            </div>
+          </div>
+        )}
+        
         {/* Notice Bar */}
         <div className="bg-emerald-900/90 backdrop-blur text-emerald-100 px-4 py-3 rounded-2xl text-xs font-medium flex items-center gap-3 shadow-lg border border-white/10">
             <div className="bg-emerald-500/20 p-1 rounded-full"><AlertIcon /></div>
@@ -162,7 +392,14 @@ const Home = () => {
            </div>
            
            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-              <ToolCard icon={Bell} color="purple" label={t.reminders} onClick={() => navigate('/reminders')} />
+              <div className="relative">
+                <ToolCard icon={Bell} color="purple" label={t.reminders} onClick={() => navigate('/reminders')} />
+                {reminders && reminders.length > 0 && (
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                    {reminders.length}
+                  </div>
+                )}
+              </div>
               <ToolCard icon={BrainCircuit} color="pink" label={t.medibot} onClick={() => navigate('/first-aid')} />
               <ToolCard icon={BarChart2} color="blue" label={t.analytics} onClick={() => navigate('/analytics')} />
               <ToolCard icon={FileText} color="teal" label={t.records} onClick={() => navigate('/records')} />

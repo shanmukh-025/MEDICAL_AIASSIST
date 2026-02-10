@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import HospitalQueueManagement from '../components/HospitalQueueManagement';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
@@ -13,7 +14,7 @@ const HospitalDashboard = () => {
   const [appointments, setAppointments] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('PROFILE'); // PROFILE, PENDING, CONFIRMED, COMPLETED
+  const [activeTab, setActiveTab] = useState('QUEUE'); // QUEUE, PROFILE, PENDING, CONFIRMED, COMPLETED
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
   const [showReportModal, setShowReportModal] = useState(false);
@@ -350,9 +351,14 @@ const HospitalDashboard = () => {
     }
   };
 
-  const filteredAppointments = appointments.filter(a => a.status === activeTab);
+  const filteredAppointments = appointments.filter(a => {
+    if (activeTab === 'CONFIRMED') {
+      return a.status === 'CONFIRMED' || a.status === 'CHECKED_IN';
+    }
+    return a.status === activeTab;
+  });
   const pendingCount = appointments.filter(a => a.status === 'PENDING').length;
-  const confirmedCount = appointments.filter(a => a.status === 'CONFIRMED').length;
+  const confirmedCount = appointments.filter(a => a.status === 'CONFIRMED' || a.status === 'CHECKED_IN').length;
   const completedCount = appointments.filter(a => a.status === 'COMPLETED').length;
   const totalAppointments = appointments.length;
 
@@ -397,6 +403,14 @@ const HospitalDashboard = () => {
         {/* Tabs */}
         <div className="flex gap-2 mb-6 overflow-x-auto bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
           <button 
+            onClick={() => setActiveTab('QUEUE')}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${
+              activeTab === 'QUEUE' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Users size={16} /> Queue Management
+          </button>
+          <button 
             onClick={() => setActiveTab('PROFILE')}
             className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${
               activeTab === 'PROFILE' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'
@@ -431,6 +445,10 @@ const HospitalDashboard = () => {
         </div>
 
         {/* Content */}
+        {activeTab === 'QUEUE' && (
+          <HospitalQueueManagement />
+        )}
+
         {activeTab === 'PROFILE' && profile && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column - Profile Info */}
@@ -739,6 +757,11 @@ const HospitalDashboard = () => {
                       <div className="flex items-center gap-2 mb-1">
                         <User size={18} className="text-emerald-600" />
                         <span className="font-bold text-slate-900 text-lg">{p.patientId?.name || 'Patient'}</span>
+                        {p.queueNumber && (
+                          <span className="bg-emerald-600 text-white px-2 py-1 rounded-lg text-xs font-bold ml-2">
+                            Queue #{p.queueNumber}
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm text-slate-500 ml-6">{p.patientId?.email}</div>
                       {p.reason && <div className="text-sm text-slate-600 mt-2 bg-slate-50 p-2 rounded-lg ml-6">{p.reason}</div>}
@@ -772,7 +795,7 @@ const HospitalDashboard = () => {
                     </div>
                   )}
 
-                  {p.status === 'CONFIRMED' && (
+                  {(p.status === 'CONFIRMED' || p.status === 'CHECKED_IN') && (
                     <button onClick={() => complete(p._id)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:bg-blue-700 transition">
                       <Check size={18} /> Complete Visit
                     </button>

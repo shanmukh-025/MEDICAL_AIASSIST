@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
-import { MapPin, Calendar, Clock, Loader2, X, Search, Crosshair, Navigation, CheckCircle, AlertTriangle } from 'lucide-react';
+import { MapPin, Calendar, Clock, Loader2, X, Search, Crosshair, Navigation, CheckCircle, AlertTriangle, ShieldAlert } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../context/LanguageContext';
+import { useSocket } from '../context/SocketContext';
 
 // Fix Leaflet Icons
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -16,8 +17,6 @@ let DefaultIcon = L.icon({
     iconAnchor: [12, 41]
 });
 L.Marker.prototype.options.icon = DefaultIcon;
-
-const TIME_SLOTS = ["09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "04:00 PM", "05:00 PM", "06:00 PM"];
 
 // --- MAP CONTROLLER ---
 const MapController = ({ center }) => {
@@ -78,6 +77,10 @@ const LocationSearch = ({ onLocationSelect }) => {
 
 const DoctorList = ({ onClose }) => {
   const { lang } = useLanguage();
+  const { emergencyAlert, doctorBreak, doctorDelay } = useSocket();
+  const [emergencySeconds, setEmergencySeconds] = useState(0);
+  const [breakSeconds, setBreakSeconds] = useState(0);
+  const [delaySeconds, setDelaySeconds] = useState(0);
 
   const t = {
     header: lang === 'en' ? 'Nearby Healthcare' : 'సమీప ఆసుపత్రులు',
@@ -149,6 +152,130 @@ const DoctorList = ({ onClose }) => {
 
   useEffect(() => { handleLocateMe(); }, []);
 
+  // Emergency countdown timer
+  useEffect(() => {
+    if (!emergencyAlert) { setEmergencySeconds(0); return; }
+    const tick = () => {
+      const diff = Math.max(0, Math.floor((new Date(emergencyAlert.alertEndTime) - new Date()) / 1000));
+      setEmergencySeconds(diff);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [emergencyAlert]);
+
+  // Doctor break countdown timer
+  useEffect(() => {
+    if (!doctorBreak) { setBreakSeconds(0); return; }
+    const tick = () => {
+      const diff = Math.max(0, Math.floor((new Date(doctorBreak.breakEndTime) - new Date()) / 1000));
+      setBreakSeconds(diff);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [doctorBreak]);
+
+  // Doctor delay countdown timer
+  useEffect(() => {
+    if (!doctorDelay) { setDelaySeconds(0); return; }
+    const tick = () => {
+      const diff = Math.max(0, Math.floor((new Date(doctorDelay.delayEndTime) - new Date()) / 1000));
+      setDelaySeconds(diff);
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [doctorDelay]);
+
+  // Check if user's selected appointment time falls within emergency period
+  const isAppointmentDuringEmergency = () => {
+    if (!emergencyAlert || !bookingHospital || !bookDate || !bookTime) return false;
+    
+    // Check if the emergency is at the CURRENT booking hospital
+    // Ensure we are comparing compatible ID formats
+    // DB IDs start with 'db-' in this component, but real ID is after 'db-'
+    const currentHospitalId = bookingHospital.id.toString();
+    const alertHospitalId = emergencyAlert.hospitalId.toString();
+    
+    // Extract real ID if it has db- prefix
+    const realBookingId = currentHospitalId.startsWith('db-') ? currentHospitalId.substring(3) : currentHospitalId;
+    
+    if (realBookingId !== alertHospitalId) {
+      return false;
+    }
+
+    try {
+      // Combine user's selected date and time
+      const appointmentDateTime = new Date(`${bookDate}T${bookTime}`);
+      const emergencyStart = new Date(emergencyAlert.alertStartTime);
+      const emergencyEnd = new Date(emergencyAlert.alertEndTime);
+
+      console.log('🚨 Checking Emergency Overlap:', {
+        appt: appointmentDateTime.toISOString(),
+        start: emergencyStart.toISOString(),
+        end: emergencyEnd.toISOString(),
+        isWithin: appointmentDateTime >= emergencyStart && appointmentDateTime <= emergencyEnd
+      });
+      
+      // Check if appointment falls within emergency period
+      return appointmentDateTime >= emergencyStart && appointmentDateTime <= emergencyEnd;
+    } catch (e) {
+      console.error('Error checking emergency overlap:', e);
+      return false;
+    }
+  };
+
+  // Check if user's selected appointment time falls within doctor break period
+  const isAppointmentDuringBreak = () => {
+    if (!doctorBreak || !bookingHospital || !bookDate || !bookTime) return false;
+    
+    // Check if the break is at the CURRENT booking hospital
+    const currentHospitalId = bookingHospital.id.toString();
+    const breakHospitalId = doctorBreak.hospitalId.toString();
+    const realBookingId = currentHospitalId.startsWith('db-') ? currentHospitalId.substring(3) : currentHospitalId;
+    
+    if (realBookingId !== breakHospitalId) {
+      return false;
+    }
+
+    try {
+      const appointmentDateTime = new Date(`${bookDate}T${bookTime}`);
+      const breakStart = new Date(doctorBreak.breakStartTime);
+      const breakEnd = new Date(doctorBreak.breakEndTime);
+      
+      return appointmentDateTime >= breakStart && appointmentDateTime <= breakEnd;
+    } catch (e) {
+      console.error('Error checking break overlap:', e);
+      return false;
+    }
+  };
+
+  // Check if user's selected appointment time falls within delay period
+  const isAppointmentDuringDelay = () => {
+    if (!doctorDelay || !bookingHospital || !bookDate || !bookTime) return false;
+    
+    // Check if the delay is at the CURRENT booking hospital
+    const currentHospitalId = bookingHospital.id.toString();
+    const delayHospitalId = doctorDelay.hospitalId.toString();
+    const realBookingId = currentHospitalId.startsWith('db-') ? currentHospitalId.substring(3) : currentHospitalId;
+    
+    if (realBookingId !== delayHospitalId) {
+      return false;
+    }
+
+    try {
+      const appointmentDateTime = new Date(`${bookDate}T${bookTime}`);
+      const delayStart = new Date(doctorDelay.delayStartTime);
+      const delayEnd = new Date(doctorDelay.delayEndTime);
+      
+      return appointmentDateTime >= delayStart && appointmentDateTime <= delayEnd;
+    } catch (e) {
+      console.error('Error checking delay overlap:', e);
+      return false;
+    }
+  };
+
   // --- CHECK FOR VANI APPOINTMENT DATA ON LOAD ---
   useEffect(() => {
     const vaniBooking = localStorage.getItem('vani_appointment_booking');
@@ -170,14 +297,14 @@ const DoctorList = ({ onClose }) => {
               console.log('✅ Found matching hospital:', matchedHospital.name);
               setBookingHospital(matchedHospital);
               setBookDate(data.appointmentDate);
-              setBookTime(convertTo12Hour(data.appointmentTime));
+              setBookTime(data.appointmentTime); // Already in HH:MM format
               toast.success(`Opening booking form for ${matchedHospital.name}`, { duration: 3000 });
             } else {
               // If no exact match, open first hospital with a message
               if (hospitals.length > 0) {
                 setBookingHospital(hospitals[0]);
                 setBookDate(data.appointmentDate);
-                setBookTime(convertTo12Hour(data.appointmentTime));
+                setBookTime(data.appointmentTime); // Already in HH:MM format
                 toast(`Requested: ${data.hospitalName}. Showing available hospital. You can select another.`, { 
                   icon: 'ℹ️', 
                   duration: 4000 
@@ -194,16 +321,6 @@ const DoctorList = ({ onClose }) => {
       }
     }
   }, [hospitals]);
-
-  // Convert 24-hour time to 12-hour format
-  const convertTo12Hour = (time24) => {
-    if (!time24) return '';
-    const [hours, minutes] = time24.split(':');
-    let hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    hour = hour % 12 || 12;
-    return `${hour.toString().padStart(2, '0')}:${minutes} ${ampm}`;
-  };
 
   // --- VOICE ASSISTANT EVENT LISTENER ---
   useEffect(() => {
@@ -234,12 +351,9 @@ const DoctorList = ({ onClose }) => {
           
           // Set time if provided
           if (time) {
-            // Convert time like "22:00" to "10:00 PM" format
-            const formattedTime = formatTime(time);
-            if (formattedTime) {
-              setBookTime(formattedTime);
-              console.log('⏰ Set time:', formattedTime);
-            }
+            // Time is already in 24-hour format (HH:MM)
+            setBookTime(time);
+            console.log('⏰ Set time:', time);
           }
           
           toast.success(`Opening booking form for ${matchedHospital.name}`);
@@ -444,6 +558,32 @@ const DoctorList = ({ onClose }) => {
         });
 
         if (res.ok) {
+            const responseData = await res.json();
+            
+            // Check if emergency warning was returned
+            if (responseData.emergencyWarning && responseData.emergencyWarning.isEmergencyActive) {
+                toast(
+                    `⚠️ ${responseData.emergencyWarning.message}\nYour wait time will be significantly longer.`,
+                    { duration: 8000, icon: '🚨', style: { background: '#FEF2F2', border: '2px solid #EF4444', color: '#991B1B' } }
+                );
+            }
+            
+            // Show warning if appointment is during break
+            if (isAppointmentDuringBreak()) {
+                toast(
+                    `☕ Doctor has a ${doctorBreak.breakDurationMinutes}-min break during your appointment. Expect delays.`,
+                    { duration: 6000, icon: '☕', style: { background: '#FEF3C7', border: '2px solid #F59E0B', color: '#92400E' } }
+                );
+            }
+            
+            // Show warning if appointment is during delay
+            if (isAppointmentDuringDelay()) {
+                toast(
+                    `⏰ Doctor is delayed by ${doctorDelay.delayMinutes} minutes. Your consultation may be delayed.`,
+                    { duration: 6000, icon: '⏰', style: { background: '#FED7AA', border: '2px solid #EA580C', color: '#7C2D12' } }
+                );
+            }
+            
             setStep('success');
             toast.success(t.successTitle);
         } else {
@@ -672,6 +812,87 @@ const DoctorList = ({ onClose }) => {
                     <button onClick={() => {setBookingHospital(null); setStep('form');}} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
                 </div>
 
+                {/* Emergency Warning Banner - only show if appointment time is during emergency */}
+                {isAppointmentDuringEmergency() && (
+                    <div className="mb-4 bg-gradient-to-r from-red-600 to-orange-600 text-white p-4 rounded-xl shadow-xl border-2 border-red-700">
+                        <div className="flex items-center gap-3">
+                            <ShieldAlert size={28} className="shrink-0 animate-bounce" />
+                            <div className="flex-1">
+                                <p className="font-bold text-sm mb-1">
+                                    ⚠️ {lang === 'en' ? 'EMERGENCY CASE IN PROGRESS' : 'అత్యవసర కేసు జరుగుతోంది'}
+                                </p>
+                                <p className="text-xs opacity-90 leading-tight">
+                                    {lang === 'en' 
+                                        ? `An emergency is being handled. Your wait time will be significantly longer. Consider changing your appointment time.`
+                                        : `అత్యవసర కేసు నిర్వహించబడుతోంది. మీ నిరీక్షణ సమయం చాలా ఎక్కువగా ఉంటుంది. మీ అపాయింట్‌మెంట్ సమయాన్ని మార్చడాన్ని పరిగణించండి.`}
+                                </p>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <div className="bg-white/20 px-2 py-1 rounded text-xs font-mono font-bold">
+                                        {Math.floor(emergencySeconds / 60)}:{String(emergencySeconds % 60).padStart(2, '0')}
+                                    </div>
+                                    <span className="text-[10px] opacity-75">
+                                        {lang === 'en' ? 'time remaining' : 'మిగిలిన సమయం'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Doctor Break Warning Banner */}
+                {isAppointmentDuringBreak() && (
+                    <div className="mb-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white p-4 rounded-xl shadow-xl border-2 border-amber-600">
+                        <div className="flex items-center gap-3">
+                            <div className="text-2xl">☕</div>
+                            <div className="flex-1">
+                                <p className="font-bold text-sm mb-1">
+                                    {lang === 'en' ? 'Doctor Break Scheduled' : 'డాక్టర్ విరామ షెడ్యూల్'}
+                                </p>
+                                <p className="text-xs opacity-90 leading-tight">
+                                    {lang === 'en' 
+                                        ? `The doctor has a ${doctorBreak.breakDurationMinutes}-minute break during your appointment time. There will be a delay in consultation.`
+                                        : `మీ అపాయింట్‌మెంట్ సమయంలో డాక్టర్‌కు ${doctorBreak.breakDurationMinutes}-నిమిషాల విరామం ఉంది. సంప్రదింపులో ఆలస్యం ఉంటుంది.`}
+                                </p>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <div className="bg-white/20 px-2 py-1 rounded text-xs font-mono font-bold">
+                                        {Math.floor(breakSeconds / 60)}:{String(breakSeconds % 60).padStart(2, '0')}
+                                    </div>
+                                    <span className="text-[10px] opacity-75">
+                                        {lang === 'en' ? 'break time remaining' : 'విరామ సమయం మిగిలింది'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Doctor Delay Warning Banner */}
+                {isAppointmentDuringDelay() && (
+                    <div className="mb-4 bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 rounded-xl shadow-xl border-2 border-orange-600">
+                        <div className="flex items-center gap-3">
+                            <div className="text-2xl">⏰</div>
+                            <div className="flex-1">
+                                <p className="font-bold text-sm mb-1">
+                                    {lang === 'en' ? 'Doctor Delayed' : 'డాక్టర్ ఆలస్యం'}
+                                </p>
+                                <p className="text-xs opacity-90 leading-tight">
+                                    {lang === 'en' 
+                                        ? `Doctor is delayed by ${doctorDelay.delayMinutes} minutes${doctorDelay.delayReason ? ': ' + doctorDelay.delayReason : ''}. Your consultation may be delayed.`
+                                        : `డాక్టర్ ${doctorDelay.delayMinutes} నిమిషాలు ఆలస్యం అయ్యారు${doctorDelay.delayReason ? ': ' + doctorDelay.delayReason : ''}. మీ సంప్రదింపు ఆలస్యం కావచ్చు.`}
+                                </p>
+                                <div className="mt-2 flex items-center gap-2">
+                                    <div className="bg-white/20 px-2 py-1 rounded text-xs font-mono font-bold">
+                                        {Math.floor(delaySeconds / 60)}:{String(delaySeconds % 60).padStart(2, '0')}
+                                    </div>
+                                    <span className="text-[10px] opacity-75">
+                                        {lang === 'en' ? 'delay time remaining' : 'ఆలస్య సమయం మిగిలింది'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {step === 'form' && (
                     <form onSubmit={handleBooking} className="space-y-4">
                         <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
@@ -694,10 +915,14 @@ const DoctorList = ({ onClose }) => {
                             </div>
                             <div>
                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t.time}</label>
-                                <select required className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition appearance-none" value={bookTime} onChange={e => setBookTime(e.target.value)}>
-                                    <option value="">--:--</option>
-                                    {TIME_SLOTS.map(t => <option key={t} value={t}>{t}</option>)}
-                                </select>
+                                <input 
+                                    required 
+                                    type="time" 
+                                    className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition" 
+                                    value={bookTime} 
+                                    onChange={e => setBookTime(e.target.value)}
+                                    placeholder="--:--"
+                                />
                             </div>
                         </div>
 
