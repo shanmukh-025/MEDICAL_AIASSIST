@@ -4,7 +4,7 @@ import axios from 'axios';
 import {
   ArrowLeft, Users, Clock, Coffee, RefreshCw,
   Activity, Bell, Navigation2,
-  Zap, Timer, Shield, Phone
+  Zap, Timer, Shield, Phone, User
 } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -510,6 +510,12 @@ const QueueDashboard = () => {
                 <div key={appt._id} className="p-5 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-sm text-slate-900">{appt.hospitalName || 'Hospital'}</h4>
+                    {appt.patientName && (
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <User size={12} className="text-indigo-500" />
+                        <span className="text-xs font-bold text-indigo-600">{appt.patientName}</span>
+                      </div>
+                    )}
                     <p className="text-xs text-slate-500 mt-0.5">Dr. {appt.doctor || ''}</p>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {appt.queueNumber && (
@@ -583,6 +589,15 @@ const QueueDashboard = () => {
                       <h4 className="font-bold text-sm text-slate-900">
                         {lang === 'en' ? 'Your Turn Approaching!' : 'మీ వంతు సమీపిస్తోంది!'}
                       </h4>
+                      {(() => {
+                        const pName = reminder.patientName || live?.patientName || (reminder.apptId && appointments.find(a => a._id === reminder.apptId)?.patientName);
+                        return pName ? (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <User size={12} className="text-indigo-500" />
+                            <span className="text-xs font-bold text-indigo-600">{pName}</span>
+                          </div>
+                        ) : null;
+                      })()}
                       <div className="flex flex-wrap gap-2 mt-2">
                         {(live?.queueNumber || reminder.queueNumber) && (
                           <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold">

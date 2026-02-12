@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
-import { MapPin, Calendar, Clock, Loader2, X, Search, Crosshair, Navigation, CheckCircle, AlertTriangle, ShieldAlert, Phone } from 'lucide-react';
+import { MapPin, Calendar, Clock, Loader2, X, Search, Crosshair, Navigation, CheckCircle, AlertTriangle, ShieldAlert, Phone, User } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import toast from 'react-hot-toast';
@@ -76,7 +76,7 @@ const LocationSearch = ({ onLocationSelect }) => {
     );
 }
 
-const DoctorList = ({ onClose }) => {
+const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null }) => {
   const { lang } = useLanguage();
   const { socket, emergencyAlert, doctorBreak, doctorDelay } = useSocket();
   const [emergencySeconds, setEmergencySeconds] = useState(0);
@@ -550,7 +550,8 @@ const DoctorList = ({ onClose }) => {
             doctor: t.dutyDoctor,
             appointmentDate: bookDate,
             appointmentTime: bookTime,
-            reason: reason || `${bookingHospital.type || t.opd} consultation`
+            reason: reason || `${bookingHospital.type || t.opd} consultation`,
+            ...(familyMemberName && { patientName: familyMemberName, familyMemberId })
         };
 
         const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/appointments`, {
@@ -932,6 +933,18 @@ const DoctorList = ({ onClose }) => {
 
                 {step === 'form' && (
                     <form onSubmit={handleBooking} className="space-y-4">
+                        {/* Family Member Banner */}
+                        {familyMemberName && (
+                          <div className="bg-blue-50 p-3 rounded-2xl border border-blue-200 flex items-center gap-3">
+                            <div className="bg-blue-100 p-2 rounded-full">
+                              <User size={16} className="text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-xs text-blue-500 font-bold uppercase tracking-wider">{lang === 'en' ? 'Booking For' : 'బుకింగ్ ఎవరి కోసం'}</p>
+                              <p className="text-sm font-bold text-blue-900">{familyMemberName}</p>
+                            </div>
+                          </div>
+                        )}
                         <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
                             <p className="text-sm font-bold text-emerald-900">{bookingHospital.name}</p>
                             <div className="flex justify-between mt-2 text-xs text-emerald-700 font-medium">

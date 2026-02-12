@@ -804,7 +804,7 @@ const HospitalDashboard = () => {
                     <div>
                       <div className="flex items-center gap-2 mb-1">
                         <User size={18} className="text-emerald-600" />
-                        <span className="font-bold text-slate-900 text-lg">{p.patientId?.name || 'Patient'}</span>
+                        <span className="font-bold text-slate-900 text-lg">{p.patientName || p.patientId?.name || 'Patient'}</span>
                         {p.queueNumber && (
                           <span className="bg-emerald-600 text-white px-2 py-1 rounded-lg text-xs font-bold ml-2">
                             Queue #{p.queueNumber}
@@ -884,7 +884,7 @@ const HospitalDashboard = () => {
 
             <div className="mb-4 p-3 bg-slate-50 rounded-xl">
               <div className="text-sm text-slate-500">Patient</div>
-              <div className="font-bold text-slate-900">{selectedAppointment.patientId?.name}</div>
+              <div className="font-bold text-slate-900">{selectedAppointment.patientName || selectedAppointment.patientId?.name}</div>
               <div className="text-xs text-slate-500">{selectedAppointment.patientId?.email}</div>
             </div>
 

@@ -33,7 +33,7 @@ router.get('/', auth, async (req, res) => {
 // POST /api/appointments -> Patient books appointment (status = PENDING)
 router.post('/', auth, async (req, res) => {
   try {
-    const { hospitalName, doctor, appointmentDate, appointmentTime, reason } = req.body;
+    const { hospitalName, doctor, appointmentDate, appointmentTime, reason, patientName, familyMemberId } = req.body;
     // ensure caller is a patient
     const caller = await User.findById(req.user.id).select('-password');
     if (!caller) return res.status(401).json({ msg: 'User not found' });
@@ -58,6 +58,7 @@ router.post('/', auth, async (req, res) => {
       patientId: caller._id,
       hospitalId: hospitalId,
       hospitalName: hospitalName || '',
+      patientName: patientName || caller.name,
       doctor: doctor || '',
       appointmentDate,
       appointmentTime,
@@ -109,7 +110,8 @@ router.post('/', auth, async (req, res) => {
     // Create notification for hospital user if found
     try {
       if (hospitalUser) {
-        const msg = `New appointment request from ${caller.name} for ${hospitalName} on ${appointmentDate} at ${appointmentTime}`;
+        const displayName = patientName || caller.name;
+        const msg = `New appointment request from ${displayName} for ${hospitalName} on ${appointmentDate} at ${appointmentTime}`;
         await Notification.create({ userId: hospitalUser._id, message: msg, type: 'APPOINTMENT' });
         const io = req.app.get('io');
         if (io) io.to(`user_${hospitalUser._id}`).emit('notification', { message: msg, apptId: appt._id });
@@ -489,7 +491,7 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
       .filter(a => a.status !== 'COMPLETED')
       .map(appt => ({
         _id: appt._id,
-        patientName: appt.patientId?.name || appt.patientName || 'Unknown',
+        patientName: appt.patientName || appt.patientId?.name || 'Unknown',
         phone: appt.patientId?.phone || appt.phone || '',
         queueNumber: appt.queueNumber || 0,
         status: appt.status,
@@ -771,6 +773,7 @@ router.post('/:id/send-reminder', auth, async (req, res) => {
         message: msg, 
         apptId: appt._id,
         queueNumber: displayQueueNumber,
+        patientName: appt.patientName || appt.patientId.name,
         distance,
         travelTime,
         queuePosition,
@@ -947,7 +950,8 @@ router.get('/live-queue/:appointmentId', auth, async (req, res) => {
       estimatedWaitTime,
       status: appt.status,
       message,
-      hospitalName
+      hospitalName,
+      patientName: appt.patientName || null
     };
 
     // Include break info if doctor is on break

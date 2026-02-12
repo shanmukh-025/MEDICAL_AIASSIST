@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, User, Edit2, Trash2, Users, Heart, X, Save, Calendar, Phone, Droplet, AlertCircle, FileText, Upload, Download, WifiOff } from 'lucide-react';
+import { ArrowLeft, Plus, User, Edit2, Trash2, Users, Heart, X, Save, Calendar, Phone, Droplet, AlertCircle, FileText, Upload, Download, WifiOff, Stethoscope } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
@@ -355,10 +355,18 @@ const FamilyProfile = () => {
                 </label>
               </div>
 
+              {/* Book Appointment Button */}
+              <button 
+                onClick={() => navigate('/doctors', { state: { familyMemberName: member.name, familyMemberId: member._id, familyMemberRelationship: member.relationship } })}
+                className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-200"
+              >
+                <Stethoscope size={16} /> {lang === 'en' ? 'Book Appointment' : 'అపాయింట్‌మెంట్ బుక్ చేయండి'}
+              </button>
+
               {/* View Records Button */}
               <button 
                 onClick={() => navigate(`/records?member=${member._id}`)}
-                className="mt-4 w-full bg-slate-50 hover:bg-emerald-50 text-emerald-600 py-2 rounded-xl font-bold text-sm transition border border-slate-200 hover:border-emerald-200"
+                className="mt-2 w-full bg-slate-50 hover:bg-emerald-50 text-emerald-600 py-2 rounded-xl font-bold text-sm transition border border-slate-200 hover:border-emerald-200"
               >
                 {t.viewRecords}
               </button>

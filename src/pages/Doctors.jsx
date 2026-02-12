@@ -1,14 +1,20 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import DoctorList from '../components/DoctorList'; // Import your existing component
+import { useNavigate, useLocation } from 'react-router-dom';
+import DoctorList from '../components/DoctorList';
 
 const Doctors = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const familyMemberName = location.state?.familyMemberName || null;
+  const familyMemberId = location.state?.familyMemberId || null;
 
   return (
     <div className="h-screen w-screen bg-slate-50">
-      {/* Render the DoctorList component and tell it to go Home when closed */}
-      <DoctorList onClose={() => navigate('/')} />
+      <DoctorList 
+        onClose={() => navigate('/')} 
+        familyMemberName={familyMemberName}
+        familyMemberId={familyMemberId}
+      />
     </div>
   );
 };
