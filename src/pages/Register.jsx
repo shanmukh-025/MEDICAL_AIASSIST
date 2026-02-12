@@ -1,29 +1,26 @@
 ﻿import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, ArrowRight, Loader2, Heart, MapPin, Building2, Crosshair, Phone } from 'lucide-react';
+import { User, Mail, Lock, ArrowRight, Loader2, Heart, MapPin, Building2, Crosshair } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_URL } from '../config'; // Import the Central Config
 import { GoogleLogin } from '@react-oauth/google';
-import OTPVerification from '../components/OTPVerification';
+
 
 const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
-  const [showOTPModal, setShowOTPModal] = useState(false);
-  const [verificationData, setVerificationData] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    phone: '',
     role: 'PATIENT',
     address: '',
     latitude: '',
     longitude: ''
   });
 
-  const { name, email, password, phone, role, address, latitude, longitude } = formData;
+  const { name, email, password, role, address, latitude, longitude } = formData;
 
   const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
 
@@ -91,20 +88,6 @@ const Register = () => {
       }
     }
     
-    // Validate phone number
-    if (!phone || phone.length !== 10) {
-      toast.error('Please enter a valid 10-digit phone number');
-      return;
-    }
-    
-    // Show OTP verification modal
-    setShowOTPModal(true);
-  };
-
-  // Handle OTP verification success
-  const handleOTPVerified = async (verificationInfo) => {
-    setVerificationData(verificationInfo);
-    setShowOTPModal(false);
     setLoading(true);
     
     try {
@@ -112,10 +95,7 @@ const Register = () => {
         name, 
         email, 
         password, 
-        phone, 
-        role,
-        phoneVerified: true,
-        phoneVerificationUid: verificationInfo.uid
+        role
       };
       
       // Include location data for hospitals
@@ -143,7 +123,7 @@ const Register = () => {
         localStorage.setItem('userRole', role);
         if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
         
-        toast.success("Account created successfully! Phone verified ✓");
+        toast.success("Account created successfully!");
         
         // Redirect based on role
         if (role === 'HOSPITAL') {
@@ -160,12 +140,6 @@ const Register = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Handle OTP verification cancel
-  const handleOTPCancel = () => {
-    setShowOTPModal(false);
-    toast.info('Phone verification cancelled');
   };
 
   return (
@@ -224,22 +198,6 @@ const Register = () => {
               placeholder="Email Address" 
               className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
               required 
-            />
-          </div>
-
-          {/* Phone Input */}
-          <div className="relative">
-            <Phone className="absolute left-4 top-3.5 text-slate-400" size={20} />
-            <input 
-              type="tel" 
-              name="phone" 
-              value={phone} 
-              onChange={onChange} 
-              placeholder={role === 'HOSPITAL' ? 'Hospital Contact Number' : 'Phone Number'} 
-              className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
-              required 
-              pattern="[0-9]{10}"
-              title="Please enter a valid 10-digit phone number"
             />
           </div>
 
@@ -361,15 +319,6 @@ const Register = () => {
         </div>
       </div>
 
-      {/* OTP Verification Modal */}
-      {showOTPModal && (
-        <OTPVerification
-          phoneNumber={phone}
-          onVerified={handleOTPVerified}
-          onCancel={handleOTPCancel}
-          countryCode="+91"
-        />
-      )}
     </div>
   );
 };
