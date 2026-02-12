@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
-import { MapPin, Calendar, Clock, Loader2, X, Search, Crosshair, Navigation, CheckCircle, AlertTriangle, ShieldAlert } from 'lucide-react';
+import { MapPin, Calendar, Clock, Loader2, X, Search, Crosshair, Navigation, CheckCircle, AlertTriangle, ShieldAlert, Phone } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../context/LanguageContext';
 import { useSocket } from '../context/SocketContext';
+import AudioCall from '../components/AudioCall';
 
 // Fix Leaflet Icons
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -77,7 +78,7 @@ const LocationSearch = ({ onLocationSelect }) => {
 
 const DoctorList = ({ onClose }) => {
   const { lang } = useLanguage();
-  const { emergencyAlert, doctorBreak, doctorDelay } = useSocket();
+  const { socket, emergencyAlert, doctorBreak, doctorDelay } = useSocket();
   const [emergencySeconds, setEmergencySeconds] = useState(0);
   const [breakSeconds, setBreakSeconds] = useState(0);
   const [delaySeconds, setDelaySeconds] = useState(0);
@@ -114,6 +115,7 @@ const DoctorList = ({ onClose }) => {
   const [bookTime, setBookTime] = useState('');
   const [reason, setReason] = useState('');
   const [step, setStep] = useState('form');
+  const [showAudioCall, setShowAudioCall] = useState(false);
 
   // --- 1. SIMULATION ENGINE (The "Bulletproof" Fix) ---
   const generateMockHospitals = (lat, lng) => {
@@ -803,13 +805,48 @@ const DoctorList = ({ onClose }) => {
         )}
       </div>
 
-      {/* BOOKING MODAL */}
-      {bookingHospital && (
+      {/* BOOKING MODAL - Hide during call */}
+      {bookingHospital && !showAudioCall && (
         <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="font-bold text-xl text-slate-900">{lang === 'en' ? 'Book Appointment' : 'అపాయింట్‌మెంట్ బుక్ చేయండి'}</h3>
-                    <button onClick={() => {setBookingHospital(null); setStep('form');}} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
+                    <div className="flex items-center gap-2">
+                        {/* Phone Icon to Call Hospital - Only show for registered hospitals */}
+                        {bookingHospital.isRegistered && (
+                          <button 
+                              onClick={() => {
+                                if (!socket) {
+                                  toast.error('Not connected. Please refresh the page.');
+                                  return;
+                                }
+                                const hospitalId = bookingHospital.id.startsWith('db-') 
+                                  ? bookingHospital.id.substring(3) 
+                                  : bookingHospital.id;
+                                const recipientRoom = `hospital_${hospitalId}`;
+                                console.log('📞 Initiating call to hospital:');
+                                console.log('  - Hospital Name:', bookingHospital.name);
+                                console.log('  - Hospital ID:', hospitalId);
+                                console.log('  - Calling Room:', recipientRoom);
+                                console.log('  - Socket Connected:', socket.connected);
+                                
+                                // Show loading toast
+                                toast.loading('Connecting call...', { id: 'call-connecting' });
+                                
+                                // Show call interface
+                                setShowAudioCall(true);
+                                
+                                // Clear toast after 2 seconds
+                                setTimeout(() => toast.dismiss('call-connecting'), 2000);
+                              }} 
+                              className="p-2 bg-emerald-100 rounded-full hover:bg-emerald-200 transition-colors group animate-pulse"
+                              title={lang === 'en' ? 'Call Hospital Before Booking' : 'బుకింగ్ చేసే ముందు కాల్ చేయండి'}
+                          >
+                              <Phone size={20} className="text-emerald-600 group-hover:text-emerald-700" />
+                          </button>
+                        )}
+                        <button onClick={() => {setBookingHospital(null); setStep('form'); setShowAudioCall(false);}} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
+                    </div>
                 </div>
 
                 {/* Emergency Warning Banner - only show if appointment time is during emergency */}
@@ -941,11 +978,25 @@ const DoctorList = ({ onClose }) => {
                         </div>
                         <h2 className="text-2xl font-bold text-slate-800 mb-2">{t.successTitle}</h2>
                         <p className="text-slate-500 text-sm mb-6">{t.successMsg}</p>
-                        <button onClick={() => {setBookingHospital(null); onClose();}} className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 transition">{t.backMap}</button>
+                        <button onClick={() => {setBookingHospital(null); setShowAudioCall(false); onClose();}} className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 transition">{t.backMap}</button>
                     </div>
                 )}
             </div>
         </div>
+      )}
+
+      {/* AUDIO CALL TO HOSPITAL */}
+      {showAudioCall && bookingHospital && socket && (
+        <AudioCall
+          recipientId={`hospital_${bookingHospital.id.startsWith('db-') ? bookingHospital.id.substring(3) : bookingHospital.id}`}
+          recipientName={bookingHospital.name}
+          isIncoming={false}
+          socket={socket}
+          onClose={() => {
+            console.log('📞 Call ended');
+            setShowAudioCall(false);
+          }}
+        />
       )}
     </div>
   );

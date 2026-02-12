@@ -6,9 +6,10 @@ import {
   Activity, Bell, Navigation2,
   Zap, Timer, Shield, Phone
 } from 'lucide-react';
-import AudioCall from '../components/AudioCall';
 import { useSocket } from '../context/SocketContext';
 import { useLanguage } from '../context/LanguageContext';
+import AudioCall from '../components/AudioCall';
+import toast from 'react-hot-toast';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
@@ -23,11 +24,11 @@ const QueueDashboard = () => {
   const [delaySeconds, setDelaySeconds] = useState(0);
   const [emergencySeconds, setEmergencySeconds] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [callRecipient, setCallRecipient] = useState(null);
+  const [showAudioCall, setShowAudioCall] = useState(false);
+  const [callHospitalData, setCallHospitalData] = useState(null);
 
   const token = localStorage.getItem('token');
-  const today = new Date().toLocaleDateString('en-CA'); // Local YYYY-MM-DD
-  const todayUTC = new Date().toISOString().split('T')[0]; // UTC YYYY-MM-DD
+  const today = new Date().toISOString().split('T')[0];
 
   // --- Translations ---
   const t = {
@@ -65,32 +66,26 @@ const QueueDashboard = () => {
   // Check if user has an appointment at the affected hospital TODAY
   const hasAppointmentAtHospital = (hospitalId) => {
     if (!hospitalId || !appointments || appointments.length === 0) return false;
-
-    return appointments.some(appt => {
-      if (!appt.hospitalId || appt.hospitalId.toString() !== hospitalId.toString()) return false;
-      if (['COMPLETED', 'REJECTED', 'NO_SHOW', 'CANCELLED'].includes(appt.status)) return false;
-
-      // Check if Date matches Today OR if Status is Active (allows cross-day active sessions)
-      const isToday = (appt.appointmentDate === today || appt.appointmentDate === todayUTC);
-      const isActive = ['check_in', 'CHECKED_IN', 'IN_PROGRESS', 'CONFIRMED'].includes(appt.status);
-
-      return isToday || isActive;
-    });
+    const today = new Date().toISOString().split('T')[0];
+    return appointments.some(appt => 
+      appt.hospitalId && 
+      appt.hospitalId.toString() === hospitalId.toString() &&
+      appt.appointmentDate === today &&
+      !['COMPLETED', 'REJECTED', 'NO_SHOW'].includes(appt.status)
+    );
   };
 
   // --- Fetch live queue data ---
   const fetchQueueData = useCallback(async () => {
     // Collect appointment IDs from both user's appointments and active reminders
-    const todayAppts = appointments.filter(a => {
-      // Robust filter: Date match OR Active Status
-      const isToday = (a.appointmentDate === today || a.appointmentDate === todayUTC);
-      const isActive = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(a.status);
-      return isToday || isActive;
-    });
+    const todayAppts = appointments.filter(
+      a => a.appointmentDate === today &&
+        ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(a.status)
+    );
 
     // Build a Set of all appointment IDs that need live data
     const apptIds = new Set(todayAppts.map(a => a._id));
-
+    
     // Also include appointment IDs from reminders (for walk-in patients who have no "my" appointments)
     if (reminders && reminders.length > 0) {
       reminders.forEach(r => { if (r.apptId) apptIds.add(r.apptId); });
@@ -120,7 +115,7 @@ const QueueDashboard = () => {
         console.error('Queue fetch failed for', apptId, err);
       }
     }
-  }, [appointments, reminders, token, today, todayUTC, setReminders]);
+  }, [appointments, reminders, token, today, setReminders]);
 
   // Initial load
   useEffect(() => {
@@ -150,7 +145,7 @@ const QueueDashboard = () => {
         });
 
         // Optimistically update appointment status to hide the queue card immediately
-        setAppointments(prev => prev.map(a =>
+        setAppointments(prev => prev.map(a => 
           a._id === data.apptId ? { ...a, status: 'COMPLETED' } : a
         ));
       }
@@ -158,7 +153,7 @@ const QueueDashboard = () => {
       // Small delay to let state settle, then force queue data refresh
       setTimeout(() => fetchQueueData(), 300);
     };
-
+    
     // Also listen for notification events (completion notifications)
     const notifHandler = async (data) => {
       if (data && data.status === 'COMPLETED' && data.apptId) {
@@ -170,14 +165,14 @@ const QueueDashboard = () => {
         });
 
         // Optimistically update appointment status to hide the queue card immediately
-        setAppointments(prev => prev.map(a =>
+        setAppointments(prev => prev.map(a => 
           a._id === data.apptId ? { ...a, status: 'COMPLETED' } : a
         ));
       }
       await fetchAppointments();
       setTimeout(() => fetchQueueData(), 300);
     };
-
+    
     socket.on('queueUpdated', handler);
     socket.on('reminder', handler);
     socket.on('notification', notifHandler);
@@ -191,21 +186,18 @@ const QueueDashboard = () => {
   // Redirect if all appointments are completed
   useEffect(() => {
     if (loading) return; // Wait for initial load
-
+    
     // Check if user has any active appointments today
-    const hasActiveAppointments = appointments.some(a => {
-      const isToday = (a.appointmentDate === today || a.appointmentDate === todayUTC);
-      const isActive = ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(a.status);
-      return (isToday || isActive) && !['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(a.status);
-    });
-
+    const hasActiveAppointments = appointments.some(a => 
+      a.appointmentDate === today && 
+      !['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(a.status)
+    );
+    
     // If no active appointments and no reminders, redirect to home
     if (!hasActiveAppointments && (!reminders || reminders.length === 0)) {
-      // Only redirect if absolutely no activity. 
-      // Commenting out for now as user might want to stay on dashboard seeing "No appointments"
-      // navigate('/', { replace: true });
+      navigate('/', { replace: true });
     }
-  }, [appointments, reminders, loading, today, todayUTC, navigate]);
+  }, [appointments, reminders, loading, today, navigate]);
 
   // Break countdown
   useEffect(() => {
@@ -244,21 +236,7 @@ const QueueDashboard = () => {
   }, [emergencyAlert]);
 
   // --- Derived data ---
-  // Improved filter: Hide stale PENDING, Show active/committed regardless of date
-  const todayAppts = appointments.filter(a => {
-    if (['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(a.status)) return false;
-
-    const isToday = (a.appointmentDate === today || a.appointmentDate === todayUTC);
-
-    // Always show if committed
-    if (['CHECKED_IN', 'IN_PROGRESS', 'CONFIRMED'].includes(a.status)) return true;
-
-    // Show PENDING only if today
-    if (a.status === 'PENDING' && isToday) return true;
-
-    return false;
-  });
-
+  const todayAppts = appointments.filter(a => a.appointmentDate === today && !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(a.status));
   const activeAppt = todayAppts.find(a => ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(a.status) && a.queueNumber);
   const activeQueueInfo = activeAppt ? liveQueueData[activeAppt._id] : null;
 
@@ -423,8 +401,8 @@ const QueueDashboard = () => {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-base">
-                    {lang === 'en'
-                      ? `Doctor on ${doctorBreak.breakDurationMinutes}-minute Break`
+                    {lang === 'en' 
+                      ? `Doctor on ${doctorBreak.breakDurationMinutes}-minute Break` 
                       : `డాక్టర్ ${doctorBreak.breakDurationMinutes} నిమిషాల బ్రేక్‌లో`}
                   </h3>
                   <p className="text-purple-200 text-xs mt-0.5">
@@ -519,40 +497,58 @@ const QueueDashboard = () => {
         )}
 
         {/* ========== TODAY'S APPOINTMENTS ========== */}
-        {todayAppts && todayAppts.length > 0 && (
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-5">
+        {todayAppts.length > 0 && (
+          <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex items-center gap-2">
-              <Activity size={18} className="text-blue-500" />
+              <Activity size={18} className="text-indigo-500" />
               <h3 className="font-bold text-slate-900">{t.upcomingAppts}</h3>
-              <span className="ml-auto bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">{todayAppts.length}</span>
+              <span className="ml-auto bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-full">{todayAppts.length}</span>
             </div>
 
             <div className="divide-y divide-slate-100">
               {todayAppts.map((appt) => (
-                <div key={appt._id} className="p-5 flex items-center justify-between gap-3">
+                <div key={appt._id} className="p-5 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-sm text-slate-900">{appt.hospitalName || 'Health Center'}</h4>
-                    <div className="text-xs text-slate-500 mt-0.5">Dr. {appt.doctorName}</div>
-                    <div className="flex gap-2 mt-2">
-                      <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-bold">Queue #{appt.queueNumber}</span>
-                      <span className={`px-2 py-0.5 rounded text-xs font-bold ${['CONFIRMED', 'CHECKED_IN'].includes(appt.status)
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-slate-100 text-slate-600'
-                        }`}>{appt.status}</span>
+                    <h4 className="font-bold text-sm text-slate-900">{appt.hospitalName || 'Hospital'}</h4>
+                    <p className="text-xs text-slate-500 mt-0.5">Dr. {appt.doctor || ''}</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {appt.queueNumber && (
+                        <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-bold">
+                          Queue #{appt.queueNumber}
+                        </span>
+                      )}
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                        appt.status === 'CHECKED_IN' ? 'bg-emerald-100 text-emerald-700' :
+                        appt.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
+                        appt.status === 'IN_PROGRESS' ? 'bg-purple-100 text-purple-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {appt.status}
+                      </span>
                     </div>
                   </div>
-
-                  {/* Call Button */}
-                  <button
-                    onClick={() => setCallRecipient({
-                      id: `hospital_${appt.hospitalId}`,
-                      name: appt.hospitalName || 'Health Center'
-                    })}
-                    className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-full shadow-md transition-transform active:scale-95 flex items-center justify-center shrink-0"
-                    title="Call Hospital"
-                  >
-                    <Phone size={18} fill="currentColor" />
-                  </button>
+                  {/* Call Hospital Button */}
+                  {appt.hospitalId && (
+                    <button
+                      onClick={() => {
+                        if (!socket) {
+                          toast.error('Not connected. Please refresh.');
+                          return;
+                        }
+                        setCallHospitalData({
+                          id: appt.hospitalId,
+                          name: appt.hospitalName || 'Hospital'
+                        });
+                        setShowAudioCall(true);
+                        toast.loading('Connecting call...', { id: 'call-connecting' });
+                        setTimeout(() => toast.dismiss('call-connecting'), 2000);
+                      }}
+                      className="bg-emerald-500 hover:bg-emerald-600 p-3 rounded-full text-white shadow-lg shadow-emerald-200 transition-all hover:scale-105 active:scale-95 shrink-0"
+                      title={lang === 'en' ? 'Call Hospital' : 'ఆసుపత్రికి కాల్ చేయండి'}
+                    >
+                      <Phone size={18} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -572,7 +568,7 @@ const QueueDashboard = () => {
               {reminders.map((reminder) => {
                 // Try live data for this reminder's appointment, then fall back to the active appointment's live data
                 const live = (reminder.apptId ? liveQueueData[reminder.apptId] : null) || activeQueueInfo;
-
+                
                 // Double-check: If the appointment associated with this reminder is completed, hide it immediately
                 if (live && (live.status === 'COMPLETED' || live.type === 'CONSULTATION_ENDED')) return null;
 
@@ -627,21 +623,24 @@ const QueueDashboard = () => {
         {/* Footer info */}
         <div className="text-center py-4">
           <p className="text-[10px] text-slate-400 font-bold">
-            {lang === 'en'
-              ? 'Queue position updates in real-time via live connection'
+            {lang === 'en' 
+              ? 'Queue position updates in real-time via live connection' 
               : 'క్యూ స్థానం లైవ్ కనెక్షన్ ద్వారా నిజ-సమయంలో నవీకరించబడుతుంది'}
           </p>
         </div>
       </div>
 
-      {/* Call User Interface */}
-      {callRecipient && (
+      {/* AUDIO CALL TO HOSPITAL */}
+      {showAudioCall && callHospitalData && socket && (
         <AudioCall
-          recipientId={callRecipient.id}
-          recipientName={callRecipient.name}
+          recipientId={`hospital_${callHospitalData.id}`}
+          recipientName={callHospitalData.name}
           isIncoming={false}
-          onClose={() => setCallRecipient(null)}
           socket={socket}
+          onClose={() => {
+            setShowAudioCall(false);
+            setCallHospitalData(null);
+          }}
         />
       )}
     </div>

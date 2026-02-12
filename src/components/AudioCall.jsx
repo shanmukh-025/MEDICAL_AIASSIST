@@ -227,7 +227,7 @@ const AudioCall = ({ recipientId, recipientName, isIncoming = false, onClose, so
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[2000] p-4">
             <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl shadow-2xl w-full max-w-md p-8 text-white">
                 {/* Close button */}
                 <button
