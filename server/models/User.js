@@ -37,6 +37,16 @@ const UserSchema = new mongoose.Schema({
   phone: {
     type: String
   },
+  phoneVerified: {
+    type: Boolean,
+    default: false
+  },
+  phoneVerificationUid: {
+    type: String
+  },
+  phoneVerifiedAt: {
+    type: Date
+  },
   workingHours: {
     type: String,
     default: '09:00 AM - 09:00 PM'

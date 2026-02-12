@@ -74,6 +74,18 @@ router.post('/register', async (req, res) => {
       role: req.body.role || 'PATIENT'
     };
 
+    // Add phone if provided
+    if (req.body.phone) {
+      userData.phone = req.body.phone;
+      
+      // Add verification status if provided
+      if (req.body.phoneVerified) {
+        userData.phoneVerified = true;
+        userData.phoneVerificationUid = req.body.phoneVerificationUid;
+        userData.phoneVerifiedAt = new Date();
+      }
+    }
+
     // Add hospital-specific fields if role is HOSPITAL
     if (req.body.role === 'HOSPITAL') {
       if (req.body.address) userData.address = req.body.address;

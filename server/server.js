@@ -93,11 +93,47 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 io.on('connection', (socket) => {
   console.log('🔌 New socket connection:', socket.id);
+
   // clients should join room `user_<userId>` after authentication on client
   socket.on('join', (room) => {
     socket.join(room);
     console.log('✅ Socket joined room:', room, 'Socket ID:', socket.id);
   });
+
+  // WebRTC Signaling for Audio/Video Calls
+  socket.on('call:offer', ({ to, offer, callType }) => {
+    console.log(`📞 Call offer from ${socket.id} to ${to} (${callType})`);
+    io.to(to).emit('call:offer', {
+      from: socket.id,
+      offer,
+      callType
+    });
+  });
+
+  socket.on('call:answer', ({ to, answer }) => {
+    console.log(`✅ Call answer from ${socket.id} to ${to}`);
+    io.to(to).emit('call:answer', { answer });
+  });
+
+  socket.on('call:ice-candidate', ({ to, candidate }) => {
+    io.to(to).emit('call:ice-candidate', { candidate });
+  });
+
+  socket.on('call:end', ({ to }) => {
+    console.log(`📴 Call ended by ${socket.id}`);
+    io.to(to).emit('call:end');
+  });
+
+  socket.on('call:reject', ({ to }) => {
+    console.log(`❌ Call rejected by ${socket.id}`);
+    io.to(to).emit('call:rejected');
+  });
+
+  socket.on('call:rejected', ({ to }) => {
+    console.log(`❌ Call rejected by ${socket.id} to ${to}`);
+    io.to(to).emit('call:rejected');
+  });
+
   socket.on('disconnect', () => {
     console.log('❌ Socket disconnected:', socket.id);
   });

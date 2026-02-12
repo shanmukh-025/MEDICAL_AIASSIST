@@ -130,8 +130,21 @@ router.get('/patient', auth, async (req, res) => {
   try {
     const caller = await User.findById(req.user.id).select('-password');
     if (!caller || caller.role !== 'PATIENT') return res.status(403).json({ msg: 'Access denied' });
-    const appts = await Appointment.find({ patientId: caller._id }).sort({ createdAt: -1 });
-    res.json(appts);
+    
+    const appts = await Appointment.find({ patientId: caller._id })
+      .sort({ createdAt: -1 })
+      .populate('hospitalId', 'name phone address');
+    
+    // Enhance appointments with hospital phone if available
+    const enhancedAppts = appts.map(appt => {
+      const apptObj = appt.toObject();
+      if (appt.hospitalId && appt.hospitalId.phone) {
+        apptObj.hospitalPhone = appt.hospitalId.phone;
+      }
+      return apptObj;
+    });
+    
+    res.json(enhancedAppts);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

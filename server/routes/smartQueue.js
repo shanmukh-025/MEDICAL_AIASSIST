@@ -357,6 +357,20 @@ router.get('/mobile/queue-status/:tokenNumber', auth, async (req, res) => {
     // Feature 9: Mobile-friendly JSON format
     const mobileStatus = queueManager.getMobileQueueStatus(parseInt(tokenNumber));
 
+    // Fetch appointment to get hospital information
+    try {
+      const appointment = await Appointment.findOne({ tokenNumber: parseInt(tokenNumber) })
+        .populate('hospitalId', 'name phone address');
+      
+      if (appointment && appointment.hospitalId) {
+        mobileStatus.hospitalName = appointment.hospitalId.name || appointment.hospitalName;
+        mobileStatus.hospitalPhone = appointment.hospitalId.phone;
+        mobileStatus.appointmentId = appointment._id;
+      }
+    } catch (err) {
+      console.warn('Failed to fetch hospital details:', err.message);
+    }
+
     res.json(mobileStatus);
 
   } catch (err) {

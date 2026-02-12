@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Calendar, Clock, User, FileText, Send, Loader2, WifiOff, AlertTriangle, Users, MapPin, Bell, ShieldAlert, Zap } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, User, FileText, Send, Loader2, WifiOff, AlertTriangle, Users, MapPin, Bell, ShieldAlert, Zap, Phone, Video } from 'lucide-react';
 import api from '../utils/apiWrapper';
 import QueueStatus from '../components/QueueStatus';
 import DoctorBreakBanner from '../components/DoctorBreakBanner';
+import CallHospital from '../components/CallHospital';
 import { useSocket } from '../context/SocketContext';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
@@ -26,6 +27,7 @@ const PatientAppointments = () => {
   const [emergencySeconds, setEmergencySeconds] = useState(0);
   const [breakSeconds, setBreakSeconds] = useState(0);
   const [delaySeconds, setDelaySeconds] = useState(0);
+  const [callModalData, setCallModalData] = useState(null);
 
   const token = localStorage.getItem('token');
 
@@ -737,10 +739,37 @@ const PatientAppointments = () => {
               )}
 
               {a.rejectionReason && <div className="text-sm text-red-600 mt-2 bg-red-50 p-2 rounded">Reason: {a.rejectionReason}</div>}
+              
+              {/* Contact Hospital Button */}
+              {(a.status === 'CONFIRMED' || a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS') && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => setCallModalData({
+                      hospitalName: a.hospitalName || a.doctor || 'Hospital',
+                      hospitalPhone: a.hospitalPhone,
+                      appointmentId: a._id
+                    })}
+                    className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white py-3 px-4 rounded-xl font-semibold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                  >
+                    <Phone size={18} />
+                    Contact Hospital
+                  </button>
+                </div>
+              )}
             </div>
             );
           })}
         </div>
+      )}
+
+      {/* Call Hospital Modal */}
+      {callModalData && (
+        <CallHospital
+          hospitalName={callModalData.hospitalName}
+          hospitalPhone={callModalData.hospitalPhone}
+          appointmentId={callModalData.appointmentId}
+          onClose={() => setCallModalData(null)}
+        />
       )}
     </div>
   );

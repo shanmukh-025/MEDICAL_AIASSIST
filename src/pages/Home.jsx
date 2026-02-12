@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils, 
+import {
+  Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils,
   ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee
 } from 'lucide-react';
 import axios from 'axios';
@@ -33,10 +33,10 @@ const Home = () => {
 
     const savedName = localStorage.getItem('userName');
     if (savedName) setUserName(savedName);
-    
+
     // Fetch user appointments to verify hospital matches
     fetchUserAppointments();
-    
+
     // Clean up old reminders (older than 24 hours)
     if (reminders && reminders.length > 0) {
       const now = Date.now();
@@ -78,7 +78,7 @@ const Home = () => {
   // Check if user has an appointment at the affected hospital
   const hasAppointmentAtHospital = (hospitalId) => {
     if (!hospitalId || !userAppointments || userAppointments.length === 0) return false;
-    return userAppointments.some(appt => 
+    return userAppointments.some(appt =>
       appt.hospitalId && appt.hospitalId.toString() === hospitalId.toString()
     );
   };
@@ -86,7 +86,7 @@ const Home = () => {
   // Fetch live queue data for active reminders
   const fetchLiveQueueData = async () => {
     if (!reminders || reminders.length === 0) return;
-    
+
     const token = localStorage.getItem('token');
     if (!token) return;
 
@@ -108,11 +108,11 @@ const Home = () => {
   // Auto-refresh live queue data
   useEffect(() => {
     fetchLiveQueueData();
-    
+
     const interval = setInterval(() => {
       fetchLiveQueueData();
     }, 15000); // Refresh every 15 seconds
-    
+
     return () => clearInterval(interval);
   }, [reminders]);
 
@@ -175,9 +175,9 @@ const Home = () => {
 
   // --- SEARCH HANDLER (DEBUGGED) ---
   const handleSearch = (e) => {
-    e.preventDefault(); 
-    console.log("Search Triggered for:", searchQuery); 
-    
+    e.preventDefault();
+    console.log("Search Triggered for:", searchQuery);
+
     if (searchQuery.trim()) {
       navigate(`/result/${encodeURIComponent(searchQuery)}`);
     }
@@ -207,7 +207,7 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">
-      
+
       {/* HEADER SECTION */}
       <div className="bg-emerald-600 relative overflow-hidden pb-24 pt-8 px-6 text-white shadow-xl rounded-b-[40px]">
         {/* Background Effects */}
@@ -217,22 +217,22 @@ const Home = () => {
         <div className="max-w-7xl mx-auto relative z-10">
           {/* Top Bar */}
           <div className="flex justify-between items-start mb-8">
-             <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 border border-white/10 shadow-sm">
-                <Activity size={12} className="animate-pulse text-emerald-100"/> 
-                <span>VillageMed AI</span>
-             </div>
-             
-             <div className="flex items-center gap-2">
-                 <button onClick={toggleLanguage} className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition border border-white/10 flex items-center gap-1">
-                    <Globe size={12}/> {lang === 'en' ? 'ENGLISH' : 'తెలుగు'}
-                 </button>
+            <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 border border-white/10 shadow-sm">
+              <Activity size={12} className="animate-pulse text-emerald-100" />
+              <span>VillageMed AI</span>
+            </div>
 
-                 <button onClick={handleLogout} className="bg-white/10 hover:bg-red-500/80 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition flex items-center gap-1 border border-white/10">
-                    <LogOut size={12} />
-                 </button>
-             </div>
+            <div className="flex items-center gap-2">
+              <button onClick={toggleLanguage} className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition border border-white/10 flex items-center gap-1">
+                <Globe size={12} /> {lang === 'en' ? 'ENGLISH' : 'తెలుగు'}
+              </button>
+
+              <button onClick={handleLogout} className="bg-white/10 hover:bg-red-500/80 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition flex items-center gap-1 border border-white/10">
+                <LogOut size={12} />
+              </button>
+            </div>
           </div>
-          
+
           <h1 className="text-4xl font-black mb-2 tracking-tight drop-shadow-sm">
             {t.greeting}
           </h1>
@@ -244,7 +244,7 @@ const Home = () => {
 
       {/* BODY CONTENT */}
       <div className="max-w-7xl mx-auto px-6 -mt-16 relative z-20 space-y-6">
-        
+
         {/* Queue Status Summary Card — links to dedicated Queue Dashboard */}
         {((doctorBreak && breakSeconds > 0 && hasAppointmentAtHospital(doctorBreak.hospitalId)) || (doctorDelay && delaySeconds > 0 && hasAppointmentAtHospital(doctorDelay.hospitalId)) || (emergencyAlert && emergencySeconds > 0 && hasAppointmentAtHospital(emergencyAlert.hospitalId)) || (reminders && reminders.length > 0)) && (
           <div
@@ -330,11 +330,11 @@ const Home = () => {
             </div>
           </div>
         )}
-        
+
         {/* Notice Bar */}
         <div className="bg-emerald-900/90 backdrop-blur text-emerald-100 px-4 py-3 rounded-2xl text-xs font-medium flex items-center gap-3 shadow-lg border border-white/10">
-            <div className="bg-emerald-500/20 p-1 rounded-full"><AlertIcon /></div>
-            {t.info}
+          <div className="bg-emerald-500/20 p-1 rounded-full"><AlertIcon /></div>
+          {t.info}
         </div>
 
         {/* MAIN ACTIONS */}
@@ -362,59 +362,75 @@ const Home = () => {
 
         {/* --- SEARCH BAR (FIXED FORM) --- */}
         <form onSubmit={handleSearch} className="relative group z-10">
-           {/* Icon: Added pointer-events-none so it doesn't block clicks */}
-           <div className="absolute left-5 top-5 text-slate-400 group-focus-within:text-emerald-500 transition z-20 pointer-events-none">
-              <Search size={20}/>
-           </div>
-           
-           <input 
-             type="text" 
-             placeholder={t.searchPlaceholder}
-             className="w-full bg-white py-5 pl-14 pr-28 rounded-2xl shadow-sm border border-slate-100 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 font-medium text-slate-700 transition-all"
-             value={searchQuery}
-             onChange={(e) => setSearchQuery(e.target.value)}
-           />
-           
-           {/* Button: Added z-30 to sit ON TOP of input */}
-           <button 
-             type="submit" 
-             className="absolute right-2 top-2 bottom-2 bg-slate-900 text-white px-6 rounded-xl font-bold text-sm hover:bg-emerald-600 hover:shadow-lg transition-all z-30 cursor-pointer"
-           >
-             GO
-           </button>
+          {/* Icon: Added pointer-events-none so it doesn't block clicks */}
+          <div className="absolute left-5 top-5 text-slate-400 group-focus-within:text-emerald-500 transition z-20 pointer-events-none">
+            <Search size={20} />
+          </div>
+
+          <input
+            type="text"
+            placeholder={t.searchPlaceholder}
+            className="w-full bg-white py-5 pl-14 pr-28 rounded-2xl shadow-sm border border-slate-100 focus:outline-none focus:ring-4 focus:ring-emerald-500/20 font-medium text-slate-700 transition-all"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+
+          {/* Button: Added z-30 to sit ON TOP of input */}
+          <button
+            type="submit"
+            className="absolute right-2 top-2 bottom-2 bg-slate-900 text-white px-6 rounded-xl font-bold text-sm hover:bg-emerald-600 hover:shadow-lg transition-all z-30 cursor-pointer"
+          >
+            GO
+          </button>
         </form>
 
         {/* DAILY HEALTH TOOLS */}
         <div>
-           <div className="flex items-center gap-2 mb-4">
-              <Activity size={14} className="text-emerald-500"/>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.toolsTitle}</h3>
-           </div>
-           
-           <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-              <div className="relative">
-                <ToolCard icon={Bell} color="purple" label={t.reminders} onClick={() => navigate('/reminders')} />
-                {reminders && reminders.length > 0 && (
-                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-lg animate-pulse">
-                    {reminders.length}
-                  </div>
-                )}
-              </div>
-              <ToolCard icon={BrainCircuit} color="pink" label={t.medibot} onClick={() => navigate('/first-aid')} />
-              <ToolCard icon={BarChart2} color="blue" label={t.analytics} onClick={() => navigate('/analytics')} />
-              <ToolCard icon={FileText} color="teal" label={t.records} onClick={() => navigate('/records')} />
-              <ToolCard icon={Users} color="emerald" label={t.family} onClick={() => navigate('/family')} />
-              <ToolCard icon={Utensils} color="orange" label={t.diet} onClick={() => navigate('/wellness')} />
-           </div>
+          <div className="flex items-center gap-2 mb-4">
+            <Activity size={14} className="text-emerald-500" />
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.toolsTitle}</h3>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+            <div className="relative">
+              <ToolCard icon={Bell} color="purple" label={t.reminders} onClick={() => navigate('/reminders')} />
+              {reminders && reminders.length > 0 && (
+                <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                  {reminders.length}
+                </div>
+              )}
+            </div>
+            <ToolCard icon={BrainCircuit} color="pink" label={t.medibot} onClick={() => navigate('/first-aid')} />
+            <ToolCard icon={BarChart2} color="blue" label={t.analytics} onClick={() => navigate('/analytics')} />
+            <ToolCard icon={FileText} color="teal" label={t.records} onClick={() => navigate('/records')} />
+            <ToolCard icon={Users} color="emerald" label={t.family} onClick={() => navigate('/family')} />
+            <ToolCard icon={Utensils} color="orange" label={t.diet} onClick={() => navigate('/wellness')} />
+          </div>
         </div>
 
         {/* APPOINTMENTS */}
         <div onClick={() => navigate('/appointments')} className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between hover:bg-slate-50 transition cursor-pointer">
-           <div className="flex items-center gap-4">
-              <div className="bg-indigo-50 text-indigo-600 p-3 rounded-2xl"><Calendar size={20}/></div>
-              <div><h3 className="font-bold text-slate-800 text-sm">{t.appointments}</h3><p className="text-[10px] text-slate-400 font-bold uppercase">{t.viewBookings}</p></div>
-           </div>
-           <ChevronRight size={16} className="text-slate-300"/>
+          <div className="flex items-center gap-4">
+            <div className="bg-indigo-50 text-indigo-600 p-3 rounded-2xl"><Calendar size={20} /></div>
+            <div><h3 className="font-bold text-slate-800 text-sm">{t.appointments}</h3><p className="text-[10px] text-slate-400 font-bold uppercase">{t.viewBookings}</p></div>
+          </div>
+          <ChevronRight size={16} className="text-slate-300" />
+        </div>
+
+        {/* QUEUE DASHBOARD - Direct Access */}
+        <div onClick={() => navigate('/queue-dashboard')} className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 rounded-3xl shadow-lg border border-blue-500 flex items-center justify-between hover:shadow-xl transition cursor-pointer">
+          <div className="flex items-center gap-4">
+            <div className="bg-white/20 text-white p-3 rounded-2xl"><Activity size={20} /></div>
+            <div>
+              <h3 className="font-bold text-white text-sm">
+                {lang === 'en' ? 'Queue Dashboard' : 'క్యూ డాష్‌బోర్డ్'}
+              </h3>
+              <p className="text-[10px] text-blue-100 font-bold uppercase">
+                {lang === 'en' ? 'View Queue & Call Hospital' : 'క్యూ చూడండి & హాస్పిటల్‌కు కాల్ చేయండి'}
+              </p>
+            </div>
+          </div>
+          <ChevronRight size={16} className="text-white/60" />
         </div>
 
       </div>
@@ -424,22 +440,22 @@ const Home = () => {
 
 // Helper Component for Tools
 const ToolCard = ({ icon: Icon, color, label, onClick }) => {
-    const colors = {
-        purple: "bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-600 hover:text-white hover:border-purple-600",
-        pink: "bg-pink-50 text-pink-600 border-pink-100 hover:bg-pink-600 hover:text-white hover:border-pink-600",
-        blue: "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-600 hover:text-white hover:border-blue-600",
-        teal: "bg-teal-50 text-teal-600 border-teal-100 hover:bg-teal-600 hover:text-white hover:border-teal-600",
-        orange: "bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-600 hover:text-white hover:border-orange-600",
-        emerald: "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600",
-        indigo: "bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600",
-        red: "bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white hover:border-red-600",
-    };
-    return (
-        <div onClick={onClick} className={`${colors[color]} transition-all duration-300 p-4 rounded-2xl border cursor-pointer flex flex-col items-center justify-center gap-3 text-center h-32 group shadow-sm hover:shadow-md`}>
-            <Icon size={28} className="transition-transform group-hover:scale-110"/>
-            <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
-        </div>
-    )
+  const colors = {
+    purple: "bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-600 hover:text-white hover:border-purple-600",
+    pink: "bg-pink-50 text-pink-600 border-pink-100 hover:bg-pink-600 hover:text-white hover:border-pink-600",
+    blue: "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-600 hover:text-white hover:border-blue-600",
+    teal: "bg-teal-50 text-teal-600 border-teal-100 hover:bg-teal-600 hover:text-white hover:border-teal-600",
+    orange: "bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-600 hover:text-white hover:border-orange-600",
+    emerald: "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-600 hover:text-white hover:border-emerald-600",
+    indigo: "bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600",
+    red: "bg-red-50 text-red-600 border-red-100 hover:bg-red-600 hover:text-white hover:border-red-600",
+  };
+  return (
+    <div onClick={onClick} className={`${colors[color]} transition-all duration-300 p-4 rounded-2xl border cursor-pointer flex flex-col items-center justify-center gap-3 text-center h-32 group shadow-sm hover:shadow-md`}>
+      <Icon size={28} className="transition-transform group-hover:scale-110" />
+      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+    </div>
+  )
 }
 
 const AlertIcon = () => (

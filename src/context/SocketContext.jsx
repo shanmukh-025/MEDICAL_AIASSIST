@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import webrtcService from '../services/webrtc';
 
 const SocketContext = createContext();
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
@@ -163,6 +164,9 @@ export const SocketProvider = ({ children }) => {
     const API_URL = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
     const newSocket = io(API_URL, { transports: ['websocket', 'polling'] });
 
+    // Initialize WebRTC service with socket
+    webrtcService.initialize(newSocket);
+
     // Fetch user appointments when socket connects
     fetchUserAppointments();
 
@@ -174,14 +178,26 @@ export const SocketProvider = ({ children }) => {
     newSocket.on('connect', () => {
       console.log('✅ Socket connected');
       const token = localStorage.getItem('token');
+      const userRole = localStorage.getItem('userRole');
+
       if (token) {
         try {
           const payload = JSON.parse(atob(token.split('.')[1]));
           const userId = payload.id || payload.userId;
           console.log('🔑 User ID from token:', userId);
+          console.log('👤 User Role:', userRole);
+
           if (userId) {
-            console.log('📡 Joining room:', `user_${userId}`);
-            newSocket.emit('join', `user_${userId}`);
+            // Join appropriate room based on role
+            if (userRole === 'HOSPITAL') {
+              const hospitalRoom = `hospital_${userId}`;
+              console.log('🏥 Joining hospital room:', hospitalRoom);
+              newSocket.emit('join', hospitalRoom);
+            } else {
+              const userRoom = `user_${userId}`;
+              console.log('📡 Joining user room:', userRoom);
+              newSocket.emit('join', userRoom);
+            }
           }
         } catch (e) { console.error('Token parse error', e); }
       }

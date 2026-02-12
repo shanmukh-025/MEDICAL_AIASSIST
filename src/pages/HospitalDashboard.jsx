@@ -4,7 +4,10 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import HospitalQueueManagement from '../components/HospitalQueueManagement';
+import AudioCall from '../components/AudioCall';
+import webrtcService from '../services/webrtc';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
@@ -25,22 +28,72 @@ const HospitalDashboard = () => {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const logoInputRef = React.useRef(null);
   const token = localStorage.getItem('token');
+  const { socket } = useSocket();
+  const [showIncomingCall, setShowIncomingCall] = useState(false);
+  const [incomingCallData, setIncomingCallData] = useState(null);
 
-  useEffect(() => { 
-    fetchAppointments(); 
+  useEffect(() => {
+    fetchAppointments();
     fetchProfile();
   }, []);
+
+  // Initialize WebRTC for incoming calls
+  useEffect(() => {
+    console.log('🔍 WebRTC Init Check:', {
+      hasSocket: !!socket,
+      hasProfile: !!profile,
+      profileId: profile?._id
+    });
+
+    if (socket && profile) {
+      // Join hospital's socket room to receive calls
+      const hospitalRoomId = `hospital_${profile._id}`;
+      socket.emit('join', hospitalRoomId);
+      console.log('🏥 Hospital joined room:', hospitalRoomId);
+
+      webrtcService.initialize(socket);
+
+      // Handle incoming calls from patients via WebRTC service
+      webrtcService.setOnIncomingCall(({ from, callType }) => {
+        console.log('📞 Incoming call from patient (WebRTC):', from);
+        setIncomingCallData({ from, callType, name: 'Patient' });
+        setShowIncomingCall(true);
+        toast.success('📞 Incoming call from patient!');
+      });
+
+      // ALSO listen directly to socket for demo mode
+      const handleCallOffer = ({ from, callType, offer }) => {
+        console.log('📢 HOSPITAL: Call offer event fired!');
+        console.log('📞 Direct socket call received!', { from, callType, offer });
+        console.log('📍 Setting state: showIncomingCall=true');
+        setIncomingCallData({ from, callType, name: 'Patient' });
+        setShowIncomingCall(true);
+        toast.success('📞 Incoming call from patient!');
+      };
+
+      socket.on('call:offer', handleCallOffer);
+      console.log('✅ Hospital listener registered for call:offer');
+
+      // Cleanup
+      return () => {
+        console.log('🧹 Removing hospital call:offer listener');
+        socket.off('call:offer', handleCallOffer);
+      };
+    } else {
+      console.log('⏳ Waiting for socket and profile...');
+    }
+  }, [socket, profile]);
 
   const fetchProfile = async () => {
     try {
       const res = await axios.get(`${API}/api/hospitals/profile`, { headers: { 'x-auth-token': token } });
       setProfile(res.data);
       setEditData(res.data);
-      
+
       // Properly construct logo URL
       if (res.data.logo) {
-        const logoUrl = res.data.logo.startsWith('http') 
-          ? res.data.logo 
+        const logoUrl = res.data.logo.startsWith('http')
+          ? res.data.logo
           : `${API}${res.data.logo}`;
         console.log('Logo URL:', logoUrl);
         setLogoPreview(logoUrl);
@@ -118,7 +171,7 @@ const HospitalDashboard = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        
+
         // Reverse geocode to get address
         try {
           const response = await fetch(
@@ -126,13 +179,13 @@ const HospitalDashboard = () => {
           );
           const data = await response.json();
           const address = data.display_name || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-          
+
           setEditData({
             ...editData,
             address: address,
             location: { latitude, longitude }
           });
-          
+
           toast.success('📍 Location detected!', { id: 'location' });
         } catch (error) {
           console.error('Geocoding error:', error);
@@ -184,13 +237,13 @@ const HospitalDashboard = () => {
 
       if (response.data.logoUrl) {
         // Use the full URL from response, don't prepend API again
-        const logoUrl = response.data.logoUrl.startsWith('http') 
-          ? response.data.logoUrl 
+        const logoUrl = response.data.logoUrl.startsWith('http')
+          ? response.data.logoUrl
           : `${API}${response.data.logoUrl}`;
-        
+
         console.log('🖼️ Constructed logo URL:', logoUrl);
         console.log('🔗 Testing URL accessibility...');
-        
+
         // Test if URL is accessible
         fetch(logoUrl)
           .then(res => {
@@ -202,17 +255,17 @@ const HospitalDashboard = () => {
           .catch(err => {
             console.error('❌ URL is NOT accessible:', err);
           });
-        
+
         setLogoPreview(logoUrl);
         setEditData({ ...editData, logo: logoUrl });
         toast.success('Logo uploaded successfully!');
-        
+
         // Save the logo URL to profile immediately
-        await axios.put(`${API}/api/hospitals/profile`, 
-          { ...editData, logo: logoUrl }, 
+        await axios.put(`${API}/api/hospitals/profile`,
+          { ...editData, logo: logoUrl },
           { headers: { 'x-auth-token': token } }
         );
-        
+
         fetchProfile(); // Refresh profile
       } else {
         console.error('❌ No logoUrl in response:', response.data);
@@ -290,11 +343,11 @@ const HospitalDashboard = () => {
 
   const openReportModal = (appointment) => {
     setSelectedAppointment(appointment);
-    setReportForm({ 
-      title: '', 
-      doctor: appointment.doctor || '', 
-      type: 'Lab Report', 
-      image: '' 
+    setReportForm({
+      title: '',
+      doctor: appointment.doctor || '',
+      type: 'Lab Report',
+      image: ''
     });
     setShowReportModal(true);
   };
@@ -306,7 +359,7 @@ const HospitalDashboard = () => {
         toast.error("File too large (Max 8MB)");
         return;
       }
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setReportForm(prev => ({ ...prev, image: reader.result }));
@@ -381,7 +434,7 @@ const HospitalDashboard = () => {
               <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
                 {totalAppointments} Total
               </div>
-              <button 
+              <button
                 onClick={() => {
                   if (window.confirm('Are you sure you want to logout?')) {
                     logout();
@@ -402,43 +455,38 @@ const HospitalDashboard = () => {
       <div className="max-w-7xl mx-auto px-6 py-6">
         {/* Tabs */}
         <div className="flex gap-2 mb-6 overflow-x-auto bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
-          <button 
+          <button
             onClick={() => setActiveTab('QUEUE')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'QUEUE' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
-            }`}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'QUEUE' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+              }`}
           >
             <Users size={16} /> Queue Management
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('PROFILE')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'PROFILE' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'
-            }`}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'PROFILE' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+              }`}
           >
             <Heart size={16} /> Profile
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('PENDING')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'text-slate-600 hover:bg-slate-50'
-            }`}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'text-slate-600 hover:bg-slate-50'
+              }`}
           >
             Pending {pendingCount > 0 && <span className="bg-yellow-600 text-white px-2 py-0.5 rounded-full text-xs">{pendingCount}</span>}
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('CONFIRMED')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 'text-slate-600 hover:bg-slate-50'
-            }`}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 'text-slate-600 hover:bg-slate-50'
+              }`}
           >
             Confirmed {confirmedCount > 0 && <span className="bg-green-600 text-white px-2 py-0.5 rounded-full text-xs">{confirmedCount}</span>}
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('COMPLETED')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${
-              activeTab === 'COMPLETED' ? 'bg-blue-100 text-blue-800' : 'text-slate-600 hover:bg-slate-50'
-            }`}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'COMPLETED' ? 'bg-blue-100 text-blue-800' : 'text-slate-600 hover:bg-slate-50'
+              }`}
           >
             Completed {completedCount > 0 && <span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-xs">{completedCount}</span>}
           </button>
@@ -486,10 +534,10 @@ const HospitalDashboard = () => {
                             </div>
                           )}
                           {logoPreview ? (
-                            <img 
+                            <img
                               key={logoPreview}
-                              src={logoPreview} 
-                              alt="Logo" 
+                              src={logoPreview}
+                              alt="Logo"
                               className="w-full h-full object-contain p-2"
                               onLoad={() => {
                                 console.log('✅ Logo loaded successfully:', logoPreview);
@@ -543,10 +591,10 @@ const HospitalDashboard = () => {
                     <div className="mb-4 pb-4 border-b border-slate-200">
                       <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Hospital Logo</label>
                       <div className="w-32 h-32 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
-                        <img 
+                        <img
                           key={logoPreview}
-                          src={logoPreview} 
-                          alt="Logo" 
+                          src={logoPreview}
+                          alt="Logo"
                           className="w-full h-full object-contain p-2"
                           onError={(e) => {
                             console.error('❌ Logo failed to load in view mode:', logoPreview);
@@ -567,13 +615,13 @@ const HospitalDashboard = () => {
                     {editMode ? (
                       <div className="space-y-2">
                         <div className="flex gap-2">
-                          <input 
-                            value={editData.address || ''} 
-                            onChange={(e) => setEditData({...editData, address: e.target.value})} 
-                            className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl" 
+                          <input
+                            value={editData.address || ''}
+                            onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                            className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl"
                             placeholder="Enter address or detect location"
                           />
-                          <button 
+                          <button
                             onClick={detectLocation}
                             className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-emerald-700 transition whitespace-nowrap"
                           >
@@ -590,7 +638,7 @@ const HospitalDashboard = () => {
                     <div>
                       <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Phone</label>
                       {editMode ? (
-                        <input value={editData.phone || ''} onChange={(e) => setEditData({...editData, phone: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="+1 234 567 8900" />
+                        <input value={editData.phone || ''} onChange={(e) => setEditData({ ...editData, phone: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="+1 234 567 8900" />
                       ) : (
                         <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.phone || 'Not set'}</div>
                       )}
@@ -598,7 +646,7 @@ const HospitalDashboard = () => {
                     <div>
                       <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Emergency</label>
                       {editMode ? (
-                        <input value={editData.emergencyContact || ''} onChange={(e) => setEditData({...editData, emergencyContact: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="+1 234 567 8911" />
+                        <input value={editData.emergencyContact || ''} onChange={(e) => setEditData({ ...editData, emergencyContact: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="+1 234 567 8911" />
                       ) : (
                         <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.emergencyContact || 'Not set'}</div>
                       )}
@@ -608,7 +656,7 @@ const HospitalDashboard = () => {
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Working Hours</label>
                     {editMode ? (
-                      <input value={editData.workingHours || ''} onChange={(e) => setEditData({...editData, workingHours: e.target.value})} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="09:00 AM - 09:00 PM" />
+                      <input value={editData.workingHours || ''} onChange={(e) => setEditData({ ...editData, workingHours: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="09:00 AM - 09:00 PM" />
                     ) : (
                       <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.workingHours}</div>
                     )}
@@ -617,7 +665,7 @@ const HospitalDashboard = () => {
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">About</label>
                     {editMode ? (
-                      <textarea value={editData.about || ''} onChange={(e) => setEditData({...editData, about: e.target.value})} rows="3" className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="Brief description about your hospital..." />
+                      <textarea value={editData.about || ''} onChange={(e) => setEditData({ ...editData, about: e.target.value })} rows="3" className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="Brief description about your hospital..." />
                     ) : (
                       <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.about || 'No description available'}</div>
                     )}
@@ -766,11 +814,10 @@ const HospitalDashboard = () => {
                       <div className="text-sm text-slate-500 ml-6">{p.patientId?.email}</div>
                       {p.reason && <div className="text-sm text-slate-600 mt-2 bg-slate-50 p-2 rounded-lg ml-6">{p.reason}</div>}
                     </div>
-                    <span className={`px-3 py-1.5 rounded-full text-xs font-extrabold uppercase ${
-                      p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                    <span className={`px-3 py-1.5 rounded-full text-xs font-extrabold uppercase ${p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
                       p.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>{p.status}</span>
+                        'bg-blue-100 text-blue-800'
+                      }`}>{p.status}</span>
                   </div>
                   <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 p-3 rounded-xl mb-4">
                     <div className="flex items-center gap-2">
@@ -827,8 +874,8 @@ const HospitalDashboard = () => {
                 <FileText className="text-emerald-600" size={24} />
                 Send Test Report
               </h2>
-              <button 
-                onClick={() => setShowReportModal(false)} 
+              <button
+                onClick={() => setShowReportModal(false)}
                 className="p-2 hover:bg-slate-100 rounded-full transition"
               >
                 <CloseIcon size={20} />
@@ -921,6 +968,20 @@ const HospitalDashboard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Incoming Call from Patient */}
+      {showIncomingCall && incomingCallData && (
+        <AudioCall
+          recipientId={incomingCallData.from}
+          recipientName={incomingCallData.name}
+          isIncoming={true}
+          socket={socket}
+          onClose={() => {
+            setShowIncomingCall(false);
+            setIncomingCallData(null);
+          }}
+        />
       )}
     </div>
   );

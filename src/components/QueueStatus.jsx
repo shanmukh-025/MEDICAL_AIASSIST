@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Clock, RefreshCw, CheckCircle, Coffee } from 'lucide-react';
+import { Users, Clock, RefreshCw, CheckCircle, Coffee, Phone } from 'lucide-react';
 import axios from 'axios';
+import CallHospital from './CallHospital';
 
 const API_URL = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
@@ -9,6 +10,7 @@ const QueueStatus = ({ tokenNumber }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [showCallModal, setShowCallModal] = useState(false);
 
   const fetchQueueStatus = async () => {
     if (!tokenNumber) return;
@@ -213,7 +215,28 @@ const QueueStatus = ({ tokenNumber }) => {
             </p>
           </div>
         )}
+
+        {/* Contact Hospital Button */}
+        <div className="mt-4 pt-4 border-t border-slate-200">
+          <button
+            onClick={() => setShowCallModal(true)}
+            className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white py-3 px-4 rounded-xl font-semibold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+          >
+            <Phone size={18} />
+            Contact Hospital
+          </button>
+        </div>
       </div>
+
+      {/* Call Hospital Modal */}
+      {showCallModal && (
+        <CallHospital
+          hospitalName={queueData.hospitalName || 'Hospital'}
+          hospitalPhone={queueData.hospitalPhone}
+          appointmentId={queueData.appointmentId}
+          onClose={() => setShowCallModal(false)}
+        />
+      )}
     </div>
   );
 };
