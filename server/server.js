@@ -54,7 +54,9 @@ app.use(cors({
     'http://127.0.0.1:4173',   // Preview/Build Server (IP)
     'https://medical-aiassist.vercel.app'  // Production Frontend (Vercel)
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'x-auth-token', 'Authorization']
 }));
 
 // 3. Increase Data Limit (CRITICAL for Image Uploads)

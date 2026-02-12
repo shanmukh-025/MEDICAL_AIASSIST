@@ -1,21 +1,20 @@
 // Service Worker for Push Notifications and Offline Support
-const CACHE_NAME = 'medical-assistant-v1';
+const CACHE_NAME = 'medical-assistant-v2';
 const urlsToCache = [
   '/',
-  '/index.html',
-  '/src/main.jsx',
-  '/src/App.jsx'
+  '/index.html'
 ];
 
-// Install event - cache files
+// Install event - cache files and activate immediately
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
   );
 });
 
-// Activate event - clean old caches
+// Activate event - clean old caches and claim clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -26,15 +25,25 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - network first, fallback to cache (ensures fresh code)
 self.addEventListener('fetch', (event) => {
+  // Skip non-GET and API requests
+  if (event.request.method !== 'GET' || event.request.url.includes('/api/')) {
+    return;
+  }
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => response || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        // Cache the fresh response
+        const cloned = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 

@@ -281,6 +281,57 @@ router.put('/:id/complete', auth, async (req, res) => {
   }
 });
 
+// PUT /api/appointments/:id/cancel -> Patient cancels their appointment
+router.put('/:id/cancel', auth, async (req, res) => {
+  try {
+    const caller = await User.findById(req.user.id).select('-password');
+    if (!caller) return res.status(401).json({ msg: 'User not found' });
+
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt) return res.status(404).json({ msg: 'Appointment not found' });
+
+    // Only the patient who booked can cancel
+    if (appt.patientId && appt.patientId.toString() !== caller._id.toString()) {
+      return res.status(403).json({ msg: 'Not authorized' });
+    }
+
+    // Cannot cancel already completed, cancelled, or rejected appointments
+    if (['COMPLETED', 'CANCELLED', 'REJECTED'].includes(appt.status)) {
+      return res.status(400).json({ msg: `Cannot cancel a ${appt.status.toLowerCase()} appointment` });
+    }
+
+    const previousStatus = appt.status;
+    appt.status = 'CANCELLED';
+    appt.cancelledAt = new Date();
+    await appt.save();
+
+    const displayName = appt.patientName || caller.name;
+    const io = req.app.get('io');
+
+    // Notify the hospital
+    if (appt.hospitalId) {
+      const hospitalMsg = `${displayName} has cancelled their appointment on ${appt.appointmentDate} at ${appt.appointmentTime}${appt.queueNumber ? ` (Queue #${appt.queueNumber})` : ''}.`;
+      await Notification.create({ userId: appt.hospitalId, message: hospitalMsg, type: 'APPOINTMENT' });
+      if (io) {
+        io.to(`user_${appt.hospitalId}`).emit('notification', { message: hospitalMsg, apptId: appt._id, status: 'CANCELLED' });
+        io.to(`user_${appt.hospitalId}`).emit('queueUpdated', { type: 'APPOINTMENT_CANCELLED', apptId: appt._id, hospitalId: appt.hospitalId });
+      }
+    }
+
+    // Confirm to the patient
+    const patientMsg = `Your appointment at ${appt.hospitalName} on ${appt.appointmentDate} has been cancelled.`;
+    await Notification.create({ userId: appt.patientId, message: patientMsg, type: 'APPOINTMENT' });
+    if (io) {
+      io.to(`user_${appt.patientId}`).emit('notification', { message: patientMsg, apptId: appt._id, status: 'CANCELLED' });
+    }
+
+    res.json({ success: true, appt });
+  } catch (err) {
+    console.error('Cancel appointment error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // DELETE /api/appointments/:id -> Hospital deletes a completed appointment
 router.delete('/:id', auth, async (req, res) => {
   try {

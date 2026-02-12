@@ -18,9 +18,10 @@ const AppointmentSchema = new mongoose.Schema({
   reason: { type: String },
   status: {
     type: String,
-    enum: ['PENDING', 'CONFIRMED', 'REJECTED', 'COMPLETED', 'IN_PROGRESS', 'CHECKED_IN', 'NO_SHOW', 'EMERGENCY'],
+    enum: ['PENDING', 'CONFIRMED', 'REJECTED', 'COMPLETED', 'CANCELLED', 'IN_PROGRESS', 'CHECKED_IN', 'NO_SHOW', 'EMERGENCY'],
     default: 'PENDING'
   },
+  cancelledAt: { type: Date },
   type: {
     type: String,
     enum: ['REGULAR', 'WALK_IN', 'EMERGENCY', 'FOLLOW_UP'],

@@ -4,7 +4,7 @@ import axios from 'axios';
 import {
   ArrowLeft, Users, Clock, Coffee, RefreshCw,
   Activity, Bell, Navigation2,
-  Zap, Timer, Shield, Phone, User
+  Zap, Timer, Shield, Phone, User, XCircle
 } from 'lucide-react';
 import { useSocket } from '../context/SocketContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -26,6 +26,7 @@ const QueueDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [showAudioCall, setShowAudioCall] = useState(false);
   const [callHospitalData, setCallHospitalData] = useState(null);
+  const [cancellingId, setCancellingId] = useState(null);
 
   const token = localStorage.getItem('token');
   const today = new Date().toISOString().split('T')[0];
@@ -47,6 +48,11 @@ const QueueDashboard = () => {
     refreshing: lang === 'en' ? 'Auto-refreshing every 15s' : 'ప్రతి 15 సెకన్లకు రిఫ్రెష్',
     bookAppt: lang === 'en' ? 'Book Appointment' : 'అపాయింట్‌మెంట్ బుక్ చేయండి',
     viewAll: lang === 'en' ? 'View All Appointments' : 'అన్ని అపాయింట్‌మెంట్లు చూడండి',
+    cancelAppt: lang === 'en' ? 'Cancel' : 'రద్దు',
+    cancelConfirm: lang === 'en' ? 'Cancel this appointment?' : 'ఈ అపాయింట్‌మెంట్ రద్దు చేయాలా?',
+    yesCancelIt: lang === 'en' ? 'Yes, Cancel' : 'అవును, రద్దు',
+    no: lang === 'en' ? 'No' : 'వద్దు',
+    appointmentCancelled: lang === 'en' ? 'Appointment cancelled' : 'అపాయింట్‌మెంట్ రద్దు చేయబడింది',
   };
 
   // --- Fetch appointments ---
@@ -62,6 +68,39 @@ const QueueDashboard = () => {
       setLoading(false);
     }
   }, [token]);
+
+  // --- Cancel appointment ---
+  const cancelAppointment = async (apptId) => {
+    setCancellingId(apptId);
+    try {
+      const res = await axios.put(`${API}/api/appointments/${apptId}/cancel`, {}, {
+        headers: { 'x-auth-token': token }
+      });
+      setAppointments(prev => prev.filter(a => a._id !== apptId));
+      setLiveQueueData(prev => { const u = { ...prev }; delete u[apptId]; return u; });
+      setReminders(prev => prev.filter(r => r.apptId !== apptId));
+      toast.success(t.appointmentCancelled, { icon: '🗑️' });
+    } catch (err) {
+      toast.error(err.response?.data?.msg || 'Failed to cancel');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const triggerCancel = (apptId) => {
+    toast.custom((to) => (
+      <div className={`${to.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white shadow-2xl rounded-2xl p-5 ring-1 ring-black/5 pointer-events-auto`}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="bg-red-50 p-2 rounded-full"><XCircle size={22} className="text-red-500" /></div>
+          <p className="font-bold text-slate-900 text-sm">{t.cancelConfirm}</p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => { cancelAppointment(apptId); toast.dismiss(to.id); }} className="flex-1 bg-red-500 text-white py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-red-200 active:scale-95 transition">{t.yesCancelIt}</button>
+          <button onClick={() => toast.dismiss(to.id)} className="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-xl font-bold text-sm hover:bg-slate-200 active:scale-95 transition">{t.no}</button>
+        </div>
+      </div>
+    ), { duration: Infinity, position: 'top-center' });
+  };
 
   // Check if user has an appointment at the affected hospital TODAY
   const hasAppointmentAtHospital = (hospitalId) => {
@@ -534,27 +573,39 @@ const QueueDashboard = () => {
                     </div>
                   </div>
                   {/* Call Hospital Button */}
-                  {appt.hospitalId && (
-                    <button
-                      onClick={() => {
-                        if (!socket) {
-                          toast.error('Not connected. Please refresh.');
-                          return;
-                        }
-                        setCallHospitalData({
-                          id: appt.hospitalId,
-                          name: appt.hospitalName || 'Hospital'
-                        });
-                        setShowAudioCall(true);
-                        toast.loading('Connecting call...', { id: 'call-connecting' });
-                        setTimeout(() => toast.dismiss('call-connecting'), 2000);
-                      }}
-                      className="bg-emerald-500 hover:bg-emerald-600 p-3 rounded-full text-white shadow-lg shadow-emerald-200 transition-all hover:scale-105 active:scale-95 shrink-0"
-                      title={lang === 'en' ? 'Call Hospital' : 'ఆసుపత్రికి కాల్ చేయండి'}
-                    >
-                      <Phone size={18} />
-                    </button>
-                  )}
+                  <div className="flex flex-col gap-2 shrink-0">
+                    {appt.hospitalId && (
+                      <button
+                        onClick={() => {
+                          if (!socket) {
+                            toast.error('Not connected. Please refresh.');
+                            return;
+                          }
+                          setCallHospitalData({
+                            id: appt.hospitalId,
+                            name: appt.hospitalName || 'Hospital'
+                          });
+                          setShowAudioCall(true);
+                          toast.loading('Connecting call...', { id: 'call-connecting' });
+                          setTimeout(() => toast.dismiss('call-connecting'), 2000);
+                        }}
+                        className="bg-emerald-500 hover:bg-emerald-600 p-3 rounded-full text-white shadow-lg shadow-emerald-200 transition-all hover:scale-105 active:scale-95"
+                        title={lang === 'en' ? 'Call Hospital' : 'ఆసుపత్రికి కాల్ చేయండి'}
+                      >
+                        <Phone size={18} />
+                      </button>
+                    )}
+                    {appt.status !== 'IN_PROGRESS' && (
+                      <button
+                        onClick={() => triggerCancel(appt._id)}
+                        disabled={cancellingId === appt._id}
+                        className="bg-red-50 hover:bg-red-100 p-3 rounded-full text-red-500 border border-red-100 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                        title={t.cancelAppt}
+                      >
+                        <XCircle size={18} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

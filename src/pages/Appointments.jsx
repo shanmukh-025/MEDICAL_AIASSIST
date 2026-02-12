@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, MapPin, Trash2, Bell, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, XCircle, Bell, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../context/LanguageContext'; // 1. Import Context
 
@@ -60,20 +60,21 @@ const Appointments = () => {
     fetchAppointments();
   }, []);
 
-  // --- 2. DELETE FROM DB ---
-  const deleteAppt = async (id) => {
+  // --- 2. CANCEL APPOINTMENT ---
+  const cancelAppt = async (id) => {
     try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/appointments/${id}`, {
-            method: 'DELETE',
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/appointments/${id}/cancel`, {
+            method: 'PUT',
             headers: { 'x-auth-token': token }
         });
 
         if (res.ok) {
-            setAppointments(prev => prev.filter(a => a._id !== id)); 
+            setAppointments(prev => prev.map(a => a._id === id ? { ...a, status: 'CANCELLED' } : a)); 
             toast.success(t.cancelled, { icon: '🗑️' });
         } else {
-            toast.error(t.failed);
+            const data = await res.json();
+            toast.error(data.msg || t.failed);
         }
     } catch (err) {
         toast.error("Server Error");
@@ -96,7 +97,7 @@ const Appointments = () => {
         <div className="flex gap-3 mt-2">
             <button 
                 onClick={() => {
-                    deleteAppt(id);
+                    cancelAppt(id);
                     toast.dismiss(to.id);
                 }}
                 className="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-red-200 active:scale-95 transition"
@@ -170,6 +171,9 @@ const Appointments = () => {
                             </div>
                             <span className={`text-[10px] font-extrabold px-3 py-1.5 rounded-full uppercase tracking-wide border ${
                                 appt.status === 'CONFIRMED' ? 'bg-green-100 text-green-700 border-green-200' :
+                                appt.status === 'CHECKED_IN' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
+                                appt.status === 'IN_PROGRESS' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                appt.status === 'CANCELLED' ? 'bg-gray-100 text-gray-500 border-gray-200' :
                                 appt.status === 'REJECTED' ? 'bg-red-100 text-red-700 border-red-200' :
                                 'bg-yellow-100 text-yellow-700 border-yellow-200'
                             }`}>
@@ -222,8 +226,9 @@ const Appointments = () => {
                             <button 
                                 onClick={() => triggerCancel(appt._id)}
                                 className="w-12 flex items-center justify-center bg-red-50 text-red-500 rounded-xl border border-red-100 hover:bg-red-100 hover:border-red-200 transition-colors"
+                                disabled={['CANCELLED', 'COMPLETED', 'REJECTED'].includes(appt.status)}
                             >
-                                <Trash2 size={18}/>
+                                <XCircle size={18}/>
                             </button>
                         </div>
                     </div>
