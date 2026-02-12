@@ -67,12 +67,12 @@ VITE_FIREBASE_APP_ID=your_app_id
 
 **Example:**
 ```bash
-VITE_FIREBASE_API_KEY=AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q
-VITE_FIREBASE_AUTH_DOMAIN=village-medicine-abc123.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=village-medicine-abc123
-VITE_FIREBASE_STORAGE_BUCKET=village-medicine-abc123.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789012
-VITE_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
+VITE_FIREBASE_API_KEY=your_actual_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
 ```
 
 ### Step 5: Add Authorized Domains
