@@ -114,6 +114,7 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
   const [bookDate, setBookDate] = useState('');
   const [bookTime, setBookTime] = useState('');
   const [reason, setReason] = useState('');
+  const [selectedDoctor, setSelectedDoctor] = useState('');
   const [step, setStep] = useState('form');
   const [showAudioCall, setShowAudioCall] = useState(false);
 
@@ -545,9 +546,17 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
     try {
         if (!token) throw new Error("Login required");
 
+        // Require doctor selection if hospital has doctors
+        if (bookingHospital.doctors?.length > 0 && !selectedDoctor) {
+            toast.error(lang === 'en' ? 'Please select a doctor' : 'దయచేసి డాక్టర్‌ను ఎంచుకోండి');
+            setStep('form');
+            return;
+        }
+
+        const doctorName = selectedDoctor || t.dutyDoctor;
         const appointmentData = {
             hospitalName: bookingHospital.name,
-            doctor: t.dutyDoctor,
+            doctor: doctorName,
             appointmentDate: bookDate,
             appointmentTime: bookTime,
             reason: reason || `${bookingHospital.type || t.opd} consultation`,
@@ -644,7 +653,7 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
             />
             
             {hospitals.map(h => (
-                <Marker key={h.id} position={[h.lat, h.lng]} eventHandlers={{ click: () => setBookingHospital(h) }}>
+                <Marker key={h.id} position={[h.lat, h.lng]} eventHandlers={{ click: () => { setSelectedDoctor(''); setStep('form'); setBookingHospital(h); } }}>
                     <Popup>
                         <div className="text-center p-1">
                             <b className="text-slate-800 text-sm">{h.name}</b><br/>
@@ -789,7 +798,7 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
                         <Clock size={14} className="text-slate-400"/> {h.workingHours || t.hours}
                     </div>
                     <button 
-                        onClick={() => setBookingHospital(h)} 
+                        onClick={() => { setSelectedDoctor(''); setStep('form'); setBookingHospital(h); }} 
                         className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1 shadow-lg shadow-emerald-100"
                     >
                         <Calendar size={14}/> {t.bookBtn}
@@ -948,10 +957,46 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
                         <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
                             <p className="text-sm font-bold text-emerald-900">{bookingHospital.name}</p>
                             <div className="flex justify-between mt-2 text-xs text-emerald-700 font-medium">
-                                <span>{t.dutyDoctor}</span>
+                                <span>{selectedDoctor || t.dutyDoctor}</span>
                                 <span>{t.opd}</span>
                             </div>
                         </div>
+
+                        {/* Doctor Selection */}
+                        {bookingHospital.doctors && bookingHospital.doctors.length > 0 && (
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                              {lang === 'en' ? 'SELECT DOCTOR' : 'డాక్టర్‌ను ఎంచుకోండి'}
+                            </label>
+                            <div className="space-y-2 mt-1">
+                              {bookingHospital.doctors.map((doc, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => setSelectedDoctor(doc.name)}
+                                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                                    selectedDoctor === doc.name
+                                      ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-200'
+                                      : 'border-slate-200 bg-white hover:border-slate-300'
+                                  }`}
+                                >
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                                    selectedDoctor === doc.name ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-600'
+                                  }`}>
+                                    {doc.name?.charAt(0)?.toUpperCase() || 'D'}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-sm text-slate-800 truncate">{doc.name}</p>
+                                    <p className="text-[11px] text-slate-500">{doc.specialty || t.opd}</p>
+                                  </div>
+                                  {selectedDoctor === doc.name && (
+                                    <CheckCircle size={18} className="text-emerald-500 shrink-0" />
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         <div>
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{lang === 'en' ? 'REASON' : 'కారణం'}</label>

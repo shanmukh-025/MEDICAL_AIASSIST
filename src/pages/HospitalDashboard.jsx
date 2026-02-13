@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertT
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import HospitalQueueManagement from '../components/HospitalQueueManagement';
+import DoctorScheduleView from '../components/DoctorScheduleView';
 import AudioCall from '../components/AudioCall';
 import webrtcService from '../services/webrtc';
 
@@ -17,7 +18,8 @@ const HospitalDashboard = () => {
   const [appointments, setAppointments] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('QUEUE'); // QUEUE, PROFILE, PENDING, CONFIRMED, COMPLETED
+  const [activeTab, setActiveTab] = useState('SCHEDULING'); // SCHEDULING, QUEUE, PROFILE, PENDING, CONFIRMED, COMPLETED
+  const [notifications, setNotifications] = useState([]);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
   const [showReportModal, setShowReportModal] = useState(false);
@@ -35,7 +37,17 @@ const HospitalDashboard = () => {
   useEffect(() => {
     fetchAppointments();
     fetchProfile();
+    fetchNotifications();
   }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get(`${API}/api/notifications`, { headers: { 'x-auth-token': token } });
+      setNotifications(res.data);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  };
 
   // Initialize WebRTC for incoming calls
   useEffect(() => {
@@ -74,10 +86,18 @@ const HospitalDashboard = () => {
       socket.on('call:offer', handleCallOffer);
       console.log('✅ Hospital listener registered for call:offer');
 
+      // Listen for real-time notifications & queue updates
+      const handleNotification = () => { fetchNotifications(); };
+      const handleQueueUpdated = () => { fetchAppointments(); fetchNotifications(); };
+      socket.on('notification', handleNotification);
+      socket.on('queueUpdated', handleQueueUpdated);
+
       // Cleanup
       return () => {
         console.log('🧹 Removing hospital call:offer listener');
         socket.off('call:offer', handleCallOffer);
+        socket.off('notification', handleNotification);
+        socket.off('queueUpdated', handleQueueUpdated);
       };
     } else {
       console.log('⏳ Waiting for socket and profile...');
@@ -306,6 +326,23 @@ const HospitalDashboard = () => {
     } catch (err) { console.error(err); toast.error('Failed'); }
   };
 
+  const sendReminder = async (appointmentId, patientName) => {
+    try {
+      const res = await axios.post(
+        `${API}/api/appointments/${appointmentId}/send-reminder`,
+        { patientLocation: null },
+        { headers: { 'x-auth-token': token } }
+      );
+      toast.success(
+        `🔔 Reminder sent to ${patientName}!\n${res.data.queuePosition} patients ahead`,
+        { duration: 5000 }
+      );
+    } catch (err) {
+      console.error('Reminder error:', err);
+      toast.error(err.response?.data?.msg || 'Failed to send reminder');
+    }
+  };
+
   const deleteAppointment = async (id) => {
     toast.custom((to) => (
       <div className="bg-white p-6 rounded-3xl shadow-2xl border max-w-md">
@@ -456,6 +493,13 @@ const HospitalDashboard = () => {
         {/* Tabs */}
         <div className="flex gap-2 mb-6 overflow-x-auto bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
           <button
+            onClick={() => setActiveTab('SCHEDULING')}
+            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'SCHEDULING' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+              }`}
+          >
+            <Calendar size={16} /> Scheduling
+          </button>
+          <button
             onClick={() => setActiveTab('QUEUE')}
             className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'QUEUE' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
               }`}
@@ -493,6 +537,18 @@ const HospitalDashboard = () => {
         </div>
 
         {/* Content */}
+        {activeTab === 'SCHEDULING' && (
+          <DoctorScheduleView
+            appointments={appointments}
+            doctors={profile?.doctors || []}
+            notifications={notifications}
+            onApprove={approve}
+            onReject={reject}
+            onComplete={complete}
+            onSendReminder={sendReminder}
+          />
+        )}
+
         {activeTab === 'QUEUE' && (
           <HospitalQueueManagement />
         )}

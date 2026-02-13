@@ -275,7 +275,7 @@ const QueueDashboard = () => {
   }, [emergencyAlert]);
 
   // --- Derived data ---
-  const todayAppts = appointments.filter(a => a.appointmentDate === today && !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(a.status));
+  const todayAppts = appointments.filter(a => a.appointmentDate === today && !['CANCELLED', 'REJECTED', 'COMPLETED'].includes(a.status));
   const activeAppt = todayAppts.find(a => ['CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'].includes(a.status) && a.queueNumber);
   const activeQueueInfo = activeAppt ? liveQueueData[activeAppt._id] : null;
 
@@ -566,6 +566,7 @@ const QueueDashboard = () => {
                         appt.status === 'CHECKED_IN' ? 'bg-emerald-100 text-emerald-700' :
                         appt.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
                         appt.status === 'IN_PROGRESS' ? 'bg-purple-100 text-purple-700' :
+                        appt.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
                         'bg-yellow-100 text-yellow-700'
                       }`}>
                         {appt.status}
@@ -595,7 +596,7 @@ const QueueDashboard = () => {
                         <Phone size={18} />
                       </button>
                     )}
-                    {appt.status !== 'IN_PROGRESS' && (
+                    {appt.status !== 'IN_PROGRESS' && appt.status !== 'COMPLETED' && (
                       <button
                         onClick={() => triggerCancel(appt._id)}
                         disabled={cancellingId === appt._id}
@@ -675,6 +676,27 @@ const QueueDashboard = () => {
                         <div className="mt-1 text-xs font-bold text-blue-600">{live.message}</div>
                       )}
                     </div>
+                    {/* Call Hospital from reminder */}
+                    {(() => {
+                      const rAppt = reminder.apptId ? appointments.find(a => String(a._id) === String(reminder.apptId)) : null;
+                      const hId = reminder.hospitalId || rAppt?.hospitalId;
+                      const hName = reminder.hospitalName || rAppt?.hospitalName || 'Hospital';
+                      return hId ? (
+                        <button
+                          onClick={() => {
+                            if (!socket) { toast.error('Not connected. Please refresh.'); return; }
+                            setCallHospitalData({ id: hId, name: hName });
+                            setShowAudioCall(true);
+                            toast.loading('Connecting call...', { id: 'call-connecting' });
+                            setTimeout(() => toast.dismiss('call-connecting'), 2000);
+                          }}
+                          className="bg-emerald-500 hover:bg-emerald-600 p-2.5 rounded-full text-white shadow-lg shadow-emerald-200 transition-all hover:scale-105 active:scale-95 shrink-0"
+                          title={lang === 'en' ? 'Call Hospital' : 'ఆసుపత్రికి కాల్ చేయండి'}
+                        >
+                          <Phone size={16} />
+                        </button>
+                      ) : null;
+                    })()}
                     <button
                       onClick={() => setReminders(prev => prev.filter(r => r.id !== reminder.id))}
                       className="text-slate-300 hover:text-slate-500 text-sm font-bold shrink-0"

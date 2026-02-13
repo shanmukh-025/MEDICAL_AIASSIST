@@ -165,7 +165,7 @@ router.get('/hospital', auth, async (req, res) => {
         { hospitalId: caller._id },
         { hospitalName: caller.name }
       ],
-      status: { $in: ['PENDING', 'CONFIRMED', 'COMPLETED', 'CHECKED_IN'] } 
+      status: { $in: ['PENDING', 'CONFIRMED', 'COMPLETED', 'CHECKED_IN', 'IN_PROGRESS'] } 
     }).sort({ createdAt: -1 }).populate('patientId', 'name email');
     
     console.log(`Hospital ${caller.name} has ${appts.length} appointments`);
@@ -823,6 +823,8 @@ router.post('/:id/send-reminder', auth, async (req, res) => {
       io.to(roomName).emit('reminder', { 
         message: msg, 
         apptId: appt._id,
+        hospitalId: appt.hospitalId ? appt.hospitalId.toString() : null,
+        hospitalName: appt.hospitalName || '',
         queueNumber: displayQueueNumber,
         patientName: appt.patientName || appt.patientId.name,
         distance,
