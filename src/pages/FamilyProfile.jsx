@@ -269,6 +269,16 @@ const FamilyProfile = () => {
                   </div>
                 </div>
                 <div className="flex gap-1">
+                  <button 
+                    onClick={() => navigate(`/symptom-analysis?person=${member._id}`)} 
+                    className="p-2 hover:bg-purple-50 rounded-lg transition text-purple-600 group relative"
+                    title="Track Symptoms"
+                  >
+                    <Stethoscope size={16} />
+                    <span className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                      Track Symptoms
+                    </span>
+                  </button>
                   <button onClick={() => handleEdit(member)} className="p-2 hover:bg-slate-100 rounded-lg transition text-blue-600">
                     <Edit2 size={16} />
                   </button>

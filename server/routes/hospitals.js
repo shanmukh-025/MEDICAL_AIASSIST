@@ -262,4 +262,81 @@ router.get('/:id/notifications', async (req, res) => {
   }
 });
 
+// Search nearby hospitals by condition/specialty
+router.post('/search-by-condition', async (req, res) => {
+  try {
+    const { latitude, longitude, specialties, maxDistance = 50 } = req.body;
+    
+    if (!latitude || !longitude) {
+      return res.status(400).json({ msg: 'Location coordinates required' });
+    }
+    
+    // Get all hospitals with location
+    const hospitals = await User.find(
+      { 
+        role: 'HOSPITAL',
+        'location.latitude': { $exists: true },
+        'location.longitude': { $exists: true }
+      }
+    );
+    
+    // Calculate distance and filter by specialty/service
+    const hospitalResults = hospitals.map(hospital => {
+      // Calculate distance using Haversine formula (in km)
+      const lat1 = latitude * Math.PI / 180;
+      const lat2 = hospital.location.latitude * Math.PI / 180;
+      const deltaLat = (hospital.location.latitude - latitude) * Math.PI / 180;
+      const deltaLon = (hospital.location.longitude - longitude) * Math.PI / 180;
+      
+      const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                Math.cos(lat1) * Math.cos(lat2) *
+                Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance = 6371 * c; // Earth radius in km
+      
+      // Check if hospital has any of the requested specialties
+      let hasSpecialty = false;
+      if (specialties && specialties.length > 0) {
+        const hospitalServices = (hospital.services || []).map(s => s.toLowerCase());
+        const doctorSpecialties = (hospital.doctors || []).map(d => d.specialty?.toLowerCase() || '');
+        
+        hasSpecialty = specialties.some(specialty => {
+          const specLower = specialty.toLowerCase();
+          return hospitalServices.includes(specLower) || 
+                 doctorSpecialties.includes(specLower) ||
+                 hospitalServices.some(s => s.includes(specLower)) ||
+                 doctorSpecialties.some(ds => ds.includes(specLower));
+        });
+      } else {
+        // If no specialty filter, include all hospitals
+        hasSpecialty = true;
+      }
+      
+      return {
+        hospital: {
+          _id: hospital._id,
+          name: hospital.name,
+          address: hospital.address,
+          phone: hospital.phone,
+          location: hospital.location,
+          services: hospital.services,
+          doctors: hospital.doctors,
+          workingHours: hospital.workingHours,
+          emergencyContact: hospital.emergencyContact,
+          logo: hospital.logo
+        },
+        distance: Math.round(distance * 10) / 10, // Round to 1 decimal
+        hasSpecialty
+      };
+    })
+    .filter(result => result.distance <= maxDistance && result.hasSpecialty)
+    .sort((a, b) => a.distance - b.distance);
+    
+    res.json(hospitalResults);
+  } catch (err) {
+    console.error('Hospital search error:', err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;

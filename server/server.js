@@ -77,6 +77,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/wellness', require('./routes/wellness'));
+app.use('/api/health', require('./routes/health')); // NEW: Symptom tracking & health logs
 app.use('/api/records', require('./routes/records'));
 app.use('/api/appointments', require('./routes/appointments'));
 app.use('/api/smart-queue', require('./routes/smartQueue')); // NEW: Smart OPD Queue Manager

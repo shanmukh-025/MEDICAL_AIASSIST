@@ -217,4 +217,280 @@ router.post('/medicine-info', auth, async (req, res) => {
   }
 });
 
+// --- NEW ROUTE: AI Symptom Analysis & Disease Prediction ---
+router.post('/analyze-symptoms', auth, async (req, res) => {
+  try {
+    const { symptoms, duration, severity, age, gender, language, existingConditions } = req.body;
+    
+    const langNote = language === 'te' 
+      ? 'Provide all analysis in TELUGU (తెలుగు script). Keep JSON keys in English.' 
+      : 'Provide all analysis in English.';
+
+    const prompt = `
+      You are an AI Medical Diagnostic Assistant.
+      
+      PATIENT INFORMATION:
+      - Symptoms: ${symptoms.join(', ')}
+      - Duration: ${duration}
+      - Severity: ${severity}/10
+      - Age: ${age || 'Not specified'}
+      - Gender: ${gender || 'Not specified'}
+      - Existing Conditions: ${existingConditions || 'None'}
+      
+      ${langNote}
+      
+      Analyze these symptoms and provide a comprehensive medical assessment.
+      Return ONLY valid JSON with this EXACT structure:
+      {
+        "primaryDiagnosis": "Most likely condition name",
+        "confidence": "High/Medium/Low",
+        "description": "Brief explanation of the condition",
+        "possibleCauses": ["Cause 1", "Cause 2", "Cause 3"],
+        "recommendations": ["Action 1", "Action 2", "Action 3"],
+        "whenToSeeDoctor": "Specific circumstances requiring medical attention",
+        "homeRemedies": ["Remedy 1", "Remedy 2"],
+        "preventiveMeasures": ["Prevention tip 1", "Prevention tip 2"],
+        "urgencyLevel": "Low/Medium/High/Critical",
+        "alternativeDiagnoses": [
+          {"condition": "Alternative 1", "probability": "percentage"},
+          {"condition": "Alternative 2", "probability": "percentage"}
+        ],
+        "nextStepRecommendations": {
+          "homeCareTips": ["Self-care tip 1", "Self-care tip 2", "Self-care tip 3"],
+          "visitDoctor": "When to consult a doctor (be specific about warning signs)",
+          "emergencyAction": "When to go to emergency/call ambulance (critical signs only)"
+        },
+        "relatedSpecialties": ["Specialty 1", "Specialty 2"]
+      }
+      
+      IMPORTANT: Be accurate but emphasize seeing a doctor for serious symptoms.
+      For nextStepRecommendations: homeCareTips should be immediate self-care actions, visitDoctor should explain when to schedule appointment, emergencyAction should ONLY list life-threatening signs.
+      For relatedSpecialties: List medical specialties that treat this condition (e.g., "General Physician", "Cardiologist", "ENT Specialist").
+    `;
+
+    const text = await callGemini(prompt);
+    const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    const analysis = JSON.parse(cleanJson);
+    
+    res.json(analysis);
+
+  } catch (err) {
+    console.error("Symptom Analysis Error:", err);
+    const isQuotaError = err.message?.includes('quota') || err.message?.includes('rate limit');
+    res.status(500).json({ 
+      error: "Analysis failed",
+      message: isQuotaError 
+        ? "API quota exceeded. Please wait a minute and try again, or contact support."
+        : "Please consult a healthcare professional for accurate diagnosis."
+    });
+  }
+});
+
+// --- NEW ROUTE: Family Genetic Analysis ---
+router.post('/analyze-family-health', auth, async (req, res) => {
+  try {
+    const { familyMembers, language } = req.body;
+    
+    const langNote = language === 'te' 
+      ? 'Provide analysis in TELUGU (తెలుగు script). Keep JSON keys in English.' 
+      : 'Provide analysis in English.';
+
+    // Format family health data
+    const familyHealthData = familyMembers.map(member => ({
+      relationship: member.relationship,
+      age: member.age,
+      conditions: member.chronicConditions || [],
+      allergies: member.allergies || []
+    }));
+
+    const prompt = `
+      You are a Genetic Health Analyst AI.
+      
+      FAMILY HEALTH DATA:
+      ${JSON.stringify(familyHealthData, null, 2)}
+      
+      ${langNote}
+      
+      Analyze this family health data for genetic patterns and hereditary risks.
+      Return ONLY valid JSON with this EXACT structure:
+      {
+        "geneticPatterns": [
+          {
+            "condition": "Identified pattern/condition",
+            "affectedMembers": ["Relationship 1", "Relationship 2"],
+            "inheritanceRisk": "High/Medium/Low",
+            "explanation": "Why this pattern is significant"
+          }
+        ],
+        "commonConditions": ["Condition 1", "Condition 2"],
+        "recommendations": [
+          {
+            "forMember": "Relationship",
+            "suggestion": "Specific advice",
+            "priority": "High/Medium/Low"
+          }
+        ],
+        "screeningTests": ["Test 1", "Test 2"],
+        "lifestyleAdvice": ["Advice 1", "Advice 2"],
+        "riskFactors": [
+          {
+            "factor": "Risk name",
+            "severity": "High/Medium/Low",
+            "prevention": "How to prevent"
+          }
+        ]
+      }
+      
+      Focus on hereditary patterns like diabetes, heart disease, allergies, etc.
+    `;
+
+    const text = await callGemini(prompt);
+    const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    const analysis = JSON.parse(cleanJson);
+    
+    res.json(analysis);
+
+  } catch (err) {
+    console.error("Family Analysis Error:", err);
+    res.status(500).json({ 
+      error: "Analysis failed",
+      message: "Unable to analyze family health data."
+    });
+  }
+});
+
+// ============================================
+// SYMPTOM TREND ANALYSIS
+// ============================================
+
+// @route   POST api/ai/analyze-symptom-trends
+// @desc    Analyze symptom patterns over time
+router.post('/analyze-symptom-trends', auth, async (req, res) => {
+  const { symptomHistory, personName } = req.body;
+  
+  try {
+    // Validate input
+    if (!symptomHistory || !Array.isArray(symptomHistory) || symptomHistory.length === 0) {
+      return res.status(400).json({ error: 'Symptom history is required' });
+    }
+
+    // Sort by date (oldest first) for chronological analysis
+    const sortedHistory = symptomHistory.sort((a, b) => 
+      new Date(a.loggedAt) - new Date(b.loggedAt)
+    );
+
+    // Format symptom history for AI
+    const historyText = sortedHistory.map((log, index) => {
+      const date = new Date(log.loggedAt).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+      return `Entry ${index + 1} (${date}):
+- Symptoms: ${log.symptoms.join(', ')}
+- Severity: ${log.severity}/10
+- Duration: ${log.duration}
+${log.notes ? `- Notes: ${log.notes}` : ''}`;
+    }).join('\n\n');
+
+    const personLabel = personName ? `for ${personName}` : 'for this patient';
+
+    const prompt = `You are a medical AI assistant analyzing symptom trends over time ${personLabel}.
+
+SYMPTOM HISTORY (Chronological Order):
+${historyText}
+
+ANALYSIS REQUIREMENTS:
+1. **SUMMARY**: Provide a comprehensive summary of the symptom logs over this period
+   - What symptoms were recorded and when
+   - How severity levels changed over time
+   - Any notable patterns in when symptoms appeared
+   
+2. **TREND ANALYSIS**: Identify if the condition is improving, worsening, stable, or recurring
+   - Look at both symptom types and severity levels
+   - Consider the timeline and progression
+   
+3. **ASSUMPTIONS & INSIGHTS**: Based on the logs, make clinical assumptions about:
+   - What might be causing these symptoms
+   - Why symptoms may be following this pattern
+   - What underlying conditions could explain the trend
+   - Environmental or lifestyle factors that might be involved
+   
+4. **PATTERN DETECTION**: Are symptoms cyclical, progressive, episodic, or steady?
+   
+5. **URGENCY ASSESSMENT**: How urgent is medical attention based on this trend?
+   
+6. **RECOMMENDATIONS**: What should the patient do next based on this multi-day analysis?
+
+Return ONLY valid JSON with this EXACT structure:
+{
+  "summary": "Detailed narrative summary of all symptom logs over this period, describing what was recorded, when, and at what severity levels",
+  "assumptions": [
+    "Clinical assumption 1 about what might be causing these symptoms",
+    "Clinical assumption 2 about underlying conditions",
+    "Clinical assumption 3 about contributing factors"
+  ],
+  "trend": "improving/worsening/stable/recurring",
+  "trendConfidence": 85,
+  "pattern": {
+    "type": "progressive/cyclical/episodic/steady",
+    "description": "Detailed explanation of the pattern observed across these days"
+  },
+  "currentDiagnosis": "Most likely current condition based on latest symptoms",
+  "diagnosisConfidence": 80,
+  "urgencyLevel": "low/medium/high/critical",
+  "urgencyReason": "Why this urgency level based on the multi-day trend",
+  "insights": [
+    "Key observation 1 about the symptom progression over these days",
+    "Key observation 2 about severity changes and patterns",
+    "Key observation 3 about concerning patterns or improvements"
+  ],
+  "recommendations": [
+    "Immediate action recommendation based on multi-day analysis",
+    "Monitoring advice for the coming days",
+    "Prevention tip based on identified patterns"
+  ],
+  "warningSignsToWatch": [
+    "Sign 1 that would indicate worsening",
+    "Sign 2 that requires immediate medical attention"
+  ],
+  "whenToSeekHelp": "Clear guidance on when to see a doctor",
+  "possibleCauses": [
+    "Most likely cause based on trend",
+    "Alternative explanation"
+  ],
+  "nextSteps": [
+    "What to do in next 24-48 hours",
+    "Follow-up recommendations"
+  ]
+}
+
+IMPORTANT: 
+- Be specific about trends (e.g., "Fever decreased from 9/10 to 5/10 over 3 days")
+- Note any concerning patterns (e.g., "Symptoms worsen every evening")
+- Consider both severity AND symptom changes
+- Provide actionable, practical advice
+- Use confidence scores (0-100) realistically
+- If trend shows improvement, acknowledge it but remain cautious
+- If worsening or recurring, emphasize seeking medical help
+
+Return ONLY the JSON object, no other text.`;
+
+    const text = await callGemini(prompt);
+    const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    const analysis = JSON.parse(cleanJson);
+    res.json(analysis);
+
+  } catch (err) {
+    console.error("Symptom Trend Analysis Error:", err);
+    const isQuotaError = err.message?.includes('quota') || err.message?.includes('rate limit');
+    res.status(500).json({ 
+      error: "Analysis failed",
+      message: isQuotaError 
+        ? "API quota exceeded. Please wait a minute and try again."
+        : "Unable to analyze symptom trends."
+    });
+  }
+});
+
 module.exports = router;

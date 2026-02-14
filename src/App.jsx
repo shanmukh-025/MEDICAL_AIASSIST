@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 // Contexts
@@ -23,7 +23,6 @@ import FirstAid from './pages/FirstAid';
 import HealthRecords from './pages/HealthRecords';
 import Reminders from './pages/Reminders';
 import Scan from './pages/Scan';
-import Tracker from './pages/Tracker'; // For Analytics
 import Appointments from './pages/Appointments';
 import Result from './pages/Result';
 import Doctors from './pages/Doctors';
@@ -33,6 +32,8 @@ import FamilyProfile from './pages/FamilyProfile';
 import UserProfile from './pages/UserProfile';
 import HospitalBranding from './pages/HospitalBranding';
 import QueueDashboard from './pages/QueueDashboard';
+import SymptomAnalysis from './pages/SymptomAnalysis'; // AI Symptom Analysis
+import FamilyHealthAnalysis from './pages/FamilyHealthAnalysis'; // Family Genetic Analysis
 
 // Conditional Voice Assistant - only show when authenticated
 const ConditionalVoiceAssistant = () => {
@@ -83,7 +84,7 @@ function App() {
                 <Route path="/family" element={<PrivateRoute><FamilyProfile /></PrivateRoute>} />
                 <Route path="/reminders" element={<PrivateRoute><Reminders /></PrivateRoute>} />
                 <Route path="/scan" element={<PrivateRoute><Scan /></PrivateRoute>} />
-                <Route path="/analytics" element={<PrivateRoute><Tracker /></PrivateRoute>} />
+                <Route path="/analytics" element={<Navigate to="/symptom-analysis" replace />} />
                 <Route path="/appointments" element={<PrivateRoute><Appointments /></PrivateRoute>} />
                 <Route path="/patient-appointments" element={<PrivateRoute><PatientAppointments /></PrivateRoute>} />
                 <Route path="/queue-dashboard" element={<PrivateRoute><QueueDashboard /></PrivateRoute>} />
@@ -91,6 +92,8 @@ function App() {
                 <Route path="/hospital-branding" element={<PrivateRoute><HospitalBranding /></PrivateRoute>} />
                 <Route path="/result/:medicineName" element={<PrivateRoute><Result /></PrivateRoute>} />
                 <Route path="/doctors" element={<PrivateRoute><Doctors /></PrivateRoute>} />
+                <Route path="/symptom-analysis" element={<PrivateRoute><SymptomAnalysis /></PrivateRoute>} />
+                <Route path="/family-health-analysis" element={<PrivateRoute><FamilyHealthAnalysis /></PrivateRoute>} />
               </Routes>
             </div>
             </Router>
