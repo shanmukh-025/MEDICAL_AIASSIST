@@ -56,7 +56,7 @@ router.put('/profile', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Access denied' });
     }
 
-    const { phone, workingHours, services, doctors, about, emergencyContact, address, logo } = req.body;
+    const { phone, workingHours, services, doctors, about, emergencyContact, address, logo, location } = req.body;
 
     const updateFields = {};
     if (phone) updateFields.phone = phone;
@@ -67,6 +67,12 @@ router.put('/profile', auth, async (req, res) => {
     if (emergencyContact) updateFields.emergencyContact = emergencyContact;
     if (address) updateFields.address = address;
     if (logo) updateFields.logo = logo;
+    if (location && location.latitude && location.longitude) {
+      updateFields.location = {
+        latitude: parseFloat(location.latitude),
+        longitude: parseFloat(location.longitude)
+      };
+    }
     
     console.log('🔄 Updating hospital profile - User ID:', req.user.id);
     console.log('🔄 Logo in request:', logo);

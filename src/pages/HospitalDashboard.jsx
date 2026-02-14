@@ -224,6 +224,34 @@ const HospitalDashboard = () => {
     );
   };
 
+  // Geocode address to get coordinates when manually typed
+  const geocodeAddress = async (address) => {
+    if (!address || address.trim().length < 3) return;
+    
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const { lat, lon } = data[0];
+        setEditData(prev => ({
+          ...prev,
+          location: { 
+            latitude: parseFloat(lat), 
+            longitude: parseFloat(lon) 
+          }
+        }));
+        console.log('✅ Auto-geocoded address:', address, '→', lat, lon);
+      } else {
+        console.warn('⚠️ Could not geocode address:', address);
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    }
+  };
+
   const handleLogoSelect = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -674,6 +702,7 @@ const HospitalDashboard = () => {
                           <input
                             value={editData.address || ''}
                             onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                            onBlur={(e) => geocodeAddress(e.target.value)}
                             className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl"
                             placeholder="Enter address or detect location"
                           />
@@ -684,6 +713,12 @@ const HospitalDashboard = () => {
                             <MapPin size={16} /> Detect Location
                           </button>
                         </div>
+                        {editData.location?.latitude && editData.location?.longitude && (
+                          <div className="text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg flex items-center gap-2">
+                            <CheckCircle size={14} />
+                            <span>GPS: {editData.location.latitude.toFixed(6)}, {editData.location.longitude.toFixed(6)}</span>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.address || 'Not set'}</div>
