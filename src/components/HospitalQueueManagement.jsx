@@ -333,265 +333,213 @@ const HospitalQueueManagement = () => {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header with Actions */}
-      <div className="bg-gradient-to-r from-emerald-50 to-blue-50 -mx-6 -mt-6 px-6 pt-6 pb-8 mb-6">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-5">
         <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black text-slate-900 flex items-center gap-3">
-              <div className="bg-emerald-600 p-2 rounded-xl">
-                <Users className="text-white" size={32} />
-              </div>
-              Queue Management
-            </h2>
-            <p className="text-slate-600 mt-2 font-medium">Manage patient flow efficiently</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+              <Users size={22} className="text-emerald-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-slate-900">Queue Management</h2>
+              <p className="text-sm text-slate-500">Manage patient flow efficiently</p>
+            </div>
           </div>
           <button
             onClick={fetchQueueData}
-            className="p-3 bg-white rounded-xl hover:bg-slate-50 transition shadow-lg border border-slate-200 group"
+            className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition"
             title="Refresh"
           >
-            <RefreshCw size={22} className="text-emerald-600 group-hover:rotate-180 transition-transform duration-500" />
+            <RefreshCw size={18} className="text-slate-600" />
           </button>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Feature 2: Walk-in Token */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button
           onClick={() => setShowWalkInModal(true)}
-          className="group bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-2xl font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex flex-col items-center gap-3 border border-blue-400/50 relative overflow-hidden"
+          className="bg-white border border-slate-200 rounded-2xl p-4 hover:bg-blue-50 hover:border-blue-200 transition flex flex-col items-center gap-2.5 group"
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="relative bg-white/20 p-3 rounded-xl group-hover:bg-white/30 transition-colors">
-            <UserPlus size={28} />
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition">
+            <UserPlus size={20} className="text-blue-600" />
           </div>
-          <span className="text-sm font-bold relative">Walk-in Token</span>
+          <span className="text-sm font-semibold text-slate-700">Walk-in Token</span>
         </button>
 
-        {/* Feature 6: Emergency */}
         <button
           onClick={() => setShowEmergencyModal(true)}
-          className="group bg-gradient-to-br from-red-500 to-red-600 text-white p-6 rounded-2xl font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex flex-col items-center gap-3 border border-red-400/50 relative overflow-hidden animate-pulse"
+          className="bg-white border border-slate-200 rounded-2xl p-4 hover:bg-red-50 hover:border-red-200 transition flex flex-col items-center gap-2.5 group"
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="relative bg-white/20 p-3 rounded-xl group-hover:bg-white/30 transition-colors">
-            <AlertOctagon size={28} />
+          <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center group-hover:bg-red-200 transition">
+            <AlertOctagon size={20} className="text-red-600" />
           </div>
-          <span className="text-sm font-bold relative">Emergency</span>
+          <span className="text-sm font-semibold text-slate-700">Emergency</span>
         </button>
 
-        {/* Feature 10: Delay Notification */}
         <button
           onClick={() => setShowDelayModal(true)}
-          className="group bg-gradient-to-br from-orange-500 to-amber-600 text-white p-6 rounded-2xl font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex flex-col items-center gap-3 border border-orange-400/50 relative overflow-hidden"
+          className="bg-white border border-slate-200 rounded-2xl p-4 hover:bg-amber-50 hover:border-amber-200 transition flex flex-col items-center gap-2.5 group"
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="relative bg-white/20 p-3 rounded-xl group-hover:bg-white/30 transition-colors">
-            <Clock size={28} />
+          <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center group-hover:bg-amber-200 transition">
+            <Clock size={20} className="text-amber-600" />
           </div>
-          <span className="text-sm font-bold relative">Broadcast Delay</span>
+          <span className="text-sm font-semibold text-slate-700">Broadcast Delay</span>
         </button>
 
-        {/* Feature 12: Doctor Break */}
         <button
           onClick={() => setShowBreakModal(true)}
-          className="group bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-2xl font-bold shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-200 flex flex-col items-center gap-3 border border-purple-400/50 relative overflow-hidden"
+          className="bg-white border border-slate-200 rounded-2xl p-4 hover:bg-purple-50 hover:border-purple-200 transition flex flex-col items-center gap-2.5 group"
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-          <div className="relative bg-white/20 p-3 rounded-xl group-hover:bg-white/30 transition-colors">
-            <Coffee size={28} />
+          <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition">
+            <Coffee size={20} className="text-purple-600" />
           </div>
-          <span className="text-sm font-bold relative">Take Break</span>
+          <span className="text-sm font-semibold text-slate-700">Take Break</span>
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-        <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-600 p-6 rounded-3xl text-white shadow-2xl border border-emerald-400/30 relative overflow-hidden group hover:scale-105 transition-transform">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
-          <div className="relative">
-            <div className="text-xs font-bold uppercase tracking-wider opacity-90 mb-2">Now Serving</div>
-            <div className="text-5xl font-black tracking-tight">
-              {queueData?.currentlyServing || '-'}
-            </div>
-            <div className="mt-3 pt-3 border-t border-white/20">
-              <div className="flex items-center gap-2 text-xs opacity-90">
-                <div className="w-2 h-2 bg-emerald-300 rounded-full animate-pulse"></div>
-                <span>Live</span>
-              </div>
-            </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <p className="text-xs font-bold text-slate-400 uppercase mb-1">Now Serving</p>
+          <p className="text-3xl font-bold text-emerald-600">{queueData?.currentlyServing || '-'}</p>
+          <div className="flex items-center gap-1.5 mt-2 text-xs text-emerald-500">
+            <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+            <span>Live</span>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 p-6 rounded-3xl text-white shadow-2xl border border-blue-400/30 relative overflow-hidden group hover:scale-105 transition-transform">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
-          <div className="relative">
-            <div className="text-xs font-bold uppercase tracking-wider opacity-90 mb-2">In Queue</div>
-            <div className="text-5xl font-black tracking-tight">{queueData?.totalInQueue || 0}</div>
-            <div className="mt-3 pt-3 border-t border-white/20">
-              <div className="text-xs opacity-90">Waiting</div>
-            </div>
-          </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <p className="text-xs font-bold text-slate-400 uppercase mb-1">In Queue</p>
+          <p className="text-3xl font-bold text-blue-600">{queueData?.totalInQueue || 0}</p>
+          <p className="text-xs text-slate-400 mt-2">Waiting</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 via-purple-600 to-pink-600 p-6 rounded-3xl text-white shadow-2xl border border-purple-400/30 relative overflow-hidden group hover:scale-105 transition-transform">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
-          <div className="relative">
-            <div className="text-xs font-bold uppercase tracking-wider opacity-90 mb-2">Completed</div>
-            <div className="text-5xl font-black tracking-tight">{queueData?.completedToday || 0}</div>
-            <div className="mt-3 pt-3 border-t border-white/20">
-              <div className="text-xs opacity-90">Today</div>
-            </div>
-          </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <p className="text-xs font-bold text-slate-400 uppercase mb-1">Completed</p>
+          <p className="text-3xl font-bold text-purple-600">{queueData?.completedToday || 0}</p>
+          <p className="text-xs text-slate-400 mt-2">Today</p>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-red-600 p-6 rounded-3xl text-white shadow-2xl border border-orange-400/30 relative overflow-hidden group hover:scale-105 transition-transform">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -mr-12 -mt-12"></div>
-          <div className="relative">
-            <div className="text-xs font-bold uppercase tracking-wider opacity-90 mb-2">Avg Time</div>
-            <div className="text-5xl font-black tracking-tight">
-              {queueData?.avgConsultationTime ? `${queueData.avgConsultationTime}m` : '-'}
-            </div>
-            <div className="mt-3 pt-3 border-t border-white/20">
-              <div className="text-xs opacity-90">Per Patient</div>
-            </div>
-          </div>
+        <div className="bg-white rounded-2xl border border-slate-200 p-4">
+          <p className="text-xs font-bold text-slate-400 uppercase mb-1">Avg Time</p>
+          <p className="text-3xl font-bold text-orange-600">
+            {queueData?.avgConsultationTime ? `${queueData.avgConsultationTime}m` : '-'}
+          </p>
+          <p className="text-xs text-slate-400 mt-2">Per Patient</p>
         </div>
       </div>
 
       {/* Date Selector */}
-      <div className="bg-white p-5 rounded-2xl border-2 border-slate-200 shadow-lg flex items-center gap-4 hover:shadow-xl transition-shadow">
-        <div className="bg-emerald-100 p-3 rounded-xl">
-          <Calendar className="text-emerald-600" size={24} />
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
+        <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+          <Calendar size={20} className="text-indigo-600" />
         </div>
         <div className="flex-1">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Select Date</label>
+          <label className="text-xs font-bold text-slate-400 uppercase block mb-0.5">Select Date</label>
           <input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-full bg-transparent border-0 px-0 py-1 text-lg font-bold text-slate-900 focus:outline-none focus:ring-0"
+            className="w-full bg-transparent border-0 px-0 py-0 text-sm font-bold text-slate-900 focus:outline-none focus:ring-0"
           />
         </div>
       </div>
 
       {/* Patient Queue List */}
-      <div className="bg-white rounded-3xl border-2 border-slate-200 overflow-hidden shadow-xl">
-        <div className="bg-gradient-to-r from-slate-50 to-slate-100 p-6 border-b-2 border-slate-200">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-black text-slate-900 flex items-center gap-3">
-              <div className="bg-emerald-600 p-2 rounded-lg">
-                <Users className="text-white" size={22} />
-              </div>
-              Patient Queue
-            </h3>
-            <div className="bg-emerald-100 px-4 py-2 rounded-xl">
-              <span className="text-emerald-700 font-black text-lg">{queueData?.appointments?.length || 0}</span>
-              <span className="text-emerald-600 text-xs ml-1 font-bold">patients</span>
-            </div>
-          </div>
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
+          <h3 className="font-bold text-slate-900 flex items-center gap-2">
+            <Users size={18} className="text-emerald-600" />
+            Patient Queue
+          </h3>
+          <span className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
+            {queueData?.appointments?.length || 0} patients
+          </span>
         </div>
 
         <div className="divide-y divide-slate-100">
           {queueData?.appointments && queueData.appointments.length > 0 ? (
             queueData.appointments.map((appt) => (
-              <div key={appt._id} className="p-6 hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200 border-l-4 border-transparent hover:border-l-emerald-500\">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-black text-2xl shadow-lg ${
+              <div key={appt._id} className="p-4 hover:bg-slate-50 transition">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm ${
                       appt.status === 'IN_PROGRESS' 
-                        ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 text-white animate-pulse' 
+                        ? 'bg-emerald-100 text-emerald-700' 
                         : appt.status === 'EMERGENCY'
-                        ? 'bg-gradient-to-br from-red-500 to-red-600 text-white animate-pulse'
-                        : appt.queueNumber === queueData.currentlyServing + 1
-                        ? 'bg-gradient-to-br from-yellow-400 to-orange-500 text-white'
-                        : 'bg-gradient-to-br from-slate-100 to-slate-200 text-slate-700'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-slate-100 text-slate-600'
                     }`}>
                       #{appt.queueNumber}
                     </div>
                     <div>
-                      <div className="font-black text-lg text-slate-900">{appt.patientName || 'Patient'}</div>
-                      <div className="flex items-center gap-2 text-sm text-slate-600 mt-1">
-                        <Clock size={14} />
-                        <span className="font-semibold">{appt.appointmentTime}</span>
+                      <div className="font-bold text-slate-900">{appt.patientName || 'Patient'}</div>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                          <Clock size={11} /> {appt.appointmentTime}
+                        </span>
+                        {appt.checkInTime && (
+                          <span className="text-xs text-emerald-600 flex items-center gap-1 font-medium">
+                            <CheckCircle size={11} /> Checked In
+                          </span>
+                        )}
+                        {appt.status === 'IN_PROGRESS' && (
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold">In Progress</span>
+                        )}
+                        {appt.status === 'EMERGENCY' && (
+                          <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">Emergency</span>
+                        )}
+                        {appt.status === 'PENDING' && (
+                          <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">Pending</span>
+                        )}
                       </div>
-                      {appt.checkInTime && (
-                        <div className="flex items-center gap-1 text-xs text-emerald-600 font-bold mt-2 bg-emerald-50 px-2 py-1 rounded-lg">
-                          <CheckCircle size={12} />
-                          <span>Checked In</span>
-                        </div>
-                      )}
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
                     {appt.status === 'IN_PROGRESS' ? (
                       <button
                         onClick={() => handleEndConsultation(appt._id)}
-                        className="px-5 py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl font-bold text-sm hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                        className="px-3 py-2 bg-emerald-600 text-white rounded-xl font-semibold text-xs hover:bg-emerald-700 transition flex items-center gap-1.5"
                       >
-                        <CheckCircle size={18} />
-                        Complete
+                        <CheckCircle size={14} /> Complete
                       </button>
                     ) : (
                       <>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleStartConsultation(appt._id, appt.queueNumber)}
-                            className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-bold text-sm hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center gap-2"
-                          >
-                            <PlayCircle size={18} />
-                            Start
-                          </button>
-                          <button
-                            onClick={() => handleSendReminder(appt._id, appt.patientName)}
-                            className="px-3 py-2.5 bg-gradient-to-r from-emerald-50 to-emerald-100 text-emerald-700 rounded-xl font-bold text-sm hover:bg-gradient-to-r hover:from-emerald-100 hover:to-emerald-200 hover:shadow-md transition-all duration-200 flex items-center gap-2"
-                            title="Send reminder to patient"
-                          >
-                            <Bell size={18} />
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => handleStartConsultation(appt._id, appt.queueNumber)}
+                          className="px-3 py-2 bg-blue-600 text-white rounded-xl font-semibold text-xs hover:bg-blue-700 transition flex items-center gap-1.5"
+                        >
+                          <PlayCircle size={14} /> Start
+                        </button>
+                        <button
+                          onClick={() => handleSendReminder(appt._id, appt.patientName)}
+                          className="p-2 bg-slate-50 border border-slate-200 rounded-xl hover:bg-emerald-50 hover:border-emerald-200 transition"
+                          title="Send reminder"
+                        >
+                          <Bell size={14} className="text-slate-500" />
+                        </button>
                         <button
                           onClick={() => handleNoShow(appt._id, appt.tokenNumber)}
-                          className="px-5 py-2.5 bg-gradient-to-r from-red-50 to-red-100 text-red-700 rounded-xl font-bold text-sm hover:bg-gradient-to-r hover:from-red-100 hover:to-red-200 hover:shadow-md transition-all duration-200 flex items-center gap-2"
+                          className="px-3 py-2 bg-red-50 border border-red-100 text-red-600 rounded-xl font-semibold text-xs hover:bg-red-100 transition flex items-center gap-1.5"
                         >
-                          <UserMinus size={18} />
-                          No-Show
+                          <UserMinus size={14} /> No-Show
                         </button>
                       </>
                     )}
                   </div>
                 </div>
-
-                {/* Status Badges */}
-                <div className="flex gap-2 flex-wrap">
-                  {appt.status === 'IN_PROGRESS' && (
-                    <span className="px-3 py-1.5 bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 rounded-lg text-xs font-black uppercase tracking-wider border border-emerald-300">
-                      🩺 In Progress
-                    </span>
-                  )}
-                  {appt.status === 'EMERGENCY' && (
-                    <span className="px-3 py-1.5 bg-gradient-to-r from-red-100 to-red-200 text-red-800 rounded-lg text-xs font-black uppercase tracking-wider animate-pulse border border-red-300">
-                      🚨 Emergency
-                    </span>
-                  )}
-                  {appt.status === 'PENDING' && (
-                    <span className="px-3 py-1.5 bg-gradient-to-r from-yellow-100 to-yellow-200 text-yellow-800 rounded-lg text-xs font-black uppercase tracking-wider border border-yellow-300">
-                      ⏳ Pending
-                    </span>
-                  )}
-                </div>
               </div>
             ))
           ) : (
-            <div className="p-12 text-center">
-              <div className="bg-slate-100 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users size={48} className="text-slate-400" />
+            <div className="text-center py-16">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users size={32} className="text-slate-400" />
               </div>
-              <p className="font-bold text-slate-500 text-lg">No patients in queue</p>
-              <p className="text-slate-400 text-sm mt-2">Add walk-in patients or wait for appointments</p>
+              <p className="font-bold text-slate-500">No patients in queue</p>
+              <p className="text-sm text-slate-400 mt-1">Add walk-in patients or wait for appointments</p>
             </div>
           )}
         </div>
