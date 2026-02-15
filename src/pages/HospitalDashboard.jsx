@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2, LogOut } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import HospitalQueueManagement from '../components/HospitalQueueManagement';
 import DoctorScheduleView from '../components/DoctorScheduleView';
 import AudioCall from '../components/AudioCall';
+import PatientRecordsManager from '../components/PatientRecordsManager';
 import webrtcService from '../services/webrtc';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
@@ -33,6 +34,7 @@ const HospitalDashboard = () => {
   const { socket } = useSocket();
   const [showIncomingCall, setShowIncomingCall] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState(null);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
 
   useEffect(() => {
     fetchAppointments();
@@ -481,13 +483,20 @@ const HospitalDashboard = () => {
   const totalAppointments = appointments.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/')} className="bg-slate-100 p-2.5 rounded-full hover:bg-slate-200 transition text-slate-700">
               <ArrowLeft size={20} />
+            </button>
+            <button 
+              onClick={() => setSidebarVisible(!sidebarVisible)} 
+              className="bg-slate-100 p-2.5 rounded-full hover:bg-slate-200 transition text-slate-700"
+              title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
+            >
+              <Menu size={20} />
             </button>
             <div>
               <h1 className="text-2xl font-bold text-slate-900">{profile?.name || 'Hospital'}</h1>
@@ -517,54 +526,127 @@ const HospitalDashboard = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto bg-white p-2 rounded-2xl shadow-sm border border-slate-200">
-          <button
-            onClick={() => setActiveTab('SCHEDULING')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'SCHEDULING' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+      {/* Main Layout with Sidebar */}
+      <div className="flex">
+        {/* Vertical Sidebar Navigation */}
+        {sidebarVisible && (
+          <div className="w-72 bg-white border-r border-slate-200 min-h-screen sticky top-[73px] self-start transition-all duration-300 ease-in-out">
+            <div className="p-4 space-y-2">
+              <button
+              onClick={() => setActiveTab('SCHEDULING')}
+              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
+                activeTab === 'SCHEDULING' 
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                  : 'text-slate-700 hover:bg-slate-50'
               }`}
-          >
-            <Calendar size={16} /> Scheduling
-          </button>
-          <button
-            onClick={() => setActiveTab('QUEUE')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'QUEUE' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+            >
+              <Calendar size={20} />
+              <span>Scheduling</span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('QUEUE')}
+              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
+                activeTab === 'QUEUE' 
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
+                  : 'text-slate-700 hover:bg-slate-50'
               }`}
-          >
-            <Users size={16} /> Queue Management
-          </button>
-          <button
-            onClick={() => setActiveTab('PROFILE')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'PROFILE' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:bg-slate-50'
+            >
+              <Users size={20} />
+              <span>Queue Management</span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('PROFILE')}
+              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
+                activeTab === 'PROFILE' 
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' 
+                  : 'text-slate-700 hover:bg-slate-50'
               }`}
-          >
-            <Heart size={16} /> Profile
-          </button>
-          <button
-            onClick={() => setActiveTab('PENDING')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 'text-slate-600 hover:bg-slate-50'
+            >
+              <Heart size={20} />
+              <span>Profile</span>
+            </button>
+            
+            <button
+              onClick={() => setActiveTab('RECORDS')}
+              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
+                activeTab === 'RECORDS' 
+                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-200' 
+                  : 'text-slate-700 hover:bg-slate-50'
               }`}
-          >
-            Pending {pendingCount > 0 && <span className="bg-yellow-600 text-white px-2 py-0.5 rounded-full text-xs">{pendingCount}</span>}
-          </button>
-          <button
-            onClick={() => setActiveTab('CONFIRMED')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-          >
-            Confirmed {confirmedCount > 0 && <span className="bg-green-600 text-white px-2 py-0.5 rounded-full text-xs">{confirmedCount}</span>}
-          </button>
-          <button
-            onClick={() => setActiveTab('COMPLETED')}
-            className={`px-4 py-2 rounded-xl font-bold text-sm transition flex items-center gap-2 whitespace-nowrap ${activeTab === 'COMPLETED' ? 'bg-blue-100 text-blue-800' : 'text-slate-600 hover:bg-slate-50'
-              }`}
-          >
-            Completed {completedCount > 0 && <span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-xs">{completedCount}</span>}
-          </button>
-        </div>
+            >
+              <FileText size={20} />
+              <span>Patient Records</span>
+            </button>
 
-        {/* Content */}
+            <div className="pt-4 border-t border-slate-200 mt-4 space-y-2">
+              <p className="text-xs font-bold text-slate-400 uppercase px-4 mb-2">Appointments</p>
+              
+              <button
+                onClick={() => setActiveTab('PENDING')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-between ${
+                  activeTab === 'PENDING' 
+                    ? 'bg-yellow-50 text-yellow-800 border-2 border-yellow-300' 
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Clock size={20} />
+                  <span>Pending</span>
+                </div>
+                {pendingCount > 0 && (
+                  <span className="bg-yellow-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('CONFIRMED')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-between ${
+                  activeTab === 'CONFIRMED' 
+                    ? 'bg-green-50 text-green-800 border-2 border-green-300' 
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <CheckCircle size={20} />
+                  <span>Confirmed</span>
+                </div>
+                {confirmedCount > 0 && (
+                  <span className="bg-green-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+                    {confirmedCount}
+                  </span>
+                )}
+              </button>
+              
+              <button
+                onClick={() => setActiveTab('COMPLETED')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-between ${
+                  activeTab === 'COMPLETED' 
+                    ? 'bg-blue-50 text-blue-800 border-2 border-blue-300' 
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Check size={20} />
+                  <span>Completed</span>
+                </div>
+                {completedCount > 0 && (
+                  <span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+                    {completedCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+        )}
+
+        {/* Main Content Area */}
+        <div className="flex-1 p-6">
+          {/* Content */}
         {activeTab === 'SCHEDULING' && (
           <DoctorScheduleView
             appointments={appointments}
@@ -579,6 +661,10 @@ const HospitalDashboard = () => {
 
         {activeTab === 'QUEUE' && (
           <HospitalQueueManagement />
+        )}
+
+        {activeTab === 'RECORDS' && (
+          <PatientRecordsManager />
         )}
 
         {activeTab === 'PROFILE' && profile && (
@@ -954,6 +1040,7 @@ const HospitalDashboard = () => {
             </div>
           )
         )}
+        </div>
       </div>
 
       {/* Test Report Upload Modal */}

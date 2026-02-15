@@ -85,6 +85,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/hospitals', require('./routes/hospitals'));
 app.use('/api/family', require('./routes/family'));
 app.use('/api/reminders', require('./routes/reminders'));
+app.use('/api/patient-records', require('./routes/patientRecords'));
 
 // 6. Test Route
 app.get('/', (req, res) => res.send('API is Running...'));
