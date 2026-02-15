@@ -23,6 +23,7 @@ const FamilyProfile = () => {
     allergies: '',
     chronicConditions: '',
     emergencyContact: '',
+    city: '',
     dateOfBirth: ''
   });
 
@@ -132,6 +133,7 @@ const FamilyProfile = () => {
       allergies: member.allergies?.join(', ') || '',
       chronicConditions: member.chronicConditions?.join(', ') || '',
       emergencyContact: member.emergencyContact || '',
+      city: member.city || '',
       dateOfBirth: member.dateOfBirth ? new Date(member.dateOfBirth).toISOString().split('T')[0] : ''
     });
     setShowModal(true);
@@ -210,6 +212,7 @@ const FamilyProfile = () => {
       allergies: '',
       chronicConditions: '',
       emergencyContact: '',
+      city: '',
       dateOfBirth: ''
     });
   };
@@ -367,7 +370,7 @@ const FamilyProfile = () => {
 
               {/* Book Appointment Button */}
               <button 
-                onClick={() => navigate('/doctors', { state: { familyMemberName: member.name, familyMemberId: member._id, familyMemberRelationship: member.relationship } })}
+                onClick={() => navigate('/doctors', { state: { familyMemberName: member.name, familyMemberId: member._id, familyMemberRelationship: member.relationship, familyMemberCity: member.city || '' } })}
                 className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-200"
               >
                 <Stethoscope size={16} /> {lang === 'en' ? 'Book Appointment' : 'అపాయింట్‌మెంట్ బుక్ చేయండి'}
@@ -453,10 +456,17 @@ const FamilyProfile = () => {
                   value={formData.chronicConditions} onChange={e => setFormData({...formData, chronicConditions: e.target.value})}/>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{t.emergencyContact}</label>
-                <input type="tel" placeholder="+91 98765 43210" className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200"
-                  value={formData.emergencyContact} onChange={e => setFormData({...formData, emergencyContact: e.target.value})}/>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{t.emergencyContact}</label>
+                  <input type="tel" placeholder="+91 98765 43210" className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200"
+                    value={formData.emergencyContact} onChange={e => setFormData({...formData, emergencyContact: e.target.value})}/>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{lang === 'en' ? 'City / Town' : 'నగరం / పట్టణం'}</label>
+                  <input type="text" placeholder={lang === 'en' ? 'e.g., Chittoor' : 'ఉదా: చిత్తూరు'} className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200"
+                    value={formData.city} onChange={e => setFormData({...formData, city: e.target.value})}/>
+                </div>
               </div>
 
               <div>

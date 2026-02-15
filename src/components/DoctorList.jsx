@@ -76,7 +76,7 @@ const LocationSearch = ({ onLocationSelect }) => {
     );
 }
 
-const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null }) => {
+const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null, familyMemberCity = null }) => {
   const { lang } = useLanguage();
   const { socket, emergencyAlert, doctorBreak, doctorDelay } = useSocket();
   const [emergencySeconds, setEmergencySeconds] = useState(0);
@@ -120,6 +120,8 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
   const [contactModal, setContactModal] = useState(null); // for unregistered hospital contact
   const [contactLoading, setContactLoading] = useState(false);
   const [contactInfo, setContactInfo] = useState(null);
+  const [searchingFamilyCity, setSearchingFamilyCity] = useState(false);
+  const [familyCitySearched, setFamilyCitySearched] = useState(false);
 
   // --- 1. SIMULATION ENGINE (The "Bulletproof" Fix) ---
   const generateMockHospitals = (lat, lng) => {
@@ -156,7 +158,44 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
     );
   };
 
-  useEffect(() => { handleLocateMe(); }, []);
+  useEffect(() => { 
+    // If booking for a family member with a city set, search that city instead of GPS
+    if (familyMemberCity && familyMemberCity.trim()) {
+      searchFamilyMemberCity(familyMemberCity.trim());
+    } else {
+      handleLocateMe(); 
+    }
+  }, []);
+
+  // Auto-search family member's city
+  const searchFamilyMemberCity = async (city) => {
+    setSearchingFamilyCity(true);
+    setLoading(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city + ', India')}`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        const { lat, lon, display_name } = data[0];
+        const locationName = display_name.split(',')[0];
+        const newLoc = { lat: parseFloat(lat), lng: parseFloat(lon) };
+        setMapCenter(newLoc);
+        setDragCenter(newLoc);
+        toast.success(lang === 'en' 
+          ? `Showing hospitals near ${familyMemberName}'s location: ${locationName}` 
+          : `${familyMemberName} స్థానం సమీపంలో ఆసుపత్రులు: ${locationName}`);
+        fetchNearbyHospitals(newLoc.lat, newLoc.lng);
+        setFamilyCitySearched(true);
+      } else {
+        toast.error(lang === 'en' ? `Could not find "${city}". Using your GPS location.` : `"${city}" కనుగొనబడలేదు. మీ GPS స్థానం ఉపయోగిస్తోంది.`);
+        handleLocateMe();
+      }
+    } catch (err) {
+      console.error('City search failed:', err);
+      handleLocateMe();
+    } finally {
+      setSearchingFamilyCity(false);
+    }
+  };
 
   // Emergency countdown timer
   useEffect(() => {
@@ -664,6 +703,50 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
         </div>
         <button onClick={onClose} className="bg-slate-100 p-2 rounded-full hover:bg-slate-200 transition text-slate-600"><X size={24}/></button>
       </div>
+
+      {/* FAMILY MEMBER LOCATION BANNER */}
+      {familyMemberName && (
+        <div className={`px-4 py-3 z-10 border-b ${familyCitySearched ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-full ${familyCitySearched ? 'bg-blue-100' : 'bg-amber-100'}`}>
+              <User size={16} className={familyCitySearched ? 'text-blue-600' : 'text-amber-600'} />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-slate-800">
+                {lang === 'en' 
+                  ? `Booking for: ${familyMemberName}` 
+                  : `బుకింగ్: ${familyMemberName} కోసం`}
+              </p>
+              {familyCitySearched && familyMemberCity ? (
+                <p className="text-xs text-blue-600 font-medium">
+                  📍 {lang === 'en' 
+                    ? `Showing hospitals near ${familyMemberCity}` 
+                    : `${familyMemberCity} సమీపంలో ఆసుపత్రులు చూపిస్తోంది`}
+                </p>
+              ) : !familyMemberCity ? (
+                <p className="text-xs text-amber-600 font-medium">
+                  💡 {lang === 'en' 
+                    ? 'No city saved for this member. Use the search bar above to find hospitals in their area, or add their city in Family Profile.' 
+                    : 'ఈ సభ్యుడికి నగరం సేవ్ చేయబడలేదు. వారి ప్రాంతంలో ఆసుపత్రులను కనుగొనడానికి పైన ఉన్న సెర్చ్ బార్ ఉపయోగించండి.'}
+                </p>
+              ) : searchingFamilyCity ? (
+                <p className="text-xs text-blue-600 font-medium flex items-center gap-1">
+                  <Loader2 size={10} className="animate-spin" /> 
+                  {lang === 'en' ? `Searching hospitals near ${familyMemberCity}...` : `${familyMemberCity} సమీపంలో వెతుకుతోంది...`}
+                </p>
+              ) : null}
+            </div>
+            {familyCitySearched && (
+              <button 
+                onClick={handleLocateMe}
+                className="text-xs bg-white text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 font-bold transition shrink-0"
+              >
+                📍 {lang === 'en' ? 'My Location' : 'నా స్థానం'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* MAP AREA */}
       <div className="h-[50vh] w-full relative z-0 shadow-inner overflow-hidden">

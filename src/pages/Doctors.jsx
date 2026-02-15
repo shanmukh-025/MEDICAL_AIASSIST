@@ -7,6 +7,7 @@ const Doctors = () => {
   const location = useLocation();
   const familyMemberName = location.state?.familyMemberName || null;
   const familyMemberId = location.state?.familyMemberId || null;
+  const familyMemberCity = location.state?.familyMemberCity || null;
 
   return (
     <div className="h-screen w-screen bg-slate-50">
@@ -14,6 +15,7 @@ const Doctors = () => {
         onClose={() => navigate('/')} 
         familyMemberName={familyMemberName}
         familyMemberId={familyMemberId}
+        familyMemberCity={familyMemberCity}
       />
     </div>
   );

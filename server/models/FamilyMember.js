@@ -36,6 +36,9 @@ const FamilyMemberSchema = new mongoose.Schema({
   emergencyContact: {
     type: String
   },
+  city: {
+    type: String
+  },
   photoUrl: {
     type: String
   },
