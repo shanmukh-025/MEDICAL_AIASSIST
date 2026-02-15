@@ -1126,7 +1126,7 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null, f
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t.date}</label>
-                                <input required type="date" className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition" value={bookDate} onChange={e => setBookDate(e.target.value)} />
+                                <input required type="date" min={new Date().toISOString().split('T')[0]} className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition" value={bookDate} onChange={e => setBookDate(e.target.value)} />
                             </div>
                             <div>
                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t.time}</label>

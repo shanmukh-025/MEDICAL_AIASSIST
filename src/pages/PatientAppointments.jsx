@@ -630,7 +630,7 @@ const PatientAppointments = () => {
           <div className="grid grid-cols-2 gap-3">
             <div className="relative">
               <Calendar className="absolute left-4 top-3.5 text-slate-400" size={20} />
-              <input required value={form.appointmentDate} onChange={e => setForm({ ...form, appointmentDate: e.target.value })} type="date" className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition" />
+              <input required value={form.appointmentDate} onChange={e => setForm({ ...form, appointmentDate: e.target.value })} type="date" min={new Date().toISOString().split('T')[0]} className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition" />
             </div>
             <div className="relative">
               <Clock className="absolute left-4 top-3.5 text-slate-400" size={20} />

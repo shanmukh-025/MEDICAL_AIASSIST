@@ -779,7 +779,11 @@ const SymptomAnalysis = () => {
         doctor: lang === 'en' ? 'Duty Medical Officer' : 'డ్యూటీ డాక్టర్',
         appointmentDate: bookDate,
         appointmentTime: bookTime,
-        reason: bookReason || (analysis?.possibleConditions?.[0] || 'General consultation')
+        reason: bookReason || (analysis?.possibleConditions?.[0] || 'General consultation'),
+        ...(selectedPerson !== 'self' && {
+          patientName: familyMembers.find(m => m._id === selectedPerson)?.name,
+          familyMemberId: selectedPerson
+        })
       };
       
       const res = await fetch(`${API}/api/appointments`, {
@@ -3041,6 +3045,23 @@ const SymptomAnalysis = () => {
                   )}
                 </div>
 
+                {/* Family Member Banner */}
+                {selectedPerson !== 'self' && (
+                  <div className="bg-blue-50 p-3 rounded-2xl border border-blue-200 flex items-center gap-3">
+                    <div className="bg-blue-100 p-2 rounded-full">
+                      <Users size={16} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-blue-500 font-bold uppercase tracking-wider">
+                        {lang === 'en' ? 'Booking For' : 'బుకింగ్ ఎవరి కోసం'}
+                      </p>
+                      <p className="text-sm font-bold text-blue-900">
+                        {familyMembers.find(m => m._id === selectedPerson)?.name || 'Family Member'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Reason */}
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
@@ -3064,6 +3085,7 @@ const SymptomAnalysis = () => {
                     <input 
                       required 
                       type="date" 
+                      min={new Date().toISOString().split('T')[0]}
                       className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition" 
                       value={bookDate} 
                       onChange={e => setBookDate(e.target.value)} 
