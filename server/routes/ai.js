@@ -648,4 +648,113 @@ Return ONLY the JSON object, no other text.`;
   }
 });
 
+// --- ANALYZE MEDICAL RECORD IMAGE WITH AI (Vision) ---
+router.post('/analyze-record', auth, async (req, res) => {
+  try {
+    const { image, title, type, language } = req.body;
+
+    if (!image) {
+      return res.status(400).json({ error: 'No image provided' });
+    }
+
+    // Extract base64 data and mime type from data URL
+    const matches = image.match(/^data:(.+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({ error: 'Invalid image format' });
+    }
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+
+    const apiKey = getNextApiKey();
+    let modelName = await getWorkingModel(apiKey);
+    if (!modelName) modelName = "gemini-1.5-flash";
+
+    const isTeluguLang = language === 'te';
+
+    const prompt = isTeluguLang
+      ? `మీరు ఒక AI వైద్య సహాయకుడు. ఈ వైద్య రికార్డు చిత్రాన్ని విశ్లేషించండి (రకం: ${type || 'Medical Record'}, శీర్షిక: ${title || 'N/A'}).
+
+దయచేసి ఈ JSON ఆకృతిలో తెలుగులో సమాధానం ఇవ్వండి:
+{
+  "summary": "రికార్డులో ఏమి ఉందో సంక్షిప్త సారాంశం",
+  "findings": ["ముఖ్యమైన ఫలితం 1", "ముఖ్యమైన ఫలితం 2"],
+  "medications": ["మందులు ఉంటే జాబితా"],
+  "recommendations": ["సిఫార్సు 1", "సిఫార్సు 2"],
+  "urgency": "low/medium/high"
+}
+
+ONLY return valid JSON, no other text.`
+      : `You are an AI medical assistant. Analyze this medical record image (Type: ${type || 'Medical Record'}, Title: ${title || 'N/A'}).
+
+Please provide your analysis in this JSON format:
+{
+  "summary": "Brief summary of what this record contains",
+  "findings": ["Key finding 1", "Key finding 2"],
+  "medications": ["List any medications if present"],
+  "recommendations": ["Recommendation 1", "Recommendation 2"],
+  "urgency": "low/medium/high"
+}
+
+IMPORTANT: 
+- Identify any medications, dosages, and diagnoses visible
+- Note any abnormal lab values if it's a lab report
+- Provide practical, simple recommendations
+- Be accurate but acknowledge limitations of AI analysis
+
+ONLY return valid JSON, no other text.`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data
+              }
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const msg = data.error?.message || response.statusText;
+      if (msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') || response.status === 429) {
+        markKeyAsFailed(apiKey);
+      }
+      throw new Error(msg);
+    }
+
+    if (!data.candidates || !data.candidates[0]?.content) {
+      throw new Error('No analysis generated');
+    }
+
+    const text = data.candidates[0].content.parts[0].text;
+    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const analysis = JSON.parse(cleanJson);
+
+    console.log('✅ Record analysis complete:', { title, type, urgency: analysis.urgency });
+    res.json(analysis);
+
+  } catch (err) {
+    console.error('Record Analysis Error:', err.message);
+    const isQuotaError = err.message?.includes('quota') || err.message?.includes('rate limit');
+    res.status(500).json({
+      error: 'Analysis failed',
+      message: isQuotaError
+        ? 'API quota exceeded. Please wait a minute and try again.'
+        : 'Unable to analyze this record. Please try again.'
+    });
+  }
+});
+
 module.exports = router;

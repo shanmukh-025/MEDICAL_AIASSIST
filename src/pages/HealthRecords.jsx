@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, FileText, Calendar, User, Upload, X, Loader2, Trash2, Eye, Image as ImageIcon, AlertCircle, Building2, Users, WifiOff } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, Calendar, User, Upload, X, Loader2, Trash2, Eye, Image as ImageIcon, AlertCircle, Building2, Users, WifiOff, Sparkles, Bot, AlertTriangle, Pill, ClipboardList, ChevronRight } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import toast from 'react-hot-toast';
@@ -47,6 +47,45 @@ const HealthRecords = () => {
 
   const [formData, setFormData] = useState({ title: '', doctor: '', date: '', type: 'Prescription', image: '', familyMember: '' });
   const [isFromCache, setIsFromCache] = useState(false);
+  const [analyzingId, setAnalyzingId] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisRecord, setAnalysisRecord] = useState(null);
+
+  // AI Analysis
+  const analyzeRecord = async (record) => {
+    if (!record.image || record.image.length < 100) {
+      toast.error(lang === 'en' ? 'No image available to analyze' : 'విశ్లేషించడానికి చిత్రం అందుబాటులో లేదు');
+      return;
+    }
+    if (!navigator.onLine) {
+      toast.error(lang === 'en' ? 'Internet required for AI analysis' : 'AI విశ్లేషణకు ఇంటర్నెట్ అవసరం');
+      return;
+    }
+    setAnalyzingId(record._id);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE || 'http://localhost:5000'}/api/ai/analyze-record`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': localStorage.getItem('token')
+        },
+        body: JSON.stringify({
+          image: record.image,
+          title: record.title,
+          type: record.type,
+          language: lang
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Analysis failed');
+      setAnalysisResult(data);
+      setAnalysisRecord(record);
+    } catch (err) {
+      toast.error(err.message || 'AI analysis failed');
+    } finally {
+      setAnalyzingId(null);
+    }
+  };
 
   // Fetch Records with offline support
   const fetchRecords = async () => {
@@ -215,13 +254,31 @@ const HealthRecords = () => {
           filteredRecords.map((rec) => (
             <div key={rec._id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 group hover:shadow-md transition">
                
-               {/* Thumbnail */}
-               <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-200">
-                  {rec.image && rec.image.startsWith('data:image') ? (
-                      <img src={rec.image} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" alt="doc"/>
-                  ) : (
-                      <FileText className="text-slate-300"/>
-                  )}
+               {/* Thumbnail + AI Button */}
+               <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                 <div className="w-16 h-16 bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center border border-slate-200">
+                    {rec.image && rec.image.startsWith('data:image') ? (
+                        <img src={rec.image} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" alt="doc"/>
+                    ) : (
+                        <FileText className="text-slate-300"/>
+                    )}
+                 </div>
+                 {rec.image && rec.image.length > 100 && (
+                   <button
+                     onClick={(e) => { e.stopPropagation(); analyzeRecord(rec); }}
+                     disabled={analyzingId === rec._id}
+                     className="flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-600 text-[10px] font-bold rounded-lg hover:bg-purple-100 transition border border-purple-200 disabled:opacity-50"
+                   >
+                     {analyzingId === rec._id ? (
+                       <Loader2 size={10} className="animate-spin" />
+                     ) : (
+                       <Sparkles size={10} />
+                     )}
+                     {analyzingId === rec._id 
+                       ? (lang === 'en' ? 'Analysing...' : 'విశ్లేషిస్తోంది...')
+                       : (lang === 'en' ? 'Analyse with AI' : 'AI విశ్లేషణ')}
+                   </button>
+                 )}
                </div>
 
                {/* Info */}
@@ -375,6 +432,111 @@ const HealthRecords = () => {
                     <p className="text-white/60 text-sm">{viewFile.doctor} • {new Date(viewFile.date).toLocaleDateString()}</p>
                 </div>
             </div>
+        </div>
+      )}
+
+      {/* AI ANALYSIS MODAL */}
+      {analysisResult && analysisRecord && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70]" onClick={() => { setAnalysisResult(null); setAnalysisRecord(null); }}>
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                  <Bot size={20} className="text-purple-600" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">{lang === 'en' ? 'AI Analysis' : 'AI విశ్లేషణ'}</h2>
+                  <p className="text-xs text-slate-400">{analysisRecord.title} • {analysisRecord.type}</p>
+                </div>
+              </div>
+              <button onClick={() => { setAnalysisResult(null); setAnalysisRecord(null); }} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Urgency Badge */}
+            <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold mb-4 ${
+              analysisResult.urgency === 'high' ? 'bg-red-100 text-red-700 border border-red-200' :
+              analysisResult.urgency === 'medium' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+              'bg-green-100 text-green-700 border border-green-200'
+            }`}>
+              <AlertTriangle size={12} />
+              {analysisResult.urgency === 'high' ? (lang === 'en' ? 'High Priority' : 'అధిక ప్రాధాన్యత') :
+               analysisResult.urgency === 'medium' ? (lang === 'en' ? 'Medium Priority' : 'మధ్యస్థ ప్రాధాన్యత') :
+               (lang === 'en' ? 'Low Priority' : 'తక్కువ ప్రాధాన్యత')}
+            </div>
+
+            {/* Summary */}
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+              <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                <ClipboardList size={14} className="text-blue-500" />
+                {lang === 'en' ? 'Summary' : 'సారాంశం'}
+              </h3>
+              <p className="text-sm text-slate-600 leading-relaxed">{analysisResult.summary}</p>
+            </div>
+
+            {/* Findings */}
+            {analysisResult.findings?.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                  <Eye size={14} className="text-emerald-500" />
+                  {lang === 'en' ? 'Key Findings' : 'ముఖ్య ఫలితాలు'}
+                </h3>
+                <div className="space-y-2">
+                  {analysisResult.findings.map((f, i) => (
+                    <div key={i} className="flex items-start gap-2 bg-emerald-50 p-3 rounded-lg border border-emerald-100">
+                      <ChevronRight size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-slate-700">{f}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Medications */}
+            {analysisResult.medications?.length > 0 && analysisResult.medications[0] !== '' && (
+              <div className="mb-4">
+                <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                  <Pill size={14} className="text-purple-500" />
+                  {lang === 'en' ? 'Medications' : 'మందులు'}
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {analysisResult.medications.map((m, i) => (
+                    <span key={i} className="bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-purple-200">{m}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {analysisResult.recommendations?.length > 0 && (
+              <div className="mb-4">
+                <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                  <Sparkles size={14} className="text-amber-500" />
+                  {lang === 'en' ? 'Recommendations' : 'సిఫార్సులు'}
+                </h3>
+                <div className="space-y-2">
+                  {analysisResult.recommendations.map((r, i) => (
+                    <div key={i} className="flex items-start gap-2 bg-amber-50 p-3 rounded-lg border border-amber-100">
+                      <span className="text-amber-500 font-bold text-xs mt-0.5">{i + 1}.</span>
+                      <span className="text-sm text-slate-700">{r}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Disclaimer */}
+            <div className="bg-blue-50 p-3 rounded-xl border border-blue-200 mt-4">
+              <p className="text-[11px] text-blue-600 leading-relaxed">
+                <span className="font-bold">⚠️ {lang === 'en' ? 'Disclaimer' : 'నిరాకరణ'}:</span>{' '}
+                {lang === 'en'
+                  ? 'This AI analysis is for informational purposes only and should not replace professional medical advice. Always consult your doctor for accurate diagnosis and treatment.'
+                  : 'ఈ AI విశ్లేషణ సమాచార ప్రయోజనాల కోసం మాత్రమే. ఖచ్చితమైన రోగనిర్ధారణ మరియు చికిత్స కోసం ఎల్లప్పుడూ మీ వైద్యుడిని సంప్రదించండి.'}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

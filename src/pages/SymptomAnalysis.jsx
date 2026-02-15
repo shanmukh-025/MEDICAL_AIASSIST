@@ -1677,7 +1677,14 @@ const SymptomAnalysis = () => {
                   <input
                     type="number"
                     value={age}
-                    onChange={(e) => setAge(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || (Number(val) >= 0 && Number(val) <= 150)) {
+                        setAge(val);
+                      }
+                    }}
+                    min="0"
+                    max="150"
                     placeholder="25"
                     className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl outline-none focus:border-blue-500 transition"
                   />
