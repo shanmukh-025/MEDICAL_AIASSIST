@@ -4,7 +4,8 @@ import {
   ArrowLeft, Activity, AlertCircle, CheckCircle, Brain, 
   Stethoscope, TrendingUp, AlertTriangle, Shield, 
   Heart, Thermometer, Plus, X, Loader2, Users, Calendar,
-  TrendingDown, Save, History as HistoryIcon, LineChart, Download, Bell, BellOff, Lightbulb
+  TrendingDown, Save, History as HistoryIcon, LineChart, Download, Bell, BellOff, Lightbulb,
+  MapPin, Navigation, Phone, Clock
 } from 'lucide-react';
 import { LineChart as RechartsLineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import jsPDF from 'jspdf';
@@ -128,6 +129,12 @@ const SymptomAnalysis = () => {
     filterByCondition: lang === 'en' ? 'Filter by Condition' : 'వ్యాధి ద్వారా ఫిల్టర్ చేయండి',
     allConditions: lang === 'en' ? 'All Conditions' : 'అన్ని వ్యాధులు',
     noConditionName: lang === 'en' ? 'No Condition Name' : 'వ్యాధి పేరు లేదు',
+    conditionAutoFilled: lang === 'en' ? 'Condition auto-set to' : 'వ్యాధి ఆటోమేటిక్‌గా సెట్ చేయబడింది',
+    mixedConditionsWarning: lang === 'en' 
+      ? 'Your logs contain different conditions. Please filter by a specific condition for accurate analysis.'
+      : 'మీ లాగ్‌లలో వేర్వేరు వ్యాధులు ఉన్నాయి. ఖచ్చితమైన విశ్లేషణ కోసం దయచేసి నిర్దిష్ట వ్యాధి ద్వారా ఫిల్టర్ చేయండి.',
+    selectConditionFirst: lang === 'en' ? 'Select a condition first' : 'ముందు ఒక వ్యాధిని ఎంచుకోండి',
+    analyzeAnyway: lang === 'en' ? 'Analyze All Anyway' : 'అన్నింటినీ విశ్లేషించండి',
   };
   
   // Default common symptoms list
@@ -162,6 +169,7 @@ const SymptomAnalysis = () => {
   const [existingConditions, setExistingConditions] = useState('');
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false); // NEW: Prevent duplicate calls
   
   // NEW: Tracking features
   const [viewMode, setViewMode] = useState('entry'); // 'entry' or 'history'
@@ -192,6 +200,13 @@ const SymptomAnalysis = () => {
   const [nearbyHospitals, setNearbyHospitals] = useState([]);
   const [loadingHospitals, setLoadingHospitals] = useState(false);
   const [showHospitals, setShowHospitals] = useState(false);
+  
+  // NEW: Booking from Symptom Analysis
+  const [bookingHospital, setBookingHospital] = useState(null);
+  const [bookDate, setBookDate] = useState('');
+  const [bookTime, setBookTime] = useState('');
+  const [bookReason, setBookReason] = useState('');
+  const [bookingStep, setBookingStep] = useState('form'); // 'form' | 'loading' | 'success'
   
   // Fetch family members on mount
   useEffect(() => {
@@ -313,9 +328,22 @@ const SymptomAnalysis = () => {
       return;
     }
     
+    // Prevent duplicate calls
+    if (isAnalyzing) {
+      console.log('⚠️ Analysis already in progress, skipping duplicate call');
+      toast.error('Analysis already in progress. Please wait.');
+      return;
+    }
+    
+    console.log('🔬 Starting new symptom analysis...');
     setLoading(true);
+    setIsAnalyzing(true);
+    setShowHospitals(false); // Reset hospitals
+    setNearbyHospitals([]);
+    
     try {
       const token = localStorage.getItem('token');
+      console.log('📤 Sending analysis request to server...');
       const response = await axios.post(
         `${API}/api/ai/analyze-symptoms`,
         {
@@ -330,19 +358,53 @@ const SymptomAnalysis = () => {
         { headers: { 'x-auth-token': token } }
       );
       
+      console.log('✅ Analysis received:', {
+        diagnosis: response.data.primaryDiagnosis,
+        specialties: response.data.relatedSpecialties
+      });
+      
       setAnalysis(response.data);
       toast.success('Analysis complete!');
+      
+      // Auto-fill conditionName from AI diagnosis if user left it empty
+      if (!conditionName && response.data.primaryDiagnosis) {
+        setConditionName(response.data.primaryDiagnosis);
+        toast.info(`${t.conditionAutoFilled} "${response.data.primaryDiagnosis}"`);
+      }
+      
+      // Immediately and automatically fetch nearby hospitals
+      if (response.data.relatedSpecialties && response.data.relatedSpecialties.length > 0) {
+        console.log('🏥 Auto-searching hospitals for specialties:', response.data.relatedSpecialties);
+        // Don't wait - start fetching hospitals immediately
+        findNearbyHospitalsAuto(response.data.relatedSpecialties);
+      } else {
+        console.warn('⚠️ No related specialties found in AI response');
+        toast.info('No specific specialties recommended for hospital search');
+      }
     } catch (error) {
-      console.error('Analysis error:', error);
-      toast.error(t.analysisFailed);
+      console.error('❌ Analysis error:', error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error(t.analysisFailed);
+      }
     } finally {
       setLoading(false);
+      setIsAnalyzing(false);
     }
   };
   
   // Analyze specific entry directly
   const analyzeEntry = async (log) => {
+    // Prevent duplicate calls
+    if (isAnalyzing) {
+      console.log('⚠️ Analysis already in progress, skipping duplicate call');
+      return;
+    }
+    
     setLoading(true);
+    setIsAnalyzing(true);
+    
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
@@ -362,6 +424,11 @@ const SymptomAnalysis = () => {
       setAnalysis(response.data);
       toast.success('Analysis complete!');
       
+      // Immediately and automatically fetch nearby hospitals
+      if (response.data.relatedSpecialties && response.data.relatedSpecialties.length > 0) {
+        findNearbyHospitalsAuto(response.data.relatedSpecialties);
+      }
+      
       // Switch to entry view to show results
       setViewMode('entry');
       
@@ -378,6 +445,7 @@ const SymptomAnalysis = () => {
       toast.error(errorMessage);
     } finally {
       setLoading(false);
+      setIsAnalyzing(false);
     }
   };
   
@@ -385,24 +453,160 @@ const SymptomAnalysis = () => {
   const selectDayRange = (days) => {
     setSelectedDayRange(days);
     setMultiDayAnalysis(null); // Clear previous analysis
+    setShowMixedWarning(false);
+  };
+  
+  // State for mixed-condition warning
+  const [showMixedWarning, setShowMixedWarning] = useState(false);
+  const [mixedConditionsList, setMixedConditionsList] = useState([]);
+  
+  // Detect if logs in the selected range have mixed conditions
+  const detectMixedConditions = (logs) => {
+    if (logs.length < 2) return [];
+    
+    // Step 1: Check named conditions first
+    const conditionSet = new Set();
+    logs.forEach(log => {
+      const name = log.conditionName && log.conditionName.trim() !== '' 
+        ? log.conditionName.trim() 
+        : null;
+      conditionSet.add(name);
+    });
+    
+    const namedConditions = [...conditionSet].filter(c => c !== null);
+    if (namedConditions.length >= 2 || (namedConditions.length >= 1 && conditionSet.has(null))) {
+      return [...conditionSet];
+    }
+    
+    // Step 2: Even if no conditionNames are set, detect unrelated symptoms by overlap
+    // Group logs by symptom similarity — if zero symptom overlap, they're different conditions
+    const symptomGroups = [];
+    
+    logs.forEach(log => {
+      const logSymptoms = log.symptoms.map(s => s.toLowerCase().trim());
+      
+      // Try to find an existing group with overlapping symptoms
+      let merged = false;
+      for (const group of symptomGroups) {
+        const hasOverlap = logSymptoms.some(s => group.symptoms.has(s));
+        if (hasOverlap) {
+          logSymptoms.forEach(s => group.symptoms.add(s));
+          group.count++;
+          merged = true;
+          break;
+        }
+      }
+      
+      if (!merged) {
+        symptomGroups.push({
+          symptoms: new Set(logSymptoms),
+          count: 1
+        });
+      }
+    });
+    
+    // If there are 2+ distinct symptom groups with zero overlap, warn the user
+    if (symptomGroups.length >= 2) {
+      return symptomGroups.map(g => ({
+        label: [...g.symptoms].slice(0, 3).join(', '),
+        symptoms: [...g.symptoms],
+        type: 'symptom-group'
+      }));
+    }
+    
+    return [];
+  };
+  
+  // Analyze only a specific symptom group (for unnamed logs)
+  const analyzeSymptomGroup = async (group) => {
+    if (!selectedDayRange) return;
+    
+    setShowMixedWarning(false);
+    setLoadingMultiDay(true);
+    
+    const days = selectedDayRange;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    // Filter logs from the time range that match this symptom group
+    const groupSymptoms = new Set(group.symptoms.map(s => s.toLowerCase().trim()));
+    const filteredLogs = symptomHistory.filter(log => {
+      if (new Date(log.loggedAt) < cutoffDate) return false;
+      return log.symptoms.some(s => groupSymptoms.has(s.toLowerCase().trim()));
+    });
+    
+    if (filteredLogs.length === 0) {
+      toast.error('No matching logs found for this symptom group');
+      setLoadingMultiDay(false);
+      return;
+    }
+    
+    try {
+      let personName = 'yourself';
+      if (selectedPerson !== 'self') {
+        const member = familyMembers.find(m => m._id === selectedPerson);
+        if (member) personName = member.name;
+      }
+      
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${API}/api/ai/analyze-symptom-trends`,
+        {
+          symptomHistory: filteredLogs,
+          personName,
+          dayRange: days
+        },
+        { headers: { 'x-auth-token': token } }
+      );
+      
+      setMultiDayAnalysis(response.data);
+      toast.success(`Analyzed ${filteredLogs.length} log(s) for: ${group.label}`);
+      
+      const specialties = response.data.relatedSpecialties || ['General Physician'];
+      findNearbyHospitalsAuto(specialties);
+      
+      setTimeout(() => {
+        const el = document.getElementById('multi-day-analysis');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    } catch (error) {
+      console.error('Symptom group analysis error:', error);
+      toast.error(error.response?.data?.message || 'Analysis failed. Please try again.');
+    } finally {
+      setLoadingMultiDay(false);
+    }
   };
   
   // Analyze multiple days of symptom logs
-  const analyzeMultipleDays = async () => {
+  const analyzeMultipleDays = async (forceAll = false) => {
     if (!selectedDayRange) return;
     
-    setLoadingMultiDay(true);
     const days = selectedDayRange;
     
+    // Filter logs from the last N days
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    let timeFilteredLogs = symptomHistory.filter(log => 
+      new Date(log.loggedAt) >= cutoffDate
+    );
+    
+    // Check for mixed conditions when filter is 'all' and user hasn't confirmed
+    if (selectedCondition === 'all' && !forceAll) {
+      const mixed = detectMixedConditions(timeFilteredLogs);
+      if (mixed.length > 0) {
+        setMixedConditionsList(mixed);
+        setShowMixedWarning(true);
+        return; // Don't proceed, show warning instead
+      }
+    }
+    
+    setShowMixedWarning(false);
+    setLoadingMultiDay(true);
+    
+    let filteredLogs = timeFilteredLogs;
+    
     try {
-      // Filter logs from the last N days
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - days);
-      
-      let filteredLogs = symptomHistory.filter(log => 
-        new Date(log.loggedAt) >= cutoffDate
-      );
-      
       // Further filter by condition if selected
       if (selectedCondition !== 'all') {
         filteredLogs = filteredLogs.filter(log => {
@@ -460,6 +664,11 @@ const SymptomAnalysis = () => {
       setMultiDayAnalysis(response.data);
       toast.success(`Analyzed ${filteredLogs.length} log${filteredLogs.length > 1 ? 's' : ''} from last ${days} day${days > 1 ? 's' : ''}`);
       
+      // Auto-search nearby hospitals based on the diagnosis
+      const specialties = response.data.relatedSpecialties || ['General Physician'];
+      console.log('🏥 Auto-searching hospitals after multi-day analysis, specialties:', specialties);
+      findNearbyHospitalsAuto(specialties);
+      
       // Scroll to show analysis
       setTimeout(() => {
         const multiDaySection = document.getElementById('multi-day-analysis');
@@ -496,10 +705,221 @@ const SymptomAnalysis = () => {
     setAnalysis(null);
     setShowHospitals(false);
     setNearbyHospitals([]);
+    setIsAnalyzing(false); // Clear analysis lock
   };
   
-  // NEW: Find nearby hospitals for condition
-  const findNearbyHospitals = async () => {
+  // Haversine distance helper
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Fetch nearby hospitals from OpenStreetMap Overpass API
+  const fetchOSMHospitals = async (lat, lng) => {
+    try {
+      const query = `
+        [out:json][timeout:15];
+        (
+          node["amenity"="hospital"](around:15000,${lat},${lng});
+          way["amenity"="hospital"](around:15000,${lat},${lng});
+          node["amenity"="clinic"](around:15000,${lat},${lng});
+        );
+        out center;
+      `;
+      const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      
+      if (!data.elements || data.elements.length === 0) return [];
+      
+      return data.elements.map((place) => {
+        const placeLat = place.lat || place.center?.lat;
+        const placeLng = place.lon || place.center?.lon;
+        if (!placeLat || !placeLng) return null;
+        const dist = calculateDistance(lat, lng, placeLat, placeLng);
+        
+        return {
+          hospital: {
+            _id: `osm-${place.id}`,
+            name: place.tags?.name || (lang === 'en' ? 'Local Medical Center' : 'స్థానిక వైద్య కేంద్రం'),
+            address: place.tags?.['addr:full'] || place.tags?.['addr:street'] || '',
+            phone: place.tags?.phone || place.tags?.['contact:phone'] || null,
+            location: { latitude: placeLat, longitude: placeLng },
+            services: [],
+            doctors: [],
+            workingHours: place.tags?.opening_hours || null,
+            isOSM: true // Flag to differentiate from registered hospitals
+          },
+          distance: Math.round(dist * 10) / 10,
+          isOSM: true
+        };
+      }).filter(Boolean).slice(0, 10);
+    } catch (err) {
+      console.error('❌ OSM fetch error:', err);
+      return [];
+    }
+  };
+
+  // Handle booking from symptom analysis
+  const handleBookVisit = async (e) => {
+    e.preventDefault();
+    setBookingStep('loading');
+    const token = localStorage.getItem('token');
+    
+    try {
+      if (!token) throw new Error('Login required');
+      
+      const appointmentData = {
+        hospitalName: bookingHospital.hospital?.name || bookingHospital.name,
+        doctor: lang === 'en' ? 'Duty Medical Officer' : 'డ్యూటీ డాక్టర్',
+        appointmentDate: bookDate,
+        appointmentTime: bookTime,
+        reason: bookReason || (analysis?.possibleConditions?.[0] || 'General consultation')
+      };
+      
+      const res = await fetch(`${API}/api/appointments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify(appointmentData)
+      });
+      
+      if (res.ok) {
+        setBookingStep('success');
+        toast.success(lang === 'en' ? 'Appointment booked!' : 'అపాయింట్‌మెంట్ బుక్ చేయబడింది!');
+      } else {
+        throw new Error('Failed to book');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Booking failed');
+      setBookingStep('form');
+    }
+  };
+
+  // NEW: Automatically find nearby hospitals (silent, no user prompts)
+  const findNearbyHospitalsAuto = async (specialties) => {
+    console.log('🏥 findNearbyHospitalsAuto called with specialties:', specialties);
+    
+    if (!specialties || specialties.length === 0) {
+      console.warn('⚠️ No specialties provided, using default');
+      specialties = ['General Physician'];
+    }
+    
+    // Prevent duplicate concurrent hospital searches
+    if (loadingHospitals) {
+      console.log('⚠️ Hospital search already in progress, skipping');
+      return;
+    }
+    
+    setLoadingHospitals(true);
+    setShowHospitals(true);
+    
+    const token = localStorage.getItem('token');
+    
+    // Helper function to actually search hospitals
+    const searchHospitals = async (lat, lng) => {
+      try {
+        // Step 1: Search registered hospitals from our database
+        const response = await axios.post(
+          `${API}/api/hospitals/search-by-condition`,
+          {
+            latitude: lat,
+            longitude: lng,
+            specialties: specialties,
+            maxDistance: lat ? 50 : 999999
+          },
+          { headers: { 'x-auth-token': token } }
+        );
+        
+        let dbHospitals = response.data || [];
+        // Mark DB hospitals as registered
+        dbHospitals = dbHospitals.map(h => ({ ...h, isRegistered: true }));
+        
+        console.log(`✅ DB hospital search: ${dbHospitals.length} hospitals`);
+        
+        // Step 2: If we have user location, also fetch from OSM for unregistered nearby hospitals
+        let osmHospitals = [];
+        if (lat && lng) {
+          console.log('🌍 Fetching nearby hospitals from OpenStreetMap...');
+          osmHospitals = await fetchOSMHospitals(lat, lng);
+          
+          // Remove OSM hospitals that match registered hospital names (dedup)
+          const dbNames = dbHospitals.map(h => h.hospital?.name?.toLowerCase()).filter(Boolean);
+          osmHospitals = osmHospitals.filter(osm => {
+            const osmName = osm.hospital.name.toLowerCase();
+            return !dbNames.some(dbName => 
+              dbName.includes(osmName) || osmName.includes(dbName)
+            );
+          });
+          
+          console.log(`✅ OSM nearby hospitals (after dedup): ${osmHospitals.length}`);
+        }
+        
+        // Step 3: Combine - registered first, then OSM nearby
+        const combined = [...dbHospitals, ...osmHospitals];
+        
+        setNearbyHospitals(combined);
+        setLoadingHospitals(false);
+        
+        if (combined.length > 0) {
+          const regCount = dbHospitals.length;
+          const osmCount = osmHospitals.length;
+          if (regCount > 0 && osmCount > 0) {
+            toast.success(`Found ${regCount} registered + ${osmCount} nearby hospitals`);
+          } else if (osmCount > 0) {
+            toast.success(`Found ${osmCount} nearby hospitals`);
+          } else {
+            toast.success(`Found ${regCount} hospitals`);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error searching hospitals:', error);
+        
+        // Even if DB search fails, try OSM as fallback
+        if (lat && lng) {
+          try {
+            const osmHospitals = await fetchOSMHospitals(lat, lng);
+            if (osmHospitals.length > 0) {
+              setNearbyHospitals(osmHospitals);
+              toast.success(`Found ${osmHospitals.length} nearby hospitals`);
+            }
+          } catch { /* silent */ }
+        }
+        
+        setLoadingHospitals(false);
+      }
+    };
+    
+    // Try to get location, but don't fail if unavailable
+    try {
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            console.log('📍 Got location:', position.coords.latitude, position.coords.longitude);
+            searchHospitals(position.coords.latitude, position.coords.longitude);
+          },
+          (error) => {
+            console.log('📍 Location unavailable:', error.message);
+            searchHospitals(null, null);
+          },
+          { timeout: 5000, enableHighAccuracy: false }
+        );
+      } else {
+        searchHospitals(null, null);
+      }
+    } catch (error) {
+      console.error('❌ Geolocation error:', error);
+      searchHospitals(null, null);
+    }
+  };
+  
+  // NEW: Find nearby hospitals for condition (manual trigger)
+  /* UNUSED - Replaced by findNearbyHospitalsAuto which auto-calls after analysis
+  const findNearbyHospitals = async (providedSpecialties = null) => {
     setLoadingHospitals(true);
     setShowHospitals(true);
     
@@ -517,8 +937,8 @@ const SymptomAnalysis = () => {
             longitude: position.coords.longitude
           };
           
-          // Extract specialties from AI analysis
-          const specialties = analysis?.relatedSpecialties || [];
+          // Extract specialties from AI analysis or use provided ones
+          const specialties = providedSpecialties || analysis?.relatedSpecialties || [];
           
           // Search hospitals
           const token = localStorage.getItem('token');
@@ -553,6 +973,7 @@ const SymptomAnalysis = () => {
       setLoadingHospitals(false);
     }
   };
+  */
   
   // Get urgency color
   const getUrgencyColor = (urgency) => {
@@ -612,10 +1033,8 @@ const SymptomAnalysis = () => {
       
       setSymptomHistory(response.data);
       
-      // If there's history, analyze trends
-      if (response.data.length > 1) {
-        analyzeTrends(response.data);
-      }
+      // Don't auto-analyze trends on history load - let user trigger it via day range buttons
+      // This prevents duplicate AI calls and conflicting results
     } catch (error) {
       console.error('Error fetching symptom history:', error);
       toast.error('Failed to load history');
@@ -624,8 +1043,8 @@ const SymptomAnalysis = () => {
     }
   };
   
-  // NEW: Analyze symptom trends
-  const analyzeTrends = async (history) => {
+  // Analyze symptom trends - now handled by analyzeMultipleDays instead
+  /* const analyzeTrends = async (history) => {
     try {
       const token = localStorage.getItem('token');
       const personName = selectedPerson === 'self' 
@@ -642,10 +1061,15 @@ const SymptomAnalysis = () => {
       );
       
       setTrendAnalysis(response.data);
+      
+      // Auto-search hospitals based on trend analysis specialties
+      const specialties = response.data.relatedSpecialties || ['General Physician'];
+      console.log('🏥 Auto-searching hospitals from trend analysis, specialties:', specialties);
+      findNearbyHospitalsAuto(specialties);
     } catch (error) {
       console.error('Error analyzing trends:', error);
     }
-  };
+  }; */
   
   // NEW: Prepare chart data
   const prepareChartData = () => {
@@ -1320,11 +1744,12 @@ const SymptomAnalysis = () => {
             
             {/* Analyze Button */}
             <button 
+              type="button"
               onClick={analyzeSymptoms}
-              disabled={loading || symptoms.length === 0}
+              disabled={loading || isAnalyzing || symptoms.length === 0}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-xl transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? (
+              {(loading || isAnalyzing) ? (
                 <>
                   <Loader2 className="animate-spin" size={20} />
                   {t.analyzing}
@@ -1569,55 +1994,137 @@ const SymptomAnalysis = () => {
               </button>
             </div>
             
-            {/* Find Nearby Hospitals Button */}
-            <button
-              onClick={findNearbyHospitals}
-              disabled={loadingHospitals}
-              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-4 rounded-xl font-bold hover:shadow-lg transition flex items-center justify-center gap-2"
-            >
-              {loadingHospitals ? (
-                <>
-                  <Loader2 className="animate-spin" size={20} />
-                  {lang === 'en' ? 'Finding Hospitals...' : 'ఆసుపత్రులను కనుగొంటోంది...'}
-                </>
-              ) : (
-                <>
-                  <Activity size={20} />
-                  {t.findNearbyHospitals}
-                </>
-              )}
-            </button>
+            {/* Loading Hospitals Indicator */}
+            {loadingHospitals && (
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-3xl shadow-sm p-6">
+                <div className="flex items-center justify-center gap-3">
+                  <Loader2 className="animate-spin text-emerald-600" size={24} />
+                  <p className="text-emerald-800 font-medium">
+                    {lang === 'en' ? '🏥 Finding specialist hospitals for you...' : '🏥 మీ కోసం స్పెషలిస్ట్ ఆసుపత్రులను కనుగొంటోంది...'}
+                  </p>
+                </div>
+              </div>
+            )}
             
-            {/* Nearby Hospitals List */}
+            {/* No Hospitals Found Message */}
+            {showHospitals && !loadingHospitals && nearbyHospitals.length === 0 && (
+              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-3xl shadow-sm p-6">
+                <div className="text-center">
+                  <AlertTriangle className="text-yellow-600 mx-auto mb-3" size={48} />
+                  <h3 className="font-bold text-lg text-yellow-900 mb-2">
+                    {lang === 'en' ? 'No Specialist Hospitals Found' : 'స్పెషలిస్ట్ ఆసుపత్రులు కనిపించలేదు'}
+                  </h3>
+                  <p className="text-yellow-800 mb-4">
+                    {lang === 'en' 
+                      ? 'We couldn\'t find any hospitals matching the recommended specialties in our database. Please consult a general physician or visit the nearest hospital.' 
+                      : 'మా డేటాబేస్‌లో సిఫార్సు చేయబడిన స్పెషాలిటీలకు సరిపోయే ఆసుపత్రులు కనుగొనలేకపోయాము. దయచేసి సాధారణ వైద్యుడిని సంప్రదించండి లేదా సమీపంలోని ఆసుపత్రిని సందర్శించండి.'}
+                  </p>
+                  <p className="text-sm text-yellow-700">
+                    {lang === 'en' 
+                      ? '💡 Tip: Try asking hospitals to register on our platform' 
+                      : '💡 చిట్కా: మా ప్లాట్‌ఫారమ్‌లో రిజిస్టర్ చేసుకోవడానికి ఆసుపత్రులను అడగండి'}
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Nearby Hospitals List - Auto-populated after analysis */}
             {showHospitals && nearbyHospitals.length > 0 && (
               <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
                 <h3 className="font-bold text-lg text-slate-900 mb-4 flex items-center gap-2">
-                  <Activity className="text-emerald-600" size={20} />
-                  {lang === 'en' ? 'Nearby Hospitals for Treatment' : 'చికిత్స కోసం సమీప ఆసుపత్రులు'}
+                  <Stethoscope className="text-emerald-600" size={20} />
+                  {lang === 'en' ? 'Recommended Hospitals & Specialists' : 'సిఫార్సు చేయబడిన ఆసుపత్రులు & నిపుణులు'}
                   <span className="ml-auto text-sm text-slate-500">
                     ({nearbyHospitals.length} {lang === 'en' ? 'found' : 'కనుగొనబడింది'})
                   </span>
                 </h3>
                 
+                {/* Show recommended specialties */}
+                {analysis?.relatedSpecialties && analysis.relatedSpecialties.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+                    <p className="text-sm text-blue-900 font-medium mb-2">
+                      {lang === 'en' ? '🩺 Recommended Specialists:' : '🩺 సిఫార్సు చేయబడిన నిపుణులు:'}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {analysis.relatedSpecialties.map((specialty, idx) => (
+                        <span 
+                          key={idx}
+                          className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold"
+                        >
+                          {specialty}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="space-y-4">
                   {nearbyHospitals.map((result) => (
                     <div 
                       key={result.hospital._id} 
-                      className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-4 hover:shadow-md transition"
+                      className={`border rounded-2xl p-4 hover:shadow-md transition ${
+                        result.isOSM 
+                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200' 
+                          : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200'
+                      }`}
                     >
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
-                          <h4 className="font-bold text-lg text-slate-900">{result.hospital.name}</h4>
-                          <p className="text-sm text-slate-600 mt-1">{result.hospital.address}</p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-bold text-lg text-slate-900">{result.hospital.name}</h4>
+                            {result.isOSM ? (
+                              <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                {lang === 'en' ? 'NEARBY' : 'సమీపంలో'}
+                              </span>
+                            ) : result.isRegistered ? (
+                              <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <CheckCircle size={10} /> {lang === 'en' ? 'REGISTERED' : 'నమోదిత'}
+                              </span>
+                            ) : null}
+                          </div>
+                          {result.hospital.address && (
+                            <p className="text-sm text-slate-600 mt-1 flex items-start gap-1">
+                              <MapPin size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                              {result.hospital.address}
+                            </p>
+                          )}
                         </div>
-                        <div className="bg-emerald-600 text-white px-3 py-1 rounded-full text-sm font-bold">
-                          {result.distance} km
-                        </div>
+                        {result.distance != null && (
+                          <div className={`${result.isOSM ? 'bg-blue-600' : 'bg-emerald-600'} text-white px-3 py-1 rounded-full text-sm font-bold`}>
+                            {result.distance} km
+                          </div>
+                        )}
                       </div>
+                      
+                      {/* Show matching doctors with specialties */}
+                      {result.hospital.doctors && result.hospital.doctors.length > 0 && (
+                        <div className="bg-white rounded-xl p-3 mb-2 border border-emerald-100">
+                          <p className="text-xs font-bold text-emerald-800 mb-2">
+                            {lang === 'en' ? '👨‍⚕️ Available Doctors:' : '👨‍⚕️ అందుబాటులో ఉన్న వైద్యులు:'}
+                          </p>
+                          <div className="space-y-1">
+                            {result.hospital.doctors.slice(0, 3).map((doctor, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-sm">
+                                <span className="font-medium text-slate-700">{doctor.name}</span>
+                                {doctor.specialty && (
+                                  <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                                    {doctor.specialty}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                            {result.hospital.doctors.length > 3 && (
+                              <p className="text-xs text-slate-500 mt-1">
+                                +{result.hospital.doctors.length - 3} {lang === 'en' ? 'more doctors' : 'మరిన్ని వైద్యులు'}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       
                       {result.hospital.phone && (
                         <div className="flex items-center gap-2 text-slate-700 text-sm mb-2">
-                          <Activity size={16} className="text-emerald-600" />
+                          <Phone size={14} className="text-emerald-600" />
                           <a href={`tel:${result.hospital.phone}`} className="hover:text-emerald-600 font-medium">
                             {result.hospital.phone}
                           </a>
@@ -1643,26 +2150,45 @@ const SymptomAnalysis = () => {
                       )}
                       
                       {result.hospital.workingHours && (
-                        <div className="text-xs text-slate-600 mt-2">
-                          {lang === 'en' ? 'Hours:' : 'గంటలు:'} {result.hospital.workingHours}
+                        <div className="flex items-center gap-1 text-xs text-slate-600 mt-2">
+                          <Clock size={12} className="text-slate-400" />
+                          {result.hospital.workingHours}
                         </div>
                       )}
                       
-                      <div className="mt-3 flex gap-2">
-                        <a
-                          href={`https://www.google.com/maps/dir/?api=1&destination=${result.hospital.location.latitude},${result.hospital.location.longitude}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-xl text-sm font-bold hover:bg-emerald-700 transition text-center"
+                      {/* Action Buttons: Directions + Book Visit + Call */}
+                      <div className="mt-3 flex gap-2 flex-wrap">
+                        {result.hospital.location?.latitude && result.hospital.location?.longitude && (
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${result.hospital.location.latitude},${result.hospital.location.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 min-w-[100px] bg-slate-100 text-slate-700 py-2 px-3 rounded-xl text-sm font-bold hover:bg-slate-200 transition text-center flex items-center justify-center gap-1"
+                          >
+                            <Navigation size={14} />
+                            {lang === 'en' ? 'Directions' : 'దిశలు'}
+                          </a>
+                        )}
+                        <button
+                          onClick={() => {
+                            setBookingHospital(result);
+                            setBookReason(analysis?.possibleConditions?.[0] || '');
+                            setBookDate('');
+                            setBookTime('');
+                            setBookingStep('form');
+                          }}
+                          className="flex-1 min-w-[100px] bg-emerald-600 text-white py-2 px-3 rounded-xl text-sm font-bold hover:bg-emerald-700 transition text-center flex items-center justify-center gap-1 shadow-lg shadow-emerald-100"
                         >
-                          {lang === 'en' ? 'Get Directions' : 'దిశలను పొందండి'}
-                        </a>
+                          <Calendar size={14} />
+                          {lang === 'en' ? 'Book Visit' : 'బుక్ చేయండి'}
+                        </button>
                         {result.hospital.phone && (
                           <a
                             href={`tel:${result.hospital.phone}`}
-                            className="flex-1 bg-white text-emerald-600 py-2 px-4 rounded-xl text-sm font-bold border-2 border-emerald-200 hover:bg-emerald-50 transition text-center"
+                            className="flex-1 min-w-[100px] bg-white text-emerald-600 py-2 px-3 rounded-xl text-sm font-bold border-2 border-emerald-200 hover:bg-emerald-50 transition text-center flex items-center justify-center gap-1"
                           >
-                            {lang === 'en' ? 'Call Now' : 'ఇప్పుడు కాల్ చేయండి'}
+                            <Phone size={14} />
+                            {lang === 'en' ? 'Call' : 'కాల్'}
                           </a>
                         )}
                       </div>
@@ -1776,7 +2302,7 @@ const SymptomAnalysis = () => {
                   {selectedDayRange && (
                     <div className="mt-4">
                       <button
-                        onClick={analyzeMultipleDays}
+                        onClick={() => analyzeMultipleDays(false)}
                         disabled={loadingMultiDay}
                         className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-6 rounded-2xl font-bold text-base hover:from-purple-700 hover:to-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                       >
@@ -1794,6 +2320,82 @@ const SymptomAnalysis = () => {
                           </>
                         )}
                       </button>
+                    </div>
+                  )}
+                  
+                  {/* Mixed Conditions Warning */}
+                  {showMixedWarning && (
+                    <div className="mt-4 bg-amber-50 border-2 border-amber-300 rounded-2xl p-5">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="text-amber-600 flex-shrink-0 mt-0.5" size={24} />
+                        <div className="flex-1">
+                          <h3 className="font-bold text-amber-800 text-base mb-2">
+                            {lang === 'en' ? 'Unrelated Symptoms Detected!' : 'సంబంధం లేని లక్షణాలు గుర్తించబడ్డాయి!'}
+                          </h3>
+                          <p className="text-amber-700 text-sm mb-3">
+                            {t.mixedConditionsWarning}
+                          </p>
+                          
+                          {/* Show detected groups as clickable buttons */}
+                          <p className="text-amber-700 text-sm mb-2 font-medium">
+                            {lang === 'en' ? 'Click a group to analyze only those symptoms:' : 'ఆ లక్షణాలను మాత్రమే విశ్లేషించడానికి ఒక గ్రూప్‌పై క్లిక్ చేయండి:'}
+                          </p>
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {mixedConditionsList.map((group, idx) => {
+                              // Handle both formats: string (named condition) and object (symptom group)
+                              const isObject = typeof group === 'object' && group !== null;
+                              const label = isObject ? group.label : (group || (lang === 'en' ? 'Uncategorized' : 'వర్గీకరించబడలేదు'));
+                              
+                              return (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    if (isObject && group.type === 'symptom-group') {
+                                      // Symptom-based group — analyze directly
+                                      analyzeSymptomGroup(group);
+                                    } else if (group && typeof group === 'string') {
+                                      // Named condition — set filter and let user click analyze
+                                      setSelectedCondition(group);
+                                      setShowMixedWarning(false);
+                                      setMultiDayAnalysis(null);
+                                      toast.info(`Filtered to "${group}" — now click Analyze`);
+                                    }
+                                  }}
+                                  disabled={loadingMultiDay}
+                                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition text-sm shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                  <Brain size={14} />
+                                  {lang === 'en' ? `Analyze "${label}" only` : `"${label}" మాత్రమే విశ్లేషించు`}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          
+                          <div className="bg-amber-100 rounded-xl p-3 text-amber-800 text-sm mb-3">
+                            <p className="font-medium">
+                              {lang === 'en' 
+                                ? '💡 Tip: Use the "Condition/Episode Name" field when logging symptoms to easily group and filter related entries later.'
+                                : '💡 చిట్కా: సంబంధిత నమోదులను తర్వాత సులభంగా సమూహం చేయడానికి లక్షణాలను లాగ్ చేసేటప్పుడు "వ్యాధి/గోని పేరు" ఫీల్డ్‌ను ఉపయోగించండి.'}
+                            </p>
+                          </div>
+                          
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <button
+                              onClick={() => analyzeMultipleDays(true)}
+                              disabled={loadingMultiDay}
+                              className="px-4 py-2 bg-slate-600 text-white rounded-xl font-medium hover:bg-slate-700 transition text-sm disabled:opacity-50"
+                            >
+                              {lang === 'en' ? 'Analyze All Together (AI will separate them)' : 'అన్నింటినీ కలిపి విశ్లేషించు (AI వేరు చేస్తుంది)'}
+                            </button>
+                            <button
+                              onClick={() => setShowMixedWarning(false)}
+                              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-300 transition text-sm"
+                            >
+                              {lang === 'en' ? 'Cancel' : 'రద్దు'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1937,8 +2539,8 @@ const SymptomAnalysis = () => {
                   </div>
                 )}
                 
-                {/* Trend Analysis */}
-                {trendAnalysis && (
+                {/* Trend Analysis - Only show if multiDayAnalysis is NOT present (they show the same type of info) */}
+                {trendAnalysis && !multiDayAnalysis && (
                   <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-3xl shadow-sm border border-blue-200 p-6">
                     <div className="flex items-center gap-3 mb-4">
                       <LineChart className="text-blue-600" size={24} />
@@ -2034,6 +2636,149 @@ const SymptomAnalysis = () => {
                         </p>
                       </div>
                     )}
+                  </div>
+                )}
+                
+                {/* Hospital Recommendations - shown in history view after analysis */}
+                {/* Loading Hospitals Indicator */}
+                {loadingHospitals && (
+                  <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-3xl shadow-sm p-6">
+                    <div className="flex items-center justify-center gap-3">
+                      <Loader2 className="animate-spin text-emerald-600" size={24} />
+                      <p className="text-emerald-800 font-medium">
+                        {lang === 'en' ? '🏥 Finding specialist hospitals for you...' : '🏥 మీ కోసం స్పెషలిస్ట్ ఆసుపత్రులను కనుగొంటోంది...'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* No Hospitals Found Message */}
+                {showHospitals && !loadingHospitals && nearbyHospitals.length === 0 && (
+                  <div className="bg-yellow-50 border-2 border-yellow-300 rounded-3xl shadow-sm p-6">
+                    <div className="text-center">
+                      <AlertTriangle className="text-yellow-600 mx-auto mb-3" size={48} />
+                      <h3 className="font-bold text-lg text-yellow-900 mb-2">
+                        {lang === 'en' ? 'No Specialist Hospitals Found' : 'స్పెషలిస్ట్ ఆసుపత్రులు కనిపించలేదు'}
+                      </h3>
+                      <p className="text-yellow-800">
+                        {lang === 'en' 
+                          ? 'We couldn\'t find any hospitals matching the recommended specialties. Please consult a general physician or visit the nearest hospital.' 
+                          : 'సిఫార్సు చేయబడిన స్పెషాలిటీలకు సరిపోయే ఆసుపత్రులు కనుగొనలేకపోయాము.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Nearby Hospitals List */}
+                {showHospitals && nearbyHospitals.length > 0 && (
+                  <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+                    <h3 className="font-bold text-lg text-slate-900 mb-4 flex items-center gap-2">
+                      <Stethoscope className="text-emerald-600" size={20} />
+                      {lang === 'en' ? 'Recommended Hospitals & Specialists' : 'సిఫార్సు చేయబడిన ఆసుపత్రులు & నిపుణులు'}
+                      <span className="ml-auto text-sm text-slate-500">
+                        ({nearbyHospitals.length} {lang === 'en' ? 'found' : 'కనుగొనబడింది'})
+                      </span>
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      {nearbyHospitals.map((result) => (
+                        <div 
+                          key={result.hospital._id} 
+                          className={`border rounded-2xl p-4 hover:shadow-md transition ${
+                            result.isOSM 
+                              ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200' 
+                              : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h4 className="font-bold text-lg text-slate-900">{result.hospital.name}</h4>
+                                {result.isOSM ? (
+                                  <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    {lang === 'en' ? 'NEARBY' : 'సమీపంలో'}
+                                  </span>
+                                ) : result.isRegistered ? (
+                                  <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <CheckCircle size={10} /> {lang === 'en' ? 'REGISTERED' : 'నమోదిత'}
+                                  </span>
+                                ) : null}
+                              </div>
+                              {result.hospital.address && (
+                                <p className="text-sm text-slate-600 mt-1 flex items-start gap-1">
+                                  <MapPin size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                                  {result.hospital.address}
+                                </p>
+                              )}
+                            </div>
+                            {result.distance != null && (
+                              <div className={`${result.isOSM ? 'bg-blue-600' : 'bg-emerald-600'} text-white px-3 py-1 rounded-full text-sm font-bold`}>
+                                {result.distance} km
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Show matching doctors */}
+                          {result.hospital.doctors && result.hospital.doctors.length > 0 && (
+                            <div className="bg-white rounded-xl p-3 mb-2 border border-emerald-100">
+                              <p className="text-xs font-bold text-emerald-800 mb-2">
+                                {lang === 'en' ? '👨‍⚕️ Available Doctors:' : '👨‍⚕️ అందుబాటులో ఉన్న వైద్యులు:'}
+                              </p>
+                              <div className="space-y-1">
+                                {result.hospital.doctors.slice(0, 3).map((doctor, idx) => (
+                                  <div key={idx} className="flex justify-between items-center text-sm">
+                                    <span className="font-medium text-slate-700">{doctor.name}</span>
+                                    {doctor.specialty && (
+                                      <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                                        {doctor.specialty}
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Contact info */}
+                          {result.hospital.phone && (
+                            <div className="flex items-center gap-2 text-slate-700 text-sm mb-2">
+                              <Phone size={14} className="text-emerald-600" />
+                              <a href={`tel:${result.hospital.phone}`} className="hover:text-emerald-600 font-medium">
+                                {result.hospital.phone}
+                              </a>
+                            </div>
+                          )}
+                          
+                          {/* Action Buttons */}
+                          <div className="mt-3 flex gap-2 flex-wrap">
+                            {result.hospital.location?.latitude && result.hospital.location?.longitude && (
+                              <a
+                                href={`https://www.google.com/maps/dir/?api=1&destination=${result.hospital.location.latitude},${result.hospital.location.longitude}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 min-w-[100px] bg-slate-100 text-slate-700 py-2 px-3 rounded-xl text-sm font-bold hover:bg-slate-200 transition text-center flex items-center justify-center gap-1"
+                              >
+                                <Navigation size={14} />
+                                {lang === 'en' ? 'Directions' : 'దిశలు'}
+                              </a>
+                            )}
+                            <button
+                              onClick={() => {
+                                setBookingHospital(result);
+                                setBookReason('');
+                                setBookDate('');
+                                setBookTime('');
+                                setBookingStep('form');
+                              }}
+                              className="flex-1 min-w-[100px] bg-emerald-600 text-white py-2 px-3 rounded-xl text-sm font-bold hover:bg-emerald-700 transition text-center flex items-center justify-center gap-1 shadow-lg shadow-emerald-100"
+                            >
+                              <Calendar size={14} />
+                              {lang === 'en' ? 'Book Visit' : 'బుక్ చేయండి'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 
@@ -2254,6 +2999,136 @@ const SymptomAnalysis = () => {
           </>
         )}
       </div>
+      
+      {/* BOOKING MODAL - Adapted from Doctors page */}
+      {bookingHospital && (
+        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-bold text-xl text-slate-900">
+                {lang === 'en' ? 'Book Appointment' : 'అపాయింట్‌మెంట్ బుక్ చేయండి'}
+              </h3>
+              <button 
+                onClick={() => setBookingHospital(null)} 
+                className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {bookingStep === 'form' && (
+              <form onSubmit={handleBookVisit} className="space-y-4">
+                {/* Hospital Info */}
+                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                  <p className="text-sm font-bold text-emerald-900">
+                    {bookingHospital.hospital?.name || bookingHospital.name}
+                  </p>
+                  <div className="flex justify-between mt-2 text-xs text-emerald-700 font-medium">
+                    <span>{lang === 'en' ? 'Duty Medical Officer' : 'డ్యూటీ డాక్టర్'}</span>
+                    <span>{lang === 'en' ? 'General OPD' : 'సాధారణ చికిత్స'}</span>
+                  </div>
+                  {bookingHospital.isOSM && (
+                    <p className="text-[10px] text-blue-600 font-bold mt-2 bg-blue-50 px-2 py-1 rounded inline-block">
+                      {lang === 'en' ? 'External Hospital - Walk-in may be required' : 'బాహ్య ఆసుపత్రి - వాక్-ఇన్ అవసరం కావచ్చు'}
+                    </p>
+                  )}
+                </div>
+
+                {/* Reason */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                    {lang === 'en' ? 'REASON' : 'కారణం'}
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder={lang === 'en' ? 'Optional' : 'ఐచ్ఛికం'} 
+                    className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition" 
+                    value={bookReason} 
+                    onChange={e => setBookReason(e.target.value)} 
+                  />
+                </div>
+
+                {/* Date & Time */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                      {lang === 'en' ? 'DATE' : 'తేదీ'}
+                    </label>
+                    <input 
+                      required 
+                      type="date" 
+                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition" 
+                      value={bookDate} 
+                      onChange={e => setBookDate(e.target.value)} 
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                      {lang === 'en' ? 'PREFERRED TIME' : 'సమయం'}
+                    </label>
+                    <input 
+                      required 
+                      type="time" 
+                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition" 
+                      value={bookTime} 
+                      onChange={e => setBookTime(e.target.value)} 
+                    />
+                  </div>
+                </div>
+
+                {/* Get Directions link inside modal */}
+                {bookingHospital.hospital?.location?.latitude && bookingHospital.hospital?.location?.longitude && (
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${bookingHospital.hospital.location.latitude},${bookingHospital.hospital.location.longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200 transition text-sm"
+                  >
+                    <MapPin size={16} className="text-blue-600" />
+                    {lang === 'en' ? 'View Location on Map' : 'మ్యాప్‌లో స్థానం చూడండి'}
+                  </a>
+                )}
+
+                <button 
+                  type="submit" 
+                  className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold shadow-xl shadow-emerald-200 mt-2 hover:bg-emerald-700 transition active:scale-95"
+                >
+                  {lang === 'en' ? 'Confirm Appointment' : 'అపాయింట్‌మెంట్ నిర్ధారించండి'}
+                </button>
+              </form>
+            )}
+
+            {bookingStep === 'loading' && (
+              <div className="py-12 text-center">
+                <Loader2 className="animate-spin mx-auto text-emerald-600 mb-4" size={48} />
+                <p className="font-bold text-slate-600">
+                  {lang === 'en' ? 'Processing...' : 'ప్రాసెస్ చేస్తోంది...'}
+                </p>
+              </div>
+            )}
+
+            {bookingStep === 'success' && (
+              <div className="text-center py-8">
+                <div className="bg-emerald-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                  <CheckCircle size={40} className="text-emerald-600" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                  {lang === 'en' ? 'Booking Confirmed!' : 'బుకింగ్ ధృవీకరించబడింది!'}
+                </h2>
+                <p className="text-slate-500 text-sm mb-6">
+                  {lang === 'en' ? 'Your token has been generated.' : 'మీ టోకెన్ జనరేట్ చేయబడింది.'}
+                </p>
+                <button 
+                  onClick={() => setBookingHospital(null)} 
+                  className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 transition"
+                >
+                  {lang === 'en' ? 'Done' : 'పూర్తయింది'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

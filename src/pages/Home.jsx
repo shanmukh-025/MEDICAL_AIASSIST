@@ -431,27 +431,15 @@ const Home = () => {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.aiFeatures}</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <button onClick={() => navigate('/symptom-analysis')} className="bg-gradient-to-br from-blue-500 to-purple-600 p-5 rounded-3xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-start text-left gap-3 group border border-white/20">
-              <div className="w-14 h-14 rounded-2xl bg-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-lg backdrop-blur-sm">
-                <Activity size={28} />
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-lg">{t.symptomAnalysis}</h3>
-                <p className="text-xs text-blue-100 font-medium mt-1">{t.symptomAnalysisSub}</p>
-              </div>
-            </button>
-
-            <button onClick={() => navigate('/family-health-analysis')} className="bg-gradient-to-br from-purple-500 to-pink-600 p-5 rounded-3xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-start text-left gap-3 group border border-white/20">
-              <div className="w-14 h-14 rounded-2xl bg-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-lg backdrop-blur-sm">
-                <Users size={28} />
-              </div>
-              <div>
-                <h3 className="font-bold text-white text-lg">{t.familyGenetic}</h3>
-                <p className="text-xs text-purple-100 font-medium mt-1">{t.familyGeneticSub}</p>
-              </div>
-            </button>
-          </div>
+          <button onClick={() => navigate('/family-health-analysis')} className="bg-gradient-to-br from-purple-500 to-pink-600 p-5 rounded-3xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-start text-left gap-3 group border border-white/20 w-full">
+            <div className="w-14 h-14 rounded-2xl bg-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-lg backdrop-blur-sm">
+              <Users size={28} />
+            </div>
+            <div>
+              <h3 className="font-bold text-white text-lg">{t.familyGenetic}</h3>
+              <p className="text-xs text-purple-100 font-medium mt-1">{t.familyGeneticSub}</p>
+            </div>
+          </button>
         </div>
 
         {/* QUEUE DASHBOARD - Direct Access */}

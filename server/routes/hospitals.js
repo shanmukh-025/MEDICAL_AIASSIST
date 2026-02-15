@@ -267,48 +267,63 @@ router.post('/search-by-condition', async (req, res) => {
   try {
     const { latitude, longitude, specialties, maxDistance = 50 } = req.body;
     
-    if (!latitude || !longitude) {
-      return res.status(400).json({ msg: 'Location coordinates required' });
-    }
+    console.log('🏥 Hospital search request:', {
+      hasLocation: !!(latitude && longitude),
+      specialties,
+      maxDistance
+    });
     
-    // Get all hospitals with location
-    const hospitals = await User.find(
-      { 
-        role: 'HOSPITAL',
-        'location.latitude': { $exists: true },
-        'location.longitude': { $exists: true }
-      }
-    );
+    // Get all hospitals (don't require location - some may not have it set)
+    const hospitals = await User.find({ role: 'HOSPITAL' });
+    
+    console.log(`📊 Found ${hospitals.length} total hospitals in database`);
     
     // Calculate distance and filter by specialty/service
     const hospitalResults = hospitals.map(hospital => {
-      // Calculate distance using Haversine formula (in km)
-      const lat1 = latitude * Math.PI / 180;
-      const lat2 = hospital.location.latitude * Math.PI / 180;
-      const deltaLat = (hospital.location.latitude - latitude) * Math.PI / 180;
-      const deltaLon = (hospital.location.longitude - longitude) * Math.PI / 180;
+      let distance = null;
       
-      const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
-                Math.cos(lat1) * Math.cos(lat2) *
-                Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      const distance = 6371 * c; // Earth radius in km
+      // Calculate distance only if both user and hospital locations are available
+      if (latitude && longitude && hospital.location?.latitude && hospital.location?.longitude) {
+        const lat1 = latitude * Math.PI / 180;
+        const lat2 = hospital.location.latitude * Math.PI / 180;
+        const deltaLat = (hospital.location.latitude - latitude) * Math.PI / 180;
+        const deltaLon = (hospital.location.longitude - longitude) * Math.PI / 180;
+        
+        const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                  Math.cos(lat1) * Math.cos(lat2) *
+                  Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        distance = Math.round(6371 * c * 10) / 10;
+      }
       
-      // Check if hospital has any of the requested specialties
+      // Check if hospital has any of the requested specialties (broad matching)
       let hasSpecialty = false;
+      let matchScore = 0; // Higher = better match
+      
       if (specialties && specialties.length > 0) {
         const hospitalServices = (hospital.services || []).map(s => s.toLowerCase());
-        const doctorSpecialties = (hospital.doctors || []).map(d => d.specialty?.toLowerCase() || '');
+        const doctorSpecialties = (hospital.doctors || []).map(d => d.specialty?.toLowerCase() || '').filter(Boolean);
+        const allHospitalTerms = [...hospitalServices, ...doctorSpecialties];
         
-        hasSpecialty = specialties.some(specialty => {
+        // Check each requested specialty for matches
+        for (const specialty of specialties) {
           const specLower = specialty.toLowerCase();
-          return hospitalServices.includes(specLower) || 
-                 doctorSpecialties.includes(specLower) ||
-                 hospitalServices.some(s => s.includes(specLower)) ||
-                 doctorSpecialties.some(ds => ds.includes(specLower));
-        });
+          const specWords = specLower.split(/\s+/); // Split "General Physician" into ["general", "physician"]
+          
+          for (const term of allHospitalTerms) {
+            // Exact match
+            if (term === specLower) { hasSpecialty = true; matchScore += 10; continue; }
+            // Contains match (e.g., "general" in "general medicine")
+            if (term.includes(specLower) || specLower.includes(term)) { hasSpecialty = true; matchScore += 7; continue; }
+            // Word-level match (e.g., "physician" matches "general physician")
+            if (specWords.some(word => word.length > 3 && term.includes(word))) { hasSpecialty = true; matchScore += 5; continue; }
+          }
+        }
+        
+        if (hasSpecialty) {
+          console.log(`✅ ${hospital.name} matches specialty filter (score: ${matchScore})`);
+        }
       } else {
-        // If no specialty filter, include all hospitals
         hasSpecialty = true;
       }
       
@@ -325,16 +340,48 @@ router.post('/search-by-condition', async (req, res) => {
           emergencyContact: hospital.emergencyContact,
           logo: hospital.logo
         },
-        distance: Math.round(distance * 10) / 10, // Round to 1 decimal
-        hasSpecialty
+        distance: distance,
+        hasSpecialty,
+        matchScore
       };
-    })
-    .filter(result => result.distance <= maxDistance && result.hasSpecialty)
-    .sort((a, b) => a.distance - b.distance);
+    });
     
-    res.json(hospitalResults);
+    // First try: specialty-matched hospitals within distance
+    let filtered = hospitalResults
+      .filter(result => {
+        if (!result.hasSpecialty) return false;
+        if (result.distance !== null && maxDistance) return result.distance <= maxDistance;
+        return true;
+      });
+    
+    // Fallback: if no specialty matches found, show ALL hospitals (sorted by distance)
+    if (filtered.length === 0) {
+      console.log('⚠️ No specialty matches found - falling back to ALL hospitals');
+      filtered = hospitalResults.filter(result => {
+        if (result.distance !== null && maxDistance) return result.distance <= maxDistance;
+        return true; // Include all if no distance
+      });
+    }
+    
+    // Sort: specialty matches first (by score), then by distance
+    filtered.sort((a, b) => {
+      // Specialty matches always come first
+      if (a.hasSpecialty && !b.hasSpecialty) return -1;
+      if (!a.hasSpecialty && b.hasSpecialty) return 1;
+      // Among same specialty status, sort by match score (higher first)
+      if (a.matchScore !== b.matchScore) return b.matchScore - a.matchScore;
+      // Then by distance
+      if (a.distance !== null && b.distance !== null) return a.distance - b.distance;
+      return a.hospital.name.localeCompare(b.hospital.name);
+    });
+    
+    // Clean up internal fields before sending
+    const results = filtered.map(({ matchScore, hasSpecialty, ...rest }) => rest);
+    
+    console.log(`✅ Returning ${results.length} hospitals (${filtered.filter(f => f.hasSpecialty).length} specialty matches)`);
+    res.json(results);
   } catch (err) {
-    console.error('Hospital search error:', err.message);
+    console.error('❌ Hospital search error:', err.message);
     res.status(500).send('Server Error');
   }
 });

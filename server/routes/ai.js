@@ -5,6 +5,73 @@ const auth = require('../middleware/auth');
 // --- 1. DYNAMIC MODEL FINDER (Restored & Cached) ---
 let cachedModel = null;
 
+// --- REQUEST DEDUPLICATION CACHE ---
+// Cache recent analysis results to prevent duplicate AI calls
+const analysisCache = new Map();
+const CACHE_TTL = 60000; // 1 minute cache TTL
+
+// Clean up old cache entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of analysisCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      analysisCache.delete(key);
+    }
+  }
+}, 30000); // Clean every 30 seconds
+
+// Generate cache key from request
+function getCacheKey(userId, symptoms, duration, severity) {
+  return `${userId}:${symptoms.sort().join(',')}:${duration}:${severity}`;
+}
+
+// --- API KEY ROTATION SUPPORT ---
+let currentKeyIndex = 0;
+let apiKeyFailureCount = new Map(); // Track failures per key
+
+function getApiKeys() {
+  const keys = [];
+  // Support multiple API keys: GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, etc.
+  if (process.env.GEMINI_API_KEY) keys.push(process.env.GEMINI_API_KEY);
+  if (process.env.GEMINI_API_KEY_2) keys.push(process.env.GEMINI_API_KEY_2);
+  if (process.env.GEMINI_API_KEY_3) keys.push(process.env.GEMINI_API_KEY_3);
+  
+  return keys;
+}
+
+function getNextApiKey() {
+  const keys = getApiKeys();
+  if (keys.length === 0) throw new Error("No API Key found");
+  
+  // Try to find a key that hasn't failed recently
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[currentKeyIndex];
+    const failures = apiKeyFailureCount.get(key) || 0;
+    
+    if (failures < 3) { // Allow up to 3 failures before skipping
+      return key;
+    }
+    
+    currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+  }
+  
+  // All keys have failures, reset and use first one
+  apiKeyFailureCount.clear();
+  currentKeyIndex = 0;
+  return keys[0];
+}
+
+function markKeyAsFailed(apiKey) {
+  const failures = (apiKeyFailureCount.get(apiKey) || 0) + 1;
+  apiKeyFailureCount.set(apiKey, failures);
+  
+  // Rotate to next key
+  const keys = getApiKeys();
+  currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+  
+  console.log(`⚠️ API key ${currentKeyIndex} quota exceeded, rotating to next key...`);
+}
+
 async function getWorkingModel(apiKey) {
   // If we already found a working model, use it (saves API calls)
   if (cachedModel) return cachedModel;
@@ -34,11 +101,10 @@ async function getWorkingModel(apiKey) {
   }
 }
 
-// --- 2. API CALLER ---
-async function callGemini(prompt) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("No API Key found");
-
+// --- 2. API CALLER WITH RETRY LOGIC ---
+async function callGemini(prompt, retryCount = 0) {
+  const apiKey = getNextApiKey();
+  
   // A. Find a working model
   let modelName = await getWorkingModel(apiKey);
   
@@ -48,24 +114,46 @@ async function callGemini(prompt) {
   // C. Make the call
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-  });
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
 
-  const data = await response.json();
+    const data = await response.json();
 
-  if (!response.ok) {
-    const msg = data.error?.message || response.statusText;
-    throw new Error(msg);
+    if (!response.ok) {
+      const msg = data.error?.message || response.statusText;
+      
+      // Check if it's a quota error
+      if (msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') || response.status === 429) {
+        markKeyAsFailed(apiKey);
+        
+        // Retry with next API key if available
+        const keys = getApiKeys();
+        if (keys.length > 1 && retryCount < keys.length) {
+          console.log(`🔄 Retrying with alternate API key (attempt ${retryCount + 1})...`);
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+          return callGemini(prompt, retryCount + 1);
+        }
+      }
+      
+      throw new Error(msg);
+    }
+
+    if (!data.candidates || !data.candidates[0].content) {
+      return "{}"; // Empty response safety
+    }
+
+    return data.candidates[0].content.parts[0].text;
+  } catch (error) {
+    // If all retries failed, throw the error
+    if (retryCount >= getApiKeys().length - 1) {
+      throw error;
+    }
+    throw error;
   }
-
-  if (!data.candidates || !data.candidates[0].content) {
-    return "{}"; // Empty response safety
-  }
-
-  return data.candidates[0].content.parts[0].text;
 }
 
 // --- 3. ROUTES ---
@@ -222,6 +310,29 @@ router.post('/analyze-symptoms', auth, async (req, res) => {
   try {
     const { symptoms, duration, severity, age, gender, language, existingConditions } = req.body;
     
+    console.log('🔬 Symptom analysis request received:', {
+      userId: req.user.id,
+      symptoms: symptoms.join(', '),
+      duration,
+      severity
+    });
+    
+    // Check cache first
+    const cacheKey = getCacheKey(req.user.id, symptoms, duration, severity);
+    const cached = analysisCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+      console.log('✅ Returning cached analysis (preventing duplicate AI call)');
+      console.log('📊 Cache stats:', {
+        cacheSize: analysisCache.size,
+        cacheAge: `${Math.round((Date.now() - cached.timestamp) / 1000)}s`,
+        diagnosis: cached.data.primaryDiagnosis
+      });
+      return res.json(cached.data);
+    }
+    
+    console.log('🔍 No valid cache found, calling AI...');
+    
     const langNote = language === 'te' 
       ? 'Provide all analysis in TELUGU (తెలుగు script). Keep JSON keys in English.' 
       : 'Provide all analysis in English.';
@@ -265,17 +376,37 @@ router.post('/analyze-symptoms', auth, async (req, res) => {
       
       IMPORTANT: Be accurate but emphasize seeing a doctor for serious symptoms.
       For nextStepRecommendations: homeCareTips should be immediate self-care actions, visitDoctor should explain when to schedule appointment, emergencyAction should ONLY list life-threatening signs.
-      For relatedSpecialties: List medical specialties that treat this condition (e.g., "General Physician", "Cardiologist", "ENT Specialist").
+      For relatedSpecialties: List medical specialties that treat this condition (e.g., "General Physician", "Cardiologist", "ENT Specialist", "Pulmonologist", "Gastroenterologist").
     `;
 
+    console.log('🔍 Calling AI for new analysis...');
     const text = await callGemini(prompt);
     const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
     const analysis = JSON.parse(cleanJson);
     
+    console.log('✅ AI analysis complete:', {
+      diagnosis: analysis.primaryDiagnosis,
+      urgency: analysis.urgencyLevel,
+      specialties: analysis.relatedSpecialties
+    });
+    
+    // Verify relatedSpecialties exists and is an array
+    if (!analysis.relatedSpecialties || !Array.isArray(analysis.relatedSpecialties)) {
+      console.warn('⚠️ AI did not return relatedSpecialties, adding default');
+      analysis.relatedSpecialties = ["General Physician"];
+    }
+    
+    // Store in cache
+    analysisCache.set(cacheKey, {
+      data: analysis,
+      timestamp: Date.now()
+    });
+    
+    console.log('📦 Analysis cached. Cache size:', analysisCache.size);
     res.json(analysis);
 
   } catch (err) {
-    console.error("Symptom Analysis Error:", err);
+    console.error("❌ Symptom Analysis Error:", err);
     const isQuotaError = err.message?.includes('quota') || err.message?.includes('rate limit');
     res.status(500).json({ 
       error: "Analysis failed",
@@ -379,7 +510,7 @@ router.post('/analyze-symptom-trends', auth, async (req, res) => {
       new Date(a.loggedAt) - new Date(b.loggedAt)
     );
 
-    // Format symptom history for AI
+    // Format symptom history for AI - include conditionName for grouping
     const historyText = sortedHistory.map((log, index) => {
       const date = new Date(log.loggedAt).toLocaleDateString('en-US', { 
         month: 'short', 
@@ -387,11 +518,20 @@ router.post('/analyze-symptom-trends', auth, async (req, res) => {
         year: 'numeric' 
       });
       return `Entry ${index + 1} (${date}):
+- Condition/Episode: ${log.conditionName || 'Not specified'}
 - Symptoms: ${log.symptoms.join(', ')}
 - Severity: ${log.severity}/10
 - Duration: ${log.duration}
 ${log.notes ? `- Notes: ${log.notes}` : ''}`;
     }).join('\n\n');
+
+    // Detect distinct conditions in the data
+    const distinctConditions = [...new Set(sortedHistory.map(l => l.conditionName || 'Unspecified').filter(Boolean))];
+    const conditionNote = distinctConditions.length > 1 
+      ? `\n\nIMPORTANT: These logs contain MULTIPLE different conditions/episodes: ${distinctConditions.join(', ')}. 
+If these are unrelated conditions (e.g., fever vs knee pain), analyze them SEPARATELY in your summary and clearly state they are distinct issues. 
+Do NOT try to link unrelated symptoms together. Your diagnosis should focus on the most recent/active condition.`
+      : '';
 
     const personLabel = personName ? `for ${personName}` : 'for this patient';
 
@@ -399,6 +539,7 @@ ${log.notes ? `- Notes: ${log.notes}` : ''}`;
 
 SYMPTOM HISTORY (Chronological Order):
 ${historyText}
+${conditionNote}
 
 ANALYSIS REQUIREMENTS:
 1. **SUMMARY**: Provide a comprehensive summary of the symptom logs over this period
@@ -462,10 +603,12 @@ Return ONLY valid JSON with this EXACT structure:
   "nextSteps": [
     "What to do in next 24-48 hours",
     "Follow-up recommendations"
-  ]
+  ],
+  "relatedSpecialties": ["General Physician", "Relevant Specialist"]
 }
 
-IMPORTANT: 
+IMPORTANT:
+- For relatedSpecialties: List 2-3 medical specialties relevant to the symptoms (e.g., "General Physician", "Pulmonologist", "Cardiologist", "Orthopedist", "ENT Specialist", "Gastroenterologist"). 
 - Be specific about trends (e.g., "Fever decreased from 9/10 to 5/10 over 3 days")
 - Note any concerning patterns (e.g., "Symptoms worsen every evening")
 - Consider both severity AND symptom changes
@@ -479,6 +622,18 @@ Return ONLY the JSON object, no other text.`;
     const text = await callGemini(prompt);
     const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
     const analysis = JSON.parse(cleanJson);
+    
+    // Ensure relatedSpecialties exists
+    if (!analysis.relatedSpecialties || !Array.isArray(analysis.relatedSpecialties) || analysis.relatedSpecialties.length === 0) {
+      analysis.relatedSpecialties = ['General Physician'];
+    }
+    
+    console.log('✅ Trend analysis complete:', {
+      trend: analysis.trend,
+      diagnosis: analysis.currentDiagnosis,
+      specialties: analysis.relatedSpecialties
+    });
+    
     res.json(analysis);
 
   } catch (err) {
