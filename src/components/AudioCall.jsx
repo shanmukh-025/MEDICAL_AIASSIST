@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Phone, PhoneOff, Mic, MicOff, X } from 'lucide-react';
+import { Phone, PhoneOff, Mic, MicOff, X, PhoneIncoming } from 'lucide-react';
 import toast from 'react-hot-toast';
 import webrtcService from '../services/webrtc';
 
@@ -8,6 +8,7 @@ const AudioCall = ({ recipientId, recipientName, isIncoming = false, onClose, so
     const [callStatus, setCallStatus] = useState(isIncoming ? 'incoming' : 'connecting');
     const [isMuted, setIsMuted] = useState(false);
     const [callDuration, setCallDuration] = useState(0);
+    const [busyMessage, setBusyMessage] = useState(null);
 
     // ... refs ...
     const localAudioRef = useRef(null);
@@ -59,6 +60,32 @@ const AudioCall = ({ recipientId, recipientName, isIncoming = false, onClose, so
             handleEndCall(false); // Don't emit back since we received the end signal
         });
 
+        // Handle hospital busy signal
+        webrtcService.setOnCallBusy(({ message }) => {
+            console.log('🔴 Hospital busy:', message);
+            setCallStatus('busy');
+            setBusyMessage(message || 'Hospital is currently on another call. Please try again later.');
+            toast.error('Hospital is on another call', { icon: '📞', duration: 5000 });
+            // Auto-close after 4 seconds
+            setTimeout(() => {
+                if (onClose) onClose();
+            }, 4000);
+        });
+
+        // Also listen directly on socket for busy signal
+        const handleBusy = ({ message }) => {
+            console.log('🔴 Direct socket busy signal:', message);
+            setCallStatus('busy');
+            setBusyMessage(message || 'Hospital is currently on another call. Please try again later.');
+            toast.error('Hospital is on another call', { icon: '📞', duration: 5000 });
+            setTimeout(() => {
+                if (onClose) onClose();
+            }, 4000);
+        };
+        if (socket) {
+            socket.on('call:busy', handleBusy);
+        }
+
         // Monitor ICE state and Remote Track Status - REMOVED for Production
 
         // Audio Level Visualization Logic
@@ -91,6 +118,7 @@ const AudioCall = ({ recipientId, recipientName, isIncoming = false, onClose, so
         return () => {
             clearInterval(audioCheckInterval);
             if (audioContext) audioContext.close();
+            if (socket) socket.off('call:busy', handleBusy);
             webrtcService.endCall();
             stopTimer();
         };
@@ -128,7 +156,9 @@ const AudioCall = ({ recipientId, recipientName, isIncoming = false, onClose, so
             // Add a small delay for UI to settle
             await new Promise(resolve => setTimeout(resolve, 500));
 
-            const localStream = await webrtcService.startCall(recipientId, 'audio');
+            // Pass actual caller name and userId
+            const userName = localStorage.getItem('userName') || 'Patient';
+            const localStream = await webrtcService.startCall(recipientId, 'audio', userName);
 
             if (localAudioRef.current) {
                 localAudioRef.current.srcObject = localStream;
@@ -148,8 +178,8 @@ const AudioCall = ({ recipientId, recipientName, isIncoming = false, onClose, so
                 });
 
                 webrtcService.socket.once('call:rejected', () => {
-                    console.log('❌ Hospital rejected');
-                    toast.error('Hospital rejected the call');
+                    console.log('❌ Call rejected by recipient');
+                    toast.error(`${recipientName || 'Recipient'} rejected the call`);
                     onClose();
                 });
 
@@ -252,8 +282,19 @@ const AudioCall = ({ recipientId, recipientName, isIncoming = false, onClose, so
                         {callStatus === 'incoming' && 'Incoming Call'}
                         {callStatus === 'connecting' && 'Connecting...'}
                         {callStatus === 'connected' && formatDuration(callDuration)}
+                        {callStatus === 'busy' && 'Line Busy'}
                     </p>
                 </div>
+
+                {/* Busy Message Banner */}
+                {callStatus === 'busy' && (
+                    <div className="mb-6 bg-red-500/20 border border-red-400/50 rounded-xl p-4 text-center animate-pulse">
+                        <PhoneIncoming size={32} className="mx-auto mb-2 text-red-200" />
+                        <p className="text-white font-semibold text-lg">Hospital is on another call</p>
+                        <p className="text-white/70 text-sm mt-1">{busyMessage}</p>
+                        <p className="text-white/50 text-xs mt-2">This window will close automatically...</p>
+                    </div>
+                )}
 
                 {/* Call Controls */}
                 <div className="flex justify-center gap-6 mb-6">

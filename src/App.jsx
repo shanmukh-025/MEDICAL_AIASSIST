@@ -13,6 +13,7 @@ import PrivateRoute from './components/PrivateRoute';
 import OfflineIndicator from './components/OfflineIndicator'; // Import the offline banner
 import PWAInstallPrompt from './components/PWAInstallPrompt'; // PWA install prompt
 import VoiceAssistant from './components/VoiceAssistant'; // Voice assistant
+import IncomingCallGlobal from './components/IncomingCallGlobal'; // Global incoming call handler
 
 // Pages
 import Home from './pages/Home';
@@ -68,6 +69,9 @@ function App() {
               
               {/* Voice Assistant - Only show when authenticated */}
               <ConditionalVoiceAssistant />
+              
+              {/* Global Incoming Call Handler - For patients receiving calls from hospitals */}
+              <IncomingCallGlobal />
               
               <Routes>
                 {/* Public Routes */}

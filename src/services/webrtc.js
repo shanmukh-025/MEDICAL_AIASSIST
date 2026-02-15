@@ -47,6 +47,14 @@ class WebRTCService {
             }
         });
 
+        // Handle hospital busy signal
+        this.socket.on('call:busy', ({ message }) => {
+            console.log('🔴 Hospital is busy:', message);
+            if (this.onCallBusy) {
+                this.onCallBusy({ message });
+            }
+        });
+
         // Handle ICE candidates
         this.socket.on('call:ice-candidate', async ({ candidate }) => {
             console.log('Received ICE candidate');
@@ -73,7 +81,7 @@ class WebRTCService {
     }
 
     // Start a call (audio or video)
-    async startCall(recipientId, callType = 'audio') {
+    async startCall(recipientId, callType = 'audio', callerName = 'Patient') {
         this.iceCandidateQueue = []; // Reset queue
         try {
             // Get user media based on call type
@@ -149,7 +157,9 @@ class WebRTCService {
             this.socket.emit('call:offer', {
                 to: recipientId,
                 offer: offer,
-                callType: callType
+                callType: callType,
+                callerName: callerName,
+                callerUserId: this._callerUserId || null
             });
 
             return this.localStream;
@@ -313,6 +323,14 @@ class WebRTCService {
 
     setOnCallEnded(callback) {
         this.onCallEnded = callback;
+    }
+
+    setOnCallBusy(callback) {
+        this.onCallBusy = callback;
+    }
+
+    setCallerUserId(userId) {
+        this._callerUserId = userId;
     }
 }
 

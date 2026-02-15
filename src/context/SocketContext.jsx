@@ -188,6 +188,9 @@ export const SocketProvider = ({ children }) => {
           console.log('👤 User Role:', userRole);
 
           if (userId) {
+            // Set caller user ID on webrtc service for call logging
+            webrtcService.setCallerUserId(userId);
+            
             // Join appropriate room based on role
             if (userRole === 'HOSPITAL') {
               const hospitalRoom = `hospital_${userId}`;

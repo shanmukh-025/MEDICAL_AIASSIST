@@ -9,6 +9,7 @@ import HospitalQueueManagement from '../components/HospitalQueueManagement';
 import DoctorScheduleView from '../components/DoctorScheduleView';
 import AudioCall from '../components/AudioCall';
 import PatientRecordsManager from '../components/PatientRecordsManager';
+import CallHistory from '../components/CallHistory';
 import webrtcService from '../services/webrtc';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
@@ -76,13 +77,13 @@ const HospitalDashboard = () => {
       });
 
       // ALSO listen directly to socket for demo mode
-      const handleCallOffer = ({ from, callType, offer }) => {
+      const handleCallOffer = ({ from, callType, offer, callerName, callerUserId }) => {
         console.log('📢 HOSPITAL: Call offer event fired!');
-        console.log('📞 Direct socket call received!', { from, callType, offer });
+        console.log('📞 Direct socket call received!', { from, callType, offer, callerName, callerUserId });
         console.log('📍 Setting state: showIncomingCall=true');
-        setIncomingCallData({ from, callType, name: 'Patient' });
+        setIncomingCallData({ from, callType, name: callerName || 'Patient', callerUserId });
         setShowIncomingCall(true);
-        toast.success('📞 Incoming call from patient!');
+        toast.success(`📞 Incoming call from ${callerName || 'patient'}!`);
       };
 
       socket.on('call:offer', handleCallOffer);
@@ -580,6 +581,18 @@ const HospitalDashboard = () => {
               <span>Patient Records</span>
             </button>
 
+            <button
+              onClick={() => setActiveTab('CALL_HISTORY')}
+              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
+                activeTab === 'CALL_HISTORY' 
+                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-200' 
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Phone size={20} />
+              <span>Call History</span>
+            </button>
+
             <div className="pt-4 border-t border-slate-200 mt-4 space-y-2">
               <p className="text-xs font-bold text-slate-400 uppercase px-4 mb-2">Appointments</p>
               
@@ -665,6 +678,22 @@ const HospitalDashboard = () => {
 
         {activeTab === 'RECORDS' && (
           <PatientRecordsManager />
+        )}
+
+        {activeTab === 'CALL_HISTORY' && (
+          <CallHistory 
+            onCallPatient={({ userId, name }) => {
+              if (!socket) {
+                toast.error('Not connected. Please refresh.');
+                return;
+              }
+              setIncomingCallData(null);
+              setShowIncomingCall(false);
+              // Start an outgoing call to the patient
+              setIncomingCallData({ from: `user_${userId}`, callType: 'audio', name, isOutgoing: true });
+              setShowIncomingCall(true);
+            }}
+          />
         )}
 
         {activeTab === 'PROFILE' && profile && (
@@ -960,7 +989,7 @@ const HospitalDashboard = () => {
         )}
 
         {/* Appointments Tab Content */}
-        {activeTab !== 'PROFILE' && (
+        {!['PROFILE', 'SCHEDULING', 'QUEUE', 'RECORDS', 'CALL_HISTORY'].includes(activeTab) && (
           loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="animate-spin text-emerald-600" size={32} />
@@ -1148,12 +1177,12 @@ const HospitalDashboard = () => {
         </div>
       )}
 
-      {/* Incoming Call from Patient */}
+      {/* Incoming/Outgoing Call */}
       {showIncomingCall && incomingCallData && (
         <AudioCall
           recipientId={incomingCallData.from}
           recipientName={incomingCallData.name}
-          isIncoming={true}
+          isIncoming={!incomingCallData.isOutgoing}
           socket={socket}
           onClose={() => {
             setShowIncomingCall(false);
