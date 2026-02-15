@@ -757,4 +757,54 @@ ONLY return valid JSON, no other text.`;
   }
 });
 
+// --- SEARCH HOSPITAL CONTACT INFO WITH AI ---
+router.post('/hospital-contact', auth, async (req, res) => {
+  try {
+    const { hospitalName, lat, lng, language } = req.body;
+
+    if (!hospitalName) {
+      return res.status(400).json({ error: 'Hospital name required' });
+    }
+
+    const isTeluguLang = language === 'te';
+
+    const prompt = `You are a helpful assistant. Find the phone number and contact details for the hospital/clinic named "${hospitalName}" located near coordinates (${lat}, ${lng}) in India.
+
+Search your knowledge for this hospital or similar hospitals in this area.
+
+Return ONLY a valid JSON object in this format:
+{
+  "phone": "the phone number if found, or null",
+  "alternatePhone": "alternate number if available, or null",
+  "address": "full address if known, or null",
+  "found": true or false,
+  "confidence": "high/medium/low",
+  "note": "${isTeluguLang ? 'Telugu brief note about the hospital' : 'Brief note about the hospital or suggest similar hospitals nearby if not found'}"
+}
+
+IMPORTANT:
+- If you are confident about the phone number, set "found": true and "confidence": "high"
+- If you found something but aren't 100% sure, set "confidence": "medium" 
+- If you cannot find it, set "found": false and provide a helpful note suggesting the user search Google Maps
+- Phone numbers for Indian hospitals typically start with +91 or are 10-digit numbers
+- ONLY return valid JSON, no other text`;
+
+    const text = await callGemini(prompt);
+    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const contact = JSON.parse(cleanJson);
+
+    console.log('✅ Hospital contact search:', { hospitalName, found: contact.found, confidence: contact.confidence });
+    res.json(contact);
+
+  } catch (err) {
+    console.error('Hospital Contact Search Error:', err.message);
+    res.status(500).json({
+      error: 'Search failed',
+      found: false,
+      phone: null,
+      note: 'Could not search for contact info. Please try Google Maps.'
+    });
+  }
+});
+
 module.exports = router;

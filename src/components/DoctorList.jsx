@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
-import { MapPin, Calendar, Clock, Loader2, X, Search, Crosshair, Navigation, CheckCircle, AlertTriangle, ShieldAlert, Phone, User } from 'lucide-react';
+import { MapPin, Calendar, Clock, Loader2, X, Search, Crosshair, Navigation, CheckCircle, AlertTriangle, ShieldAlert, Phone, User, PhoneCall, ExternalLink, Info, SearchIcon, Globe } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import toast from 'react-hot-toast';
@@ -117,6 +117,9 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [step, setStep] = useState('form');
   const [showAudioCall, setShowAudioCall] = useState(false);
+  const [contactModal, setContactModal] = useState(null); // for unregistered hospital contact
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactInfo, setContactInfo] = useState(null);
 
   // --- 1. SIMULATION ENGINE (The "Bulletproof" Fix) ---
   const generateMockHospitals = (lat, lng) => {
@@ -537,6 +540,31 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
     }
   };
 
+  // --- SEARCH HOSPITAL CONTACT ---
+  const searchHospitalContact = async (hospital) => {
+    setContactLoading(true);
+    setContactInfo(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/ai/hospital-contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({
+          hospitalName: hospital.name,
+          lat: hospital.lat,
+          lng: hospital.lng,
+          language: lang
+        })
+      });
+      const data = await res.json();
+      setContactInfo(data);
+    } catch (err) {
+      setContactInfo({ found: false, phone: null, note: lang === 'en' ? 'Could not search. Try Google Maps.' : 'వెతకలేకపోయాం. Google Maps ప్రయత్నించండి.' });
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
   // --- 4. BOOKING LOGIC (New Appointment Workflow) ---
   const handleBooking = async (e) => {
     e.preventDefault();
@@ -797,12 +825,21 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
                     <div className="text-xs text-slate-500 flex items-center gap-1.5">
                         <Clock size={14} className="text-slate-400"/> {h.workingHours || t.hours}
                     </div>
-                    <button 
-                        onClick={() => { setSelectedDoctor(''); setStep('form'); setBookingHospital(h); }} 
-                        className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1 shadow-lg shadow-emerald-100"
-                    >
-                        <Calendar size={14}/> {t.bookBtn}
-                    </button>
+                    {h.isRegistered ? (
+                      <button 
+                          onClick={() => { setSelectedDoctor(''); setStep('form'); setBookingHospital(h); }} 
+                          className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1 shadow-lg shadow-emerald-100"
+                      >
+                          <Calendar size={14}/> {t.bookBtn}
+                      </button>
+                    ) : (
+                      <button 
+                          onClick={() => { setContactModal(h); setContactInfo(null); searchHospitalContact(h); }} 
+                          className="bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1 shadow-lg shadow-slate-200"
+                      >
+                          <PhoneCall size={14}/> {t.bookBtn}
+                      </button>
+                    )}
                 </div>
             </div>
         ))}
@@ -1040,6 +1077,145 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null })
                     </div>
                 )}
             </div>
+        </div>
+      )}
+
+      {/* UNREGISTERED HOSPITAL CONTACT MODAL */}
+      {contactModal && (
+        <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg text-slate-900">{contactModal.name}</h3>
+              <button onClick={() => { setContactModal(null); setContactInfo(null); }} className="p-2 bg-slate-100 rounded-full hover:bg-slate-200">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Not Registered Banner */}
+            <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl mb-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-amber-100 p-2 rounded-full mt-0.5">
+                  <Info size={16} className="text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-amber-800">
+                    {lang === 'en' ? 'Not Registered on Our App' : 'మా యాప్‌లో నమోదు కాలేదు'}
+                  </p>
+                  <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                    {lang === 'en'
+                      ? 'This hospital is not registered on MediAssist. You cannot book online. We are searching for their contact number so you can call them directly.'
+                      : 'ఈ ఆసుపత్రి MediAssist లో నమోదు కాలేదు. ఆన్‌లైన్ బుకింగ్ చేయలేరు. మీరు నేరుగా కాల్ చేయడానికి వారి ఫోన్ నంబర్ కోసం వెతుకుతున్నాము.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Loading State */}
+            {contactLoading && (
+              <div className="text-center py-8">
+                <div className="relative">
+                  <Globe size={40} className="mx-auto text-blue-500 animate-spin mb-3" />
+                </div>
+                <p className="text-sm font-bold text-slate-600">
+                  {lang === 'en' ? 'Searching for contact info...' : 'సంప్రదింపు సమాచారం కోసం వెతుకుతోంది...'}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  {lang === 'en' ? 'Using AI to find phone number' : 'ఫోన్ నంబర్ కనుగొనడానికి AI ఉపయోగిస్తోంది'}
+                </p>
+              </div>
+            )}
+
+            {/* Contact Info Result */}
+            {contactInfo && !contactLoading && (
+              <div className="space-y-3">
+                {contactInfo.found && contactInfo.phone ? (
+                  <>
+                    {/* Phone Number */}
+                    <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-2xl">
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-2">
+                        {lang === 'en' ? 'Phone Number Found' : 'ఫోన్ నంబర్ కనుగొనబడింది'}
+                        {contactInfo.confidence === 'high' && ' ✅'}
+                        {contactInfo.confidence === 'medium' && ' ⚠️'}
+                      </p>
+                      <a
+                        href={`tel:${contactInfo.phone}`}
+                        className="flex items-center gap-3 bg-emerald-600 text-white p-4 rounded-xl hover:bg-emerald-700 transition active:scale-95"
+                      >
+                        <div className="bg-white/20 p-2 rounded-full">
+                          <PhoneCall size={20} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-lg">{contactInfo.phone}</p>
+                          <p className="text-xs opacity-80">{lang === 'en' ? 'Tap to call' : 'కాల్ చేయడానికి నొక్కండి'}</p>
+                        </div>
+                      </a>
+                      {contactInfo.alternatePhone && (
+                        <a
+                          href={`tel:${contactInfo.alternatePhone}`}
+                          className="flex items-center gap-3 bg-white border border-emerald-200 text-emerald-700 p-3 rounded-xl mt-2 hover:bg-emerald-50 transition"
+                        >
+                          <Phone size={16} />
+                          <span className="text-sm font-bold">{contactInfo.alternatePhone}</span>
+                          <span className="text-xs opacity-60">{lang === 'en' ? '(Alternate)' : '(ప్రత్యామ్నాయం)'}</span>
+                        </a>
+                      )}
+                    </div>
+
+                    {contactInfo.confidence === 'medium' && (
+                      <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100">
+                        ⚠️ {lang === 'en' ? 'This number may not be 100% accurate. Please verify before visiting.' : 'ఈ నంబర్ 100% ఖచ్చితమైనది కాకపోవచ్చు. సందర్శించే ముందు ధృవీకరించండి.'}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl text-center">
+                    <Phone size={32} className="mx-auto text-slate-300 mb-2" />
+                    <p className="text-sm font-bold text-slate-600">
+                      {lang === 'en' ? 'Phone number not found' : 'ఫోన్ నంబర్ కనుగొనబడలేదు'}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {contactInfo.note || (lang === 'en' ? 'Try searching on Google Maps' : 'Google Maps లో వెతకడానికి ప్రయత్నించండి')}
+                    </p>
+                  </div>
+                )}
+
+                {/* Address if available */}
+                {contactInfo.address && (
+                  <div className="flex items-start gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <MapPin size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                    <span>{contactInfo.address}</span>
+                  </div>
+                )}
+
+                {/* Note */}
+                {contactInfo.note && (
+                  <p className="text-xs text-slate-500 bg-blue-50 p-3 rounded-xl border border-blue-100 leading-relaxed">
+                    💡 {contactInfo.note}
+                  </p>
+                )}
+
+                {/* Google Maps fallback */}
+                <a
+                  href={`https://www.google.com/maps/search/${encodeURIComponent(contactModal.name)}/@${contactModal.lat},${contactModal.lng},15z`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 bg-blue-50 text-blue-600 p-3 rounded-xl text-sm font-bold hover:bg-blue-100 transition border border-blue-200 w-full"
+                >
+                  <ExternalLink size={16} />
+                  {lang === 'en' ? 'Search on Google Maps' : 'Google Maps లో వెతకండి'}
+                </a>
+
+                {/* Directions */}
+                <button
+                  onClick={() => openGoogleMaps(contactModal.lat, contactModal.lng)}
+                  className="flex items-center justify-center gap-2 bg-slate-100 text-slate-600 p-3 rounded-xl text-sm font-bold hover:bg-slate-200 transition w-full"
+                >
+                  <Navigation size={16} />
+                  {lang === 'en' ? 'Get Directions' : 'దిశలు పొందండి'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
