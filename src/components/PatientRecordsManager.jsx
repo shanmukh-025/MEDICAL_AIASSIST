@@ -5,7 +5,7 @@ import {
   Search, Calendar, Clock, User, FileText, Filter,
   ChevronDown, ChevronRight, Stethoscope, Loader2,
   FolderOpen, Eye, Download, X as CloseIcon, Phone, Mail,
-  CalendarDays, ClipboardList, UserCircle, History
+  CalendarDays, ClipboardList, UserCircle, History, Activity
 } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
@@ -19,7 +19,7 @@ const DOCTOR_COLORS = [
   { bg: 'bg-cyan-50', border: 'border-cyan-200', accent: 'bg-cyan-500', text: 'text-cyan-700', light: 'bg-cyan-100', dot: 'bg-cyan-400' },
 ];
 
-const PatientRecordsManager = () => {
+const PatientRecordsManager = ({ onCreateRecoveryPlan }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -212,6 +212,25 @@ const PatientRecordsManager = () => {
           >
             <History size={14} />
             View Full Visit History
+          </button>
+        )}
+
+        {/* Create Recovery Plan button for completed appointments */}
+        {appointment.status === 'COMPLETED' && appointment.patientId && onCreateRecoveryPlan && (
+          <button
+            onClick={() => onCreateRecoveryPlan({
+              patientId: appointment.patientId._id,
+              patientName: appointment.patientId.name || appointment.patientName || '',
+              patientEmail: appointment.patientId.email || '',
+              patientPhone: appointment.patientId.phone || appointment.phone || '',
+              appointmentId: appointment._id,
+              doctorName: appointment.doctor || '',
+              reason: appointment.reason || ''
+            })}
+            className="mt-2 w-full text-sm bg-teal-50 text-teal-700 py-2 rounded-xl font-semibold hover:bg-teal-100 transition flex items-center justify-center gap-2 border border-teal-200"
+          >
+            <Activity size={14} />
+            Create Recovery Plan
           </button>
         )}
       </div>

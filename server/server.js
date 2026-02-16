@@ -1,12 +1,13 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const connectDB = require('./config/db');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { startReminderScheduler } = require('./services/reminderScheduler');
-const CallLog = require('./models/CallLog');
 require('dotenv').config();
+const connectDB = require('./config/db');
+const { startReminderScheduler } = require('./services/reminderScheduler');
+const { startMonitoringScheduler } = require('./services/monitoringScheduler');
+const CallLog = require('./models/CallLog');
 
 const app = express();
 const http = require('http');
@@ -88,6 +89,7 @@ app.use('/api/family', require('./routes/family'));
 app.use('/api/reminders', require('./routes/reminders'));
 app.use('/api/patient-records', require('./routes/patientRecords'));
 app.use('/api/call-logs', require('./routes/callLogs'));
+app.use('/api/patient-monitoring', require('./routes/patientMonitoring'));
 
 // 6. Test Route
 app.get('/', (req, res) => res.send('API is Running...'));
@@ -337,5 +339,8 @@ app.set('io', io);
 
 // Start medicine reminder scheduler
 startReminderScheduler();
+
+// Start patient monitoring scheduler
+startMonitoringScheduler(io);
 
 server.listen(PORT, () => console.log(`🚀 Backend Server running on port ${PORT}`));

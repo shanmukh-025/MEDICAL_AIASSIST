@@ -15,7 +15,7 @@ if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
   console.error('   Then add the keys to your .env file');
 } else {
   webpush.setVapidDetails(
-    'mailto:your-email@example.com',
+    process.env.VAPID_EMAIL || 'mailto:admin@mediassist.com',
     VAPID_PUBLIC_KEY,
     VAPID_PRIVATE_KEY
   );
@@ -94,10 +94,11 @@ const sendReminder = async (reminder, currentTime) => {
           body: notificationBody,
           icon: '/icon-192x192.png',
           badge: '/badge-72x72.png',
-          tag: `medicine-${reminder._id}`,
+          tag: `medicine-${reminder._id}-${currentTime}`,
           data: {
-            reminderId: reminder._id,
-            url: '/reminders',
+            reminderId: reminder._id.toString(),
+            timing: currentTime,
+            url: '/recovery-tracker',
             voice: reminder.notifications.voice,
             language: reminder.notifications.language
           },
@@ -115,7 +116,8 @@ const sendReminder = async (reminder, currentTime) => {
           scheduledTime: new Date(),
           sentAt: new Date(),
           status: 'sent',
-          method: 'push'
+          method: 'push',
+          timingSlot: currentTime
         });
       } catch (pushError) {
         console.error('❌ Push notification failed:', pushError);

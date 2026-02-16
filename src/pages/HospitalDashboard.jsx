@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2, LogOut, Menu } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2, LogOut, Menu, Activity } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import HospitalQueueManagement from '../components/HospitalQueueManagement';
 import DoctorScheduleView from '../components/DoctorScheduleView';
 import AudioCall from '../components/AudioCall';
 import PatientRecordsManager from '../components/PatientRecordsManager';
+import PatientRecoveryDashboard from '../components/PatientRecoveryDashboard';
 import CallHistory from '../components/CallHistory';
 import webrtcService from '../services/webrtc';
 
@@ -36,6 +37,7 @@ const HospitalDashboard = () => {
   const [showIncomingCall, setShowIncomingCall] = useState(false);
   const [incomingCallData, setIncomingCallData] = useState(null);
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [monitoringInitialData, setMonitoringInitialData] = useState(null);
 
   useEffect(() => {
     fetchAppointments();
@@ -582,6 +584,18 @@ const HospitalDashboard = () => {
             </button>
 
             <button
+              onClick={() => setActiveTab('MONITORING')}
+              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
+                activeTab === 'MONITORING' 
+                  ? 'bg-teal-600 text-white shadow-lg shadow-teal-200' 
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Activity size={20} />
+              <span>Patient Monitoring</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('CALL_HISTORY')}
               className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
                 activeTab === 'CALL_HISTORY' 
@@ -677,7 +691,19 @@ const HospitalDashboard = () => {
         )}
 
         {activeTab === 'RECORDS' && (
-          <PatientRecordsManager />
+          <PatientRecordsManager 
+            onCreateRecoveryPlan={(planData) => {
+              setMonitoringInitialData(planData);
+              setActiveTab('MONITORING');
+            }}
+          />
+        )}
+
+        {activeTab === 'MONITORING' && (
+          <PatientRecoveryDashboard 
+            initialPlanData={monitoringInitialData}
+            onInitialDataConsumed={() => setMonitoringInitialData(null)}
+          />
         )}
 
         {activeTab === 'CALL_HISTORY' && (
@@ -1055,12 +1081,31 @@ const HospitalDashboard = () => {
                   )}
 
                   {p.status === 'COMPLETED' && (
-                    <div className="flex gap-3">
-                      <button onClick={() => openReportModal(p)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition">
-                        <Upload size={18} /> Send Test Report
-                      </button>
-                      <button onClick={() => deleteAppointment(p._id)} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-200 hover:bg-red-700 transition">
-                        <Trash2 size={18} /> Delete
+                    <div className="space-y-2">
+                      <div className="flex gap-3">
+                        <button onClick={() => openReportModal(p)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition">
+                          <Upload size={18} /> Send Test Report
+                        </button>
+                        <button onClick={() => deleteAppointment(p._id)} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-200 hover:bg-red-700 transition">
+                          <Trash2 size={18} /> Delete
+                        </button>
+                      </div>
+                      <button 
+                        onClick={() => { 
+                          setMonitoringInitialData({
+                            patientId: p.patientId?._id || p.patientId,
+                            patientName: p.patientName || p.patientId?.name || '',
+                            patientEmail: p.patientId?.email || '',
+                            patientPhone: p.patientId?.phone || p.phone || '',
+                            appointmentId: p._id,
+                            doctorName: p.doctor || '',
+                            reason: p.reason || ''
+                          });
+                          setActiveTab('MONITORING'); 
+                        }}
+                        className="w-full bg-teal-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-teal-200 hover:bg-teal-700 transition"
+                      >
+                        <Activity size={18} /> Create Recovery Plan
                       </button>
                     </div>
                   )}

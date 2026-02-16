@@ -79,15 +79,18 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   if (event.action === 'taken') {
-    // Mark medicine as taken
+    // Mark medicine as taken via patient-monitoring API
+    const reminderId = event.notification.data.reminderId;
+    const timing = event.notification.data.timing;
     event.waitUntil(
-      fetch(`${self.registration.scope}api/reminders/${event.notification.data.reminderId}/acknowledge`, {
+      fetch(`/api/patient-monitoring/medicine-taken/${reminderId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${event.notification.data.token}`
-        }
-      })
+          'x-auth-token': event.notification.data.token || ''
+        },
+        body: JSON.stringify({ timing: timing || '' })
+      }).catch(err => console.error('Failed to mark taken:', err))
     );
   } else if (event.action === 'snooze') {
     // Snooze for 10 minutes

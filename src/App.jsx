@@ -35,6 +35,7 @@ import HospitalBranding from './pages/HospitalBranding';
 import QueueDashboard from './pages/QueueDashboard';
 import SymptomAnalysis from './pages/SymptomAnalysis'; // AI Symptom Analysis
 import FamilyHealthAnalysis from './pages/FamilyHealthAnalysis'; // Family Genetic Analysis
+import PatientRecoveryTracker from './pages/PatientRecoveryTracker'; // Patient Recovery Monitoring
 
 // Conditional Voice Assistant - only show when authenticated
 const ConditionalVoiceAssistant = () => {
@@ -98,6 +99,7 @@ function App() {
                 <Route path="/doctors" element={<PrivateRoute><Doctors /></PrivateRoute>} />
                 <Route path="/symptom-analysis" element={<PrivateRoute><SymptomAnalysis /></PrivateRoute>} />
                 <Route path="/family-health-analysis" element={<PrivateRoute><FamilyHealthAnalysis /></PrivateRoute>} />
+                <Route path="/recovery-tracker" element={<PrivateRoute><PatientRecoveryTracker /></PrivateRoute>} />
               </Routes>
             </div>
             </Router>

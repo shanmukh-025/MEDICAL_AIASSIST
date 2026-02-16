@@ -77,11 +77,19 @@ const medicineReminderSchema = new mongoose.Schema({
     method: {
       type: String,
       enum: ['push', 'sms', 'voice']
+    },
+    timingSlot: {
+      type: String  // e.g. '09:00', '21:00' - which specific timing was taken
     }
   }],
   isActive: {
     type: Boolean,
     default: true
+  },
+  // Link to treatment plan (auto-created reminders)
+  treatmentPlanId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'TreatmentPlan'
   },
   // Push notification subscription
   pushSubscription: {

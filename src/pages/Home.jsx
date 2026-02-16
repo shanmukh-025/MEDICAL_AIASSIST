@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils,
-  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee
+  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee, Stethoscope
 } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
@@ -201,6 +201,7 @@ const Home = () => {
     family: lang === 'en' ? 'Family' : 'కుటుంబం',
     medicineReminders: lang === 'en' ? 'Medicine' : 'మందులు',
     diet: lang === 'en' ? 'Diet / BMI' : 'ఆహారం / BMI',
+    recovery: lang === 'en' ? 'Recovery' : 'రికవరీ',
     appointments: lang === 'en' ? 'My Appointments' : 'నా అపాయింట్‌మెంట్లు',
     viewBookings: lang === 'en' ? 'View Bookings' : 'బుకింగ్‌లను చూడండి',
     
@@ -412,6 +413,7 @@ const Home = () => {
             <ToolCard icon={FileText} color="teal" label={t.records} onClick={() => navigate('/records')} />
             <ToolCard icon={Users} color="emerald" label={t.family} onClick={() => navigate('/family')} />
             <ToolCard icon={Utensils} color="orange" label={t.diet} onClick={() => navigate('/wellness')} />
+            <ToolCard icon={Stethoscope} color="cyan" label={t.recovery} onClick={() => navigate('/recovery-tracker')} />
           </div>
         </div>
 
