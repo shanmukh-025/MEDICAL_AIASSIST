@@ -199,6 +199,68 @@ const FirstAid = () => {
     // Update UI
     setMessages(prev => [...prev, { role: 'user', text: userText }]);
 
+    // NSFW Content Filter
+    const inappropriatePatterns = [
+      /\bsex\b/i,
+      /\bmasturbat/i,
+      /\bporn/i,
+      /\berotic/i,
+      /\bxxx\b/i,
+      /\badult content/i,
+      /\bintercourse\b/i,
+      /\borgasm/i,
+      /\blibido\b/i,
+      /\barousal\b/i,
+      /\bsexual pleasure/i,
+      /\bsexy\b/i,
+      /\bnude/i,
+      /\bnaked/i,
+      /\bviagra\b/i,
+      /\berectile\b/i
+    ];
+
+    const legitimateMedicalPatterns = [
+      /sexually transmitted/i,
+      /\bstd\b/i,
+      /\bsti\b/i,
+      /reproductive health/i,
+      /menstrual/i,
+      /pregnancy/i,
+      /contracepti/i,
+      /birth control/i,
+      /gynecolog/i,
+      /urology/i,
+      /testicular/i,
+      /ovarian/i,
+      /prostate/i,
+      /cervical/i,
+      /sexual health screening/i,
+      /hiv/i,
+      /aids\b/i,
+      /gonorrhea/i,
+      /syphilis/i,
+      /chlamydia/i,
+      /herpes/i
+    ];
+
+    const hasInappropriateContent = inappropriatePatterns.some(pattern => pattern.test(userText));
+    const hasLegitimateMedicalContext = legitimateMedicalPatterns.some(pattern => pattern.test(userText));
+
+    if (hasInappropriateContent && !hasLegitimateMedicalContext) {
+      const rejectionMessage = lang === 'te'
+        ? 'క్షమించండి, నేను అనుచితమైన లేదా పరిణతి చెందిన కంటెంట్‌కు సమాధానం ఇవ్వలేను. నేను ఒక వైద్య సహాయకుడిని మాత్రమే. దయచేసి ఆరోగ్య సంబంధిత ప్రశ్నలు మాత్రమే అడగండి.'
+        : 'I\'m sorry, I cannot respond to inappropriate or adult content. I am a medical assistant designed to help with health-related questions only. Please ask about symptoms, treatments, or general health concerns.';
+      
+      setMessages(prev => [...prev, { role: 'bot', text: rejectionMessage }]);
+      setLoading(false);
+      
+      if (autoSpeak) {
+        speakText(rejectionMessage);
+      }
+      
+      return;
+    }
+
     try {
       // Check if offline
       if (!navigator.onLine) {

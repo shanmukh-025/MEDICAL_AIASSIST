@@ -163,6 +163,8 @@ router.post('/chat', auth, async (req, res) => {
   try {
     const { message, language } = req.body; // Receive language from frontend
     
+    console.log('🔍 Chat request received:', { message, language });
+    
     // NSFW Content Filter
     const inappropriatePatterns = [
       /\bsex\b/i,
@@ -212,8 +214,11 @@ router.post('/chat', auth, async (req, res) => {
     const hasInappropriateContent = inappropriatePatterns.some(pattern => pattern.test(message));
     const hasLegitimateMedicalContext = legitimateMedicalPatterns.some(pattern => pattern.test(message));
 
+    console.log('🛡️ Filter check:', { hasInappropriateContent, hasLegitimateMedicalContext });
+
     // Block if inappropriate and NOT a legitimate medical query
     if (hasInappropriateContent && !hasLegitimateMedicalContext) {
+      console.log('🚫 BLOCKED: Inappropriate content detected');
       const rejectionMessage = language === 'te' 
         ? 'క్షమించండి, నేను అనుచితమైన లేదా పరిణతి చెందిన కంటెంట్‌కు సమాధానం ఇవ్వలేను. నేను ఒక వైద్య సహాయకుడిని మాత్రమే. దయచేసి ఆరోగ్య సంబంధిత ప్రశ్నలు మాత్రమే అడగండి.'
         : 'I\'m sorry, I cannot respond to inappropriate or adult content. I am a medical assistant designed to help with health-related questions only. Please ask about symptoms, treatments, or general health concerns.';
