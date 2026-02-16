@@ -163,6 +163,64 @@ router.post('/chat', auth, async (req, res) => {
   try {
     const { message, language } = req.body; // Receive language from frontend
     
+    // NSFW Content Filter
+    const inappropriatePatterns = [
+      /\bsex\b/i,
+      /\bmasturbat/i,
+      /\bporn/i,
+      /\berotic/i,
+      /\bxxx\b/i,
+      /\badult content/i,
+      /\bintercourse\b/i,
+      /\borgasm/i,
+      /\blibido\b/i,
+      /\barousal\b/i,
+      /\bsexual pleasure/i,
+      /\bsexy\b/i,
+      /\bnude/i,
+      /\bnaked/i,
+      /\bviagra\b/i,
+      /\berectile\b/i
+    ];
+
+    // Allow legitimate medical terms
+    const legitimateMedicalPatterns = [
+      /sexually transmitted/i,
+      /\bstd\b/i,
+      /\bsti\b/i,
+      /reproductive health/i,
+      /menstrual/i,
+      /pregnancy/i,
+      /contracepti/i,
+      /birth control/i,
+      /gynecolog/i,
+      /urology/i,
+      /testicular/i,
+      /ovarian/i,
+      /prostate/i,
+      /cervical/i,
+      /sexual health screening/i,
+      /hiv/i,
+      /aids\b/i,
+      /gonorrhea/i,
+      /syphilis/i,
+      /chlamydia/i,
+      /herpes/i
+    ];
+
+    // Check if message contains inappropriate content
+    const hasInappropriateContent = inappropriatePatterns.some(pattern => pattern.test(message));
+    const hasLegitimateMedicalContext = legitimateMedicalPatterns.some(pattern => pattern.test(message));
+
+    // Block if inappropriate and NOT a legitimate medical query
+    if (hasInappropriateContent && !hasLegitimateMedicalContext) {
+      const rejectionMessage = language === 'te' 
+        ? 'క్షమించండి, నేను అనుచితమైన లేదా పరిణతి చెందిన కంటెంట్‌కు సమాధానం ఇవ్వలేను. నేను ఒక వైద్య సహాయకుడిని మాత్రమే. దయచేసి ఆరోగ్య సంబంధిత ప్రశ్నలు మాత్రమే అడగండి.'
+        : 'I\'m sorry, I cannot respond to inappropriate or adult content. I am a medical assistant designed to help with health-related questions only. Please ask about symptoms, treatments, or general health concerns.';
+      
+      return res.json({ reply: rejectionMessage });
+    }
+    
     let instruction = "";
     if (language === 'te') {
         instruction = `
@@ -175,6 +233,7 @@ router.post('/chat', auth, async (req, res) => {
             3. You MUST reply in TELUGU script (తెలుగు) ONLY.
             4. Even if the user asks in English, translate your answer to Telugu.
             5. Keep the medical advice simple and easy to understand for villagers.
+            6. You must NOT answer inappropriate or adult content questions. Only professional medical queries are allowed.
         `;
     } else {
         instruction = `
@@ -186,6 +245,7 @@ router.post('/chat', auth, async (req, res) => {
             4. Explain medicines simply.
             5. Only refer to a doctor if symptoms are severe.
             6. Be polite and concise in English.
+            7. You must NOT answer inappropriate or adult content questions. Only professional medical queries are allowed.
         `;
     }
 

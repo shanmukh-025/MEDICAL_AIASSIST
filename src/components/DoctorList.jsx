@@ -1088,7 +1088,7 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null, f
                             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                               {lang === 'en' ? 'SELECT DOCTOR' : 'డాక్టర్‌ను ఎంచుకోండి'}
                             </label>
-                            <div className="space-y-2 mt-1">
+                            <div className="space-y-2 mt-1 max-h-[280px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
                               {bookingHospital.doctors.map((doc, i) => (
                                 <button
                                   key={i}
