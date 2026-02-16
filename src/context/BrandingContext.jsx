@@ -4,7 +4,7 @@ const BrandingContext = createContext();
 
 export const BrandingProvider = ({ children }) => {
   const [branding, setBranding] = useState({
-    appName: 'VillageMed',
+    appName: 'MediAssist',
     logo: null, // Hospital logo URL
     primaryColor: '#059669', // emerald-600
     secondaryColor: '#10b981', // emerald-500

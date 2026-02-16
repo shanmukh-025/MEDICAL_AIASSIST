@@ -1,6 +1,6 @@
 export const translations = {
   en: {
-    title: 'Village Medicine Assistant',
+    title: 'MediAssist AI',
     subtitle: 'Safe Medicine Information for Everyone',
     online: 'Online Mode',
     offline: 'Offline Mode',

@@ -51,7 +51,7 @@ const PWAInstallPrompt = () => {
             <Download size={24} />
           </div>
           <div className="flex-1">
-            <h3 className="font-bold text-lg mb-1">Install MediVillage</h3>
+            <h3 className="font-bold text-lg mb-1">Install MediAssist</h3>
             <p className="text-sm text-emerald-50 mb-3">
               Install our app for offline access and faster performance in rural areas
             </p>

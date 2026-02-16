@@ -152,7 +152,7 @@ const Register = () => {
             <Heart size={32} fill="currentColor" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">Create Account</h1>
-          <p className="text-slate-400 text-sm mt-1">Join Village Medicine Assistant</p>
+          <p className="text-slate-400 text-sm mt-1">Join MediAssist AI</p>
         </div>
 
         {/* Form */}

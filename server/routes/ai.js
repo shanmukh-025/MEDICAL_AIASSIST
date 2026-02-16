@@ -229,7 +229,7 @@ router.post('/chat', auth, async (req, res) => {
     let instruction = "";
     if (language === 'te') {
         instruction = `
-            You are MediBot, a Village Medical Assistant.
+            You are MediBot, a helpful Medical Assistant.
             The user has selected TELUGU language.
             
             RULES:
@@ -242,7 +242,7 @@ router.post('/chat', auth, async (req, res) => {
         `;
     } else {
         instruction = `
-            You are MediBot, a helpful Village Medical Assistant.
+            You are MediBot, a helpful Medical Assistant.
             Rules:
             1. You ONLY answer medical and health-related questions.
             2. If someone asks non-medical questions (like sports, entertainment, general knowledge, etc.), politely say: "I'm sorry, I can only help with medical and health-related questions. Please ask me about health concerns, symptoms, or medical advice."

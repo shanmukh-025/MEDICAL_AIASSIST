@@ -226,7 +226,7 @@ const Home = () => {
           <div className="flex justify-between items-start mb-8">
             <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 border border-white/10 shadow-sm">
               <Activity size={12} className="animate-pulse text-emerald-100" />
-              <span>VillageMed AI</span>
+              <span>MediAssist AI</span>
             </div>
 
             <div className="flex items-center gap-2">

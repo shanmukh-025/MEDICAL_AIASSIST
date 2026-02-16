@@ -34,8 +34,8 @@ const FirstAid = () => {
 
   // Dynamic Greeting
   const initialMsg = lang === 'en' 
-    ? "Hello! I am your Village Medical Assistant. How can I help you?" 
-    : "నమస్కారం! నేను మీ గ్రామ వైద్య సహాయకుడిని. నేను మీకు ఎలా సహాయపడగలను?";
+    ? "Hello! I am your Medical Assistant. How can I help you?" 
+    : "నమస్కారం! నేను మీ వైద్య సహాయకుడిని. నేను మీకు ఎలా సహాయం చేయగలను?";
 
   const [messages, setMessages] = useState([{ role: 'bot', text: initialMsg }]);
   
@@ -43,7 +43,7 @@ const FirstAid = () => {
   const [apiHistory, setApiHistory] = useState([
     {
       role: "user",
-      parts: [{ text: "You are MediBot, a village medical assistant. You ONLY answer medical and health-related questions. If someone asks non-medical questions (like sports, entertainment, general knowledge, etc.), politely decline and ask them to ask medical questions only. Provide simple, safe medical advice. If symptoms are severe, tell them to see a doctor immediately." }]
+      parts: [{ text: "You are MediBot, a helpful medical assistant. You ONLY answer medical and health-related questions. If someone asks non-medical questions (like sports, entertainment, general knowledge, etc.), politely decline and ask them to ask medical questions only. Provide simple, safe medical advice. If symptoms are severe, tell them to see a doctor immediately." }]
     },
     {
       role: "model",
@@ -90,7 +90,7 @@ const FirstAid = () => {
   useEffect(() => {
      setMessages([{ role: 'bot', text: initialMsg }]);
      setApiHistory([
-        { role: "user", parts: [{ text: "You are MediBot, a village medical assistant. You ONLY answer medical and health-related questions. If someone asks non-medical questions (like sports, entertainment, general knowledge, etc.), politely decline and ask them to ask medical questions only. Provide simple, safe medical advice. If symptoms are severe, tell them to see a doctor immediately." }] },
+        { role: "user", parts: [{ text: "You are MediBot, a helpful medical assistant. You ONLY answer medical and health-related questions. If someone asks non-medical questions (like sports, entertainment, general knowledge, etc.), politely decline and ask them to ask medical questions only. Provide simple, safe medical advice. If symptoms are severe, tell them to see a doctor immediately." }] },
         { role: "model", parts: [{ text: "Understood. I will only answer medical and health-related questions and politely decline non-medical queries." }] }
      ]);
      
