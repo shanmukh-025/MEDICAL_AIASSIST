@@ -459,29 +459,31 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null, f
   // --- 3. FETCH DATA (With Fallback) ---
   const fetchNearbyHospitals = async (lat, lng) => {
     setLoading(true);
-    try {
-      // Helper function to calculate distance between two points (Haversine formula)
-      const calculateDistance = (lat1, lon1, lat2, lon2) => {
-        const R = 6371; // Earth's radius in kilometers
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = 
-          Math.sin(dLat/2) * Math.sin(dLat/2) +
-          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-          Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        const distance = R * c; // Distance in km
-        return distance;
-      };
 
-      // STEP 1: Fetch registered hospitals from database
+    // Helper function to calculate distance between two points (Haversine formula)
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+      const R = 6371; // Earth's radius in kilometers
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const distance = R * c; // Distance in km
+      return distance;
+    };
+
+    // STEP 1: Fetch registered hospitals from database (independent try-catch)
+    let formattedRegistered = [];
+    try {
       const dbRes = await fetch(`${import.meta.env.VITE_API_BASE}/api/hospitals/registered`);
       const registeredHospitals = dbRes.ok ? await dbRes.json() : [];
       
-      console.log('📊 Fetched registered hospitals:', registeredHospitals);
+      console.log('📊 Fetched registered hospitals:', registeredHospitals.length);
       
       // Format registered hospitals WITH FULL PROFILE DATA and calculate distance
-      const formattedRegistered = registeredHospitals.map(h => {
+      formattedRegistered = registeredHospitals.map(h => {
         // Construct logo URL properly
         let logoUrl = null;
         if (h.logo) {
@@ -525,10 +527,20 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null, f
       .sort((a, b) => a.distanceValue - b.distanceValue);
       
       console.log(`✅ Filtered ${formattedRegistered.length} registered hospitals within 15km`);
-      
-      // STEP 2: Fetch nearby hospitals from OpenStreetMap
+
+      // Show registered hospitals immediately so user sees them right away
+      if (formattedRegistered.length > 0) {
+        setHospitals(formattedRegistered);
+      }
+    } catch (dbErr) {
+      console.warn("⚠️ Failed to fetch registered hospitals:", dbErr.message);
+    }
+
+    // STEP 2: Fetch nearby hospitals from OpenStreetMap (independent try-catch with timeout)
+    let osmHospitals = [];
+    try {
       const query = `
-        [out:json][timeout:25];
+        [out:json][timeout:10];
         (
           node["amenity"="hospital"](around:15000,${lat},${lng});
           way["amenity"="hospital"](around:15000,${lat},${lng});
@@ -537,14 +549,22 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null, f
         out center;
       `;
       
-      const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`);
+      // Add a client-side timeout so we don't wait forever for Overpass API
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s client timeout
+      
+      const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
       const data = await res.json();
       
-      let osmHospitals = [];
       if (data.elements && data.elements.length > 0) {
         osmHospitals = data.elements.map((place) => {
-          const placeLat = place.lat || place.center.lat;
-          const placeLng = place.lon || place.center.lon;
+          const placeLat = place.lat || place.center?.lat;
+          const placeLng = place.lon || place.center?.lon;
+          if (!placeLat || !placeLng) return null;
           const distanceKm = calculateDistance(lat, lng, placeLat, placeLng);
           
           return {
@@ -557,26 +577,25 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null, f
             distanceValue: distanceKm,
             isRegistered: false
           };
-        }).slice(0, 20);
+        }).filter(Boolean).slice(0, 20);
       }
-      
-      // STEP 3: Combine registered + OSM hospitals and sort by distance (nearest first)
-      const combinedHospitals = [...formattedRegistered, ...osmHospitals]
-        .sort((a, b) => (a.distanceValue || 999) - (b.distanceValue || 999));
-      
-      if (combinedHospitals.length === 0) {
-        toast(t.fallbackMsg, { icon: '⚠️' });
-        setHospitals(generateMockHospitals(lat, lng));
-      } else {
-        setHospitals(combinedHospitals);
-      }
-
-    } catch (err) {
-      console.warn("Map API Failed. Using Mock Data.");
-      setHospitals(generateMockHospitals(lat, lng));
-    } finally {
-      setLoading(false);
+    } catch (osmErr) {
+      // Overpass API failed or timed out — this is fine, we still have registered hospitals
+      console.warn("⚠️ OpenStreetMap API failed (this is okay, registered hospitals still shown):", osmErr.message);
     }
+    
+    // STEP 3: Combine registered + OSM hospitals and sort by distance (nearest first)
+    const combinedHospitals = [...formattedRegistered, ...osmHospitals]
+      .sort((a, b) => (a.distanceValue || 999) - (b.distanceValue || 999));
+    
+    if (combinedHospitals.length === 0) {
+      toast(t.fallbackMsg, { icon: '⚠️' });
+      setHospitals(generateMockHospitals(lat, lng));
+    } else {
+      setHospitals(combinedHospitals);
+    }
+
+    setLoading(false);
   };
 
   // --- SEARCH HOSPITAL CONTACT ---

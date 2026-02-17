@@ -134,8 +134,8 @@ router.get('/registered', async (req, res) => {
     const hospitals = await User.find(
       { 
         role: 'HOSPITAL',
-        'location.latitude': { $exists: true },
-        'location.longitude': { $exists: true }
+        'location.latitude': { $exists: true, $ne: null },
+        'location.longitude': { $exists: true, $ne: null }
       },
       {
         name: 1,
@@ -150,12 +150,14 @@ router.get('/registered', async (req, res) => {
         emergencyContact: 1,
         logo: 1  // Include logo field
       }
-    );
+    ).lean(); // Use lean() for faster read-only queries
     
+    // Set cache headers so the browser can cache results for 60 seconds
+    res.set('Cache-Control', 'public, max-age=60');
     res.json(hospitals);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('❌ Error fetching registered hospitals:', err.message);
+    res.status(500).json({ msg: 'Server Error', error: err.message });
   }
 });
 
