@@ -23,11 +23,15 @@ const TreatmentPlanSchema = new mongoose.Schema({
   medicines: [{
     name: { type: String, required: true },
     dosage: { type: String, required: true },       // e.g., "500mg"
+    // Support daily and weekly/custom schedules
     frequency: { 
       type: String, 
-      enum: ['once', 'twice', 'thrice', 'four-times'],
+      enum: ['once', 'twice', 'thrice', 'four-times', 'weekly', 'custom'],
       required: true 
     },
+    // If weekly, provide daysOfWeek (0=Sun .. 6=Sat). If custom, provide explicit dates or cron-like schedule in `customSchedule`.
+    daysOfWeek: [{ type: Number }],
+    customSchedule: { type: String }, // optional freeform schedule descriptor for special cases
     timings: [{ type: String }],                     // e.g., ["08:00", "14:00", "20:00"]
     duration: { type: Number, required: true },       // number of days
     instructions: {

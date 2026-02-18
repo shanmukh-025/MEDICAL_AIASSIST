@@ -863,9 +863,10 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
                   <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Treatment Duration (days)</label>
                   <input
                     type="number"
-                    min="1" max="90"
-                    value={treatmentForm.durationDays}
-                    onChange={e => setTreatmentForm(f => ({ ...f, durationDays: parseInt(e.target.value) || 7 }))}
+                    min="1" max="365"
+                    value={treatmentForm.durationDays === '' ? '' : treatmentForm.durationDays}
+                    onChange={e => setTreatmentForm(f => ({ ...f, durationDays: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                    onBlur={() => setTreatmentForm(f => ({ ...f, durationDays: Number(f.durationDays) || 7 }))}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400"
                   />
                 </div>
@@ -874,8 +875,9 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
                   <input
                     type="number"
                     min="1" max="10"
-                    value={treatmentForm.initialSeverity}
-                    onChange={e => setTreatmentForm(f => ({ ...f, initialSeverity: parseInt(e.target.value) || 5 }))}
+                    value={treatmentForm.initialSeverity === '' ? '' : treatmentForm.initialSeverity}
+                    onChange={e => setTreatmentForm(f => ({ ...f, initialSeverity: e.target.value === '' ? '' : parseInt(e.target.value) }))}
+                    onBlur={() => setTreatmentForm(f => ({ ...f, initialSeverity: Math.max(1, Math.min(10, Number(f.initialSeverity) || 5)) }))}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400"
                   />
                 </div>
@@ -922,6 +924,8 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
                         <option value="twice">Twice daily</option>
                         <option value="thrice">Thrice daily</option>
                         <option value="four-times">Four times daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="custom">Custom</option>
                       </select>
                     </div>
                     <div className="flex items-center gap-3 text-xs">
@@ -954,16 +958,45 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
                       <input
                         type="number"
                         min="1"
-                        value={med.duration}
+                        value={med.duration === '' ? '' : med.duration}
                         onChange={e => {
                           const newMeds = [...treatmentForm.medicines];
-                          newMeds[i].duration = parseInt(e.target.value) || 7;
+                          newMeds[i].duration = e.target.value === '' ? '' : parseInt(e.target.value);
+                          setTreatmentForm(f => ({ ...f, medicines: newMeds }));
+                        }}
+                        onBlur={() => {
+                          const newMeds = [...treatmentForm.medicines];
+                          newMeds[i].duration = Number(newMeds[i].duration) || Number(treatmentForm.durationDays) || 7;
                           setTreatmentForm(f => ({ ...f, medicines: newMeds }));
                         }}
                         className="w-16 px-2 py-1 border border-slate-200 rounded text-sm"
                         placeholder="Days"
                       />
                       <span className="text-slate-500">days</span>
+                      {/* Weekly / custom inputs */}
+                      {med.frequency === 'weekly' && (
+                        <div className="ml-2 flex gap-1">
+                          {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d, idx) => (
+                            <label key={d} className={`px-2 py-1 rounded border text-xs ${med.daysOfWeek && med.daysOfWeek.includes(idx) ? 'bg-indigo-50 border-indigo-300' : 'bg-white border-slate-200'}`}>
+                              <input type="checkbox" checked={med.daysOfWeek && med.daysOfWeek.includes(idx)} onChange={() => {
+                                const newMeds = [...treatmentForm.medicines];
+                                const arr = newMeds[i].daysOfWeek ? [...newMeds[i].daysOfWeek] : [];
+                                const pos = arr.indexOf(idx);
+                                if (pos === -1) arr.push(idx); else arr.splice(pos,1);
+                                newMeds[i].daysOfWeek = arr;
+                                setTreatmentForm(f => ({ ...f, medicines: newMeds }));
+                              }} className="mr-1" />{d}
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                      {med.frequency === 'custom' && (
+                        <input type="text" placeholder="Custom schedule" value={med.customSchedule || ''} onChange={e => {
+                          const newMeds = [...treatmentForm.medicines];
+                          newMeds[i].customSchedule = e.target.value;
+                          setTreatmentForm(f => ({ ...f, medicines: newMeds }));
+                        }} className="ml-2 px-2 py-1 text-xs border border-slate-200 rounded" />
+                      )}
                       {treatmentForm.medicines.length > 1 && (
                         <button
                           onClick={() => {
@@ -981,7 +1014,7 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
                 <button
                   onClick={() => setTreatmentForm(f => ({
                     ...f,
-                    medicines: [...f.medicines, { name: '', dosage: '', frequency: 'twice', duration: f.durationDays, timings: [], instructions: { beforeFood: false, afterFood: true, notes: '' } }]
+                    medicines: [...f.medicines, { name: '', dosage: '', frequency: 'twice', duration: Number(f.durationDays) || 7, timings: [], daysOfWeek: [], customSchedule: '', instructions: { beforeFood: false, afterFood: true, notes: '' } }]
                   }))}
                   className="text-sm text-indigo-600 font-semibold hover:text-indigo-800"
                 >
