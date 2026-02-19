@@ -52,6 +52,10 @@ app.use(cors({
     'http://127.0.0.1:5173',   // Dev Server (IP)
     'http://localhost:5174',   // Dev Server (alternate port)
     'http://127.0.0.1:5174',   // Dev Server (alternate port IP)
+    'http://localhost:5175',   // Dev Server (alternate port 2)
+    'http://127.0.0.1:5175',   // Dev Server (alternate port 2 IP)
+    'http://localhost:5176',   // Dev Server (current port)
+    'http://127.0.0.1:5176',   // Dev Server (current port IP)
     'http://localhost:4173',   // Preview/Build Server (PWA)
     'http://127.0.0.1:4173',   // Preview/Build Server (IP)
     'https://medical-aiassist.vercel.app'  // Production Frontend (Vercel)
@@ -90,6 +94,9 @@ app.use('/api/reminders', require('./routes/reminders'));
 app.use('/api/patient-records', require('./routes/patientRecords'));
 app.use('/api/call-logs', require('./routes/callLogs'));
 app.use('/api/patient-monitoring', require('./routes/patientMonitoring'));
+app.use('/api/emergency-monitoring', require('./routes/emergencyMonitoring'));
+app.use('/api/billing', require('./routes/billing'));          // Billing & Payments
+app.use('/api/discharge', require('./routes/discharge'));      // Discharge Summaries
 
 // 6. Test Route
 app.get('/', (req, res) => res.send('API is Running...'));

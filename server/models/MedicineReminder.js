@@ -16,9 +16,11 @@ const medicineReminderSchema = new mongoose.Schema({
   },
   frequency: {
     type: String,
-    enum: ['once', 'twice', 'thrice', 'four-times'],
+    enum: ['once', 'twice', 'thrice', 'four-times', 'weekly', 'custom'],
     required: true
   },
+  daysOfWeek: [{ type: Number }], // 0=Sun .. 6=Sat for weekly schedules
+  customSchedule: { type: String }, // freeform schedule descriptor for custom cases
   timings: [{
     type: String, // HH:MM format (e.g., "09:00", "14:00", "21:00")
     required: true

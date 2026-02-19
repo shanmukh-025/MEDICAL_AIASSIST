@@ -49,13 +49,25 @@ const startReminderScheduler = () => {
       const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      // Find all active reminders that need to be sent now
-      const reminders = await MedicineReminder.find({
+      // Find all active reminders that include this timing and whose duration covers today
+      let reminders = await MedicineReminder.find({
         isActive: true,
         'duration.startDate': { $lte: today },
         'duration.endDate': { $gte: today },
         timings: currentTime
       }).populate('userId', 'name phone');
+
+      // Filter reminders by frequency rules (support weekly schedules)
+      const weekday = now.getDay(); // 0 = Sun ... 6 = Sat
+      reminders = reminders.filter(r => {
+        // If weekly schedule, ensure today is included
+        if (r.frequency === 'weekly') {
+          if (!r.daysOfWeek || r.daysOfWeek.length === 0) return false;
+          return r.daysOfWeek.includes(weekday);
+        }
+        // For custom schedules we currently rely on timings and duration; keep it
+        return true;
+      });
 
       console.log(`⏰ [${currentTime}] Checking reminders... Found: ${reminders.length}`);
 

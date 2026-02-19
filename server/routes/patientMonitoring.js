@@ -27,17 +27,54 @@ router.post('/treatment-plan', auth, async (req, res) => {
       followUpRequired, followUpDays, followUpNotes,
       specialInstructions, initialSeverity
     } = req.body;
+    // Ensure patient exists. If not provided or not found, create a lightweight guest patient record.
+    let realPatientId = patientId;
+    if (!realPatientId) {
+      return res.status(400).json({ msg: 'patientId is required' });
+    }
+
+    let patient = await User.findById(realPatientId);
+    if (!patient) {
+      // Attempt to create a guest patient when name/phone provided
+      const { patientName, patientPhone } = req.body;
+      if (!patientName && !patientPhone) {
+        return res.status(404).json({ msg: 'Patient not found. Provide patientName or patientPhone to create a guest patient.' });
+      }
+
+      // Create a guest user with a synthetic email and random password
+      const randomPassword = Math.random().toString(36).slice(2, 10);
+      const bcrypt = require('bcryptjs');
+      const hashed = await bcrypt.hash(randomPassword, 10);
+      const syntheticEmail = `guest_${Date.now()}_${Math.floor(Math.random()*10000)}@noemail.local`;
+
+      const guest = new User({
+        name: patientName || `Guest Patient ${Date.now()}`,
+        email: syntheticEmail,
+        password: hashed,
+        role: 'PATIENT',
+        phone: patientPhone || ''
+      });
+      await guest.save();
+      patient = guest;
+      realPatientId = guest._id;
+      console.log(`✅ Created guest patient ${guest._id}`);
+    }
 
     // Calculate dates
     const startDate = new Date();
+    // Ensure durationDays is a sensible positive integer
+    const safeDuration = Math.max(1, Number(durationDays) || 7);
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() + (durationDays || 7));
+    endDate.setDate(endDate.getDate() + safeDuration);
 
     let followUpDate = null;
     if (followUpRequired && followUpDays) {
       followUpDate = new Date();
       followUpDate.setDate(followUpDate.getDate() + followUpDays);
     }
+
+    // Clamp initialSeverity between 1 and 10
+    const safeInitialSeverity = Math.max(1, Math.min(10, Number(initialSeverity) || 5));
 
     const plan = new TreatmentPlan({
       appointmentId,
@@ -53,7 +90,7 @@ router.post('/treatment-plan', auth, async (req, res) => {
       followUpDate,
       followUpNotes,
       specialInstructions,
-      initialSeverity: initialSeverity || 5,
+      initialSeverity: safeInitialSeverity,
       status: 'ACTIVE'
     });
 
@@ -93,9 +130,9 @@ router.post('/treatment-plan', auth, async (req, res) => {
     for (const med of (medicines || [])) {
       try {
         const medEndDate = new Date(startDate);
-        medEndDate.setDate(medEndDate.getDate() + (med.duration || durationDays || 7));
-
-        const reminder = new MedicineReminder({
+        medEndDate.setDate(medEndDate.getDate() + (med.duration || safeDuration));
+        // Build reminder object; support weekly/custom schedules
+        const reminderObj = {
           userId: patientId,
           medicineName: med.name,
           dosage: med.dosage || '',
@@ -118,7 +155,17 @@ router.post('/treatment-plan', auth, async (req, res) => {
           },
           treatmentPlanId: plan._id,
           isActive: true
-        });
+        };
+
+        // Attach weekly/custom fields if provided
+        if (med.daysOfWeek && Array.isArray(med.daysOfWeek) && med.daysOfWeek.length > 0) {
+          reminderObj.daysOfWeek = med.daysOfWeek.map(n => Number(n));
+        }
+        if (med.customSchedule) {
+          reminderObj.customSchedule = med.customSchedule;
+        }
+
+        const reminder = new MedicineReminder(reminderObj);
         await reminder.save();
         createdReminders.push(reminder);
       } catch (medErr) {

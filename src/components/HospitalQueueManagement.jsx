@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Users, Clock, PlayCircle, CheckCircle, RefreshCw, Calendar, UserPlus, AlertOctagon, Coffee, X, UserMinus, Bell } from 'lucide-react';
+import { Users, Clock, PlayCircle, CheckCircle, RefreshCw, Calendar, UserPlus, AlertOctagon, Coffee, X, UserMinus, Bell, Activity } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import EmergencyPatientMonitor from './EmergencyPatientMonitor';
 
 const API_URL = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
@@ -15,11 +16,13 @@ const HospitalQueueManagement = () => {
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [showDelayModal, setShowDelayModal] = useState(false);
   const [showBreakModal, setShowBreakModal] = useState(false);
+  const [showMonitorModal, setShowMonitorModal] = useState(false);
+  const [monitoringAppointmentId, setMonitoringAppointmentId] = useState(null);
   
   // Form states
   const [walkInName, setWalkInName] = useState('');
   const [walkInTime, setWalkInTime] = useState('');
-  const [emergencyForm, setEmergencyForm] = useState({ name: '', phone: '' });
+  const [emergencyForm, setEmergencyForm] = useState({ name: '', phone: '', chiefComplaint: '' });
   const [delayForm, setDelayForm] = useState({ minutes: 30, reason: '' });
   const [breakDuration, setBreakDuration] = useState(15);
 
@@ -107,6 +110,32 @@ const HospitalQueueManagement = () => {
   };
 
   // Feature 6: Emergency Priority Override
+  // Start monitoring for an emergency patient
+  const handleStartMonitoring = async (appointmentId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        `${API_URL}/api/emergency-monitoring/start/${appointmentId}`,
+        {},
+        { headers: { 'x-auth-token': token } }
+      );
+      
+      toast.success('✅ Patient monitoring started');
+      setMonitoringAppointmentId(appointmentId);
+      setShowMonitorModal(true);
+      fetchQueueData();
+    } catch (err) {
+      console.error('Start monitoring error:', err);
+      toast.error(err.response?.data?.msg || 'Failed to start monitoring');
+    }
+  };
+
+  // Open monitoring modal for existing monitoring
+  const handleOpenMonitor = (appointmentId) => {
+    setMonitoringAppointmentId(appointmentId);
+    setShowMonitorModal(true);
+  };
+
   const handleEmergencyInsertion = async () => {
     if (!emergencyForm.name.trim()) {
       toast.error('Please enter patient name');
@@ -141,7 +170,7 @@ const HospitalQueueManagement = () => {
         { duration: 5000 }
       );
       
-      setEmergencyForm({ name: '', phone: '' });
+      setEmergencyForm({ name: '', phone: '', chiefComplaint: '' });
       setShowEmergencyModal(false);
       fetchQueueData();
     } catch (err) {
@@ -491,6 +520,12 @@ const HospitalQueueManagement = () => {
                         {appt.status === 'EMERGENCY' && (
                           <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-bold">Emergency</span>
                         )}
+                        {/* Show monitoring status if enabled */}
+                        {appt.emergencyMonitoring?.enabled && (
+                          <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-xs font-bold flex items-center gap-1">
+                            <Activity size={10} /> Monitoring
+                          </span>
+                        )}
                         {appt.status === 'PENDING' && (
                           <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">Pending</span>
                         )}
@@ -527,6 +562,15 @@ const HospitalQueueManagement = () => {
                         >
                           <UserMinus size={14} /> No-Show
                         </button>
+                        {/* Monitor button for emergency patients */}
+                        {(appt.status === 'EMERGENCY' || appt.status === 'IN_PROGRESS') && (
+                          <button
+                            onClick={() => handleOpenMonitor(appt._id)}
+                            className="px-3 py-2 bg-orange-50 border border-orange-100 text-orange-600 rounded-xl font-semibold text-xs hover:bg-orange-100 transition flex items-center gap-1.5"
+                          >
+                            <Activity size={14} /> Monitor
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
@@ -613,6 +657,13 @@ const HospitalQueueManagement = () => {
                 value={emergencyForm.phone}
                 onChange={(e) => setEmergencyForm({ ...emergencyForm, phone: e.target.value })}
                 placeholder="Phone Number (optional)"
+                className="w-full border border-slate-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+              <input
+                type="text"
+                value={emergencyForm.chiefComplaint}
+                onChange={(e) => setEmergencyForm({ ...emergencyForm, chiefComplaint: e.target.value })}
+                placeholder="Chief Complaint (e.g., Chest pain, Difficulty breathing)"
                 className="w-full border border-slate-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
               <button
@@ -744,6 +795,22 @@ const HospitalQueueManagement = () => {
                 Schedule Break
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Emergency Patient Monitor Modal */}
+      {showMonitorModal && monitoringAppointmentId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <EmergencyPatientMonitor 
+              appointmentId={monitoringAppointmentId}
+              onClose={() => {
+                setShowMonitorModal(false);
+                setMonitoringAppointmentId(null);
+              }}
+              onMonitoringEnd={() => fetchQueueData()}
+            />
           </div>
         </div>
       )}
