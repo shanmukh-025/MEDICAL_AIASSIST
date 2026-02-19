@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Heart, Menu, X, LogOut, FileText, Activity, MessageCircle, User } from 'lucide-react';
+import { Heart, Menu, X, LogOut, FileText, Activity, MessageCircle, User, AlertTriangle } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 import { useBranding } from '../context/BrandingContext';
 
@@ -12,12 +12,14 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [userPhoto, setUserPhoto] = useState(null);
   const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
     // Load user data
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     setUserPhoto(user.photo);
     setUserName(user.name || 'User');
+    setUserRole(user.role || '');
     
     // Refresh branding on mount
     if (refreshBranding) {
@@ -78,6 +80,10 @@ const Navbar = () => {
                 <Link to="/wellness" className={navClass('/wellness')}><Activity size={16}/> Wellness</Link>
                 <Link to="/first-aid" className={navClass('/first-aid')}><MessageCircle size={16}/> Chatbot</Link>
                 <Link to="/records" className={navClass('/records')}><FileText size={16}/> Records</Link>
+                {/* Emergency Patient Records - Only for Hospital users */}
+                {userRole === 'HOSPITAL' && (
+                  <Link to="/hospital-dashboard?tab=MONITORING" className={navClass('/hospital-dashboard')}><AlertTriangle size={16}/> Emergency Records</Link>
+                )}
               </>
             )}
           </div>
@@ -104,6 +110,9 @@ const Navbar = () => {
             <Link to="/" className="block py-2">Home</Link>
             {token && <Link to="/wellness" className="block py-2">Wellness</Link>}
             {token && <Link to="/records" className="block py-2">Records</Link>}
+            {token && userRole === 'HOSPITAL' && (
+              <Link to="/hospital-dashboard?tab=MONITORING" className="block py-2 text-red-600 font-bold">🚨 Emergency Records</Link>
+            )}
             {token && <button onClick={handleLogout} className="block py-2 text-red-500">Logout</button>}
         </div>
       )}
