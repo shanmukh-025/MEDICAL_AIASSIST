@@ -95,6 +95,8 @@ app.use('/api/patient-records', require('./routes/patientRecords'));
 app.use('/api/call-logs', require('./routes/callLogs'));
 app.use('/api/patient-monitoring', require('./routes/patientMonitoring'));
 app.use('/api/emergency-monitoring', require('./routes/emergencyMonitoring'));
+app.use('/api/billing', require('./routes/billing'));
+app.use('/api/discharge', require('./routes/discharge'));
 
 // 6. Test Route
 app.get('/', (req, res) => res.send('API is Running...'));
