@@ -75,14 +75,17 @@ const Navbar = () => {
 
           <div className="hidden md:flex items-center gap-2">
             <Link to="/" className={navClass('/')}>Home</Link>
-            {token && (
+{token && (
               <>
                 <Link to="/wellness" className={navClass('/wellness')}><Activity size={16}/> Wellness</Link>
                 <Link to="/first-aid" className={navClass('/first-aid')}><MessageCircle size={16}/> Chatbot</Link>
                 <Link to="/records" className={navClass('/records')}><FileText size={16}/> Records</Link>
                 {/* Emergency Patient Records - Only for Hospital users */}
                 {userRole === 'HOSPITAL' && (
-                  <Link to="/hospital-dashboard?tab=MONITORING" className={navClass('/hospital-dashboard')}><AlertTriangle size={16}/> Emergency Records</Link>
+                  <>
+                    <Link to="/hospital-dashboard?tab=MONITORING" className={navClass('/hospital-dashboard')}><Activity size={16}/> Monitoring</Link>
+                    <Link to="/hospital-dashboard?tab=EMERGENCY_RECORDS" className={navClass('/hospital-dashboard')}><AlertTriangle size={16}/> Emergency Records</Link>
+                  </>
                 )}
               </>
             )}
@@ -108,10 +111,13 @@ const Navbar = () => {
       {isOpen && (
         <div className="md:hidden bg-white border-t p-4 space-y-2">
             <Link to="/" className="block py-2">Home</Link>
-            {token && <Link to="/wellness" className="block py-2">Wellness</Link>}
+{token && <Link to="/wellness" className="block py-2">Wellness</Link>}
             {token && <Link to="/records" className="block py-2">Records</Link>}
             {token && userRole === 'HOSPITAL' && (
-              <Link to="/hospital-dashboard?tab=MONITORING" className="block py-2 text-red-600 font-bold">🚨 Emergency Records</Link>
+              <>
+                <Link to="/hospital-dashboard?tab=MONITORING" className="block py-2">📊 Monitoring</Link>
+                <Link to="/hospital-dashboard?tab=EMERGENCY_RECORDS" className="block py-2 text-red-600 font-bold">🚨 Emergency Records</Link>
+              </>
             )}
             {token && <button onClick={handleLogout} className="block py-2 text-red-500">Logout</button>}
         </div>
