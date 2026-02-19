@@ -22,7 +22,7 @@ const HospitalQueueManagement = () => {
   // Form states
   const [walkInName, setWalkInName] = useState('');
   const [walkInTime, setWalkInTime] = useState('');
-  const [emergencyForm, setEmergencyForm] = useState({ name: '', phone: '', chiefComplaint: '', initialSeverity: 5 });
+  const [emergencyForm, setEmergencyForm] = useState({ name: '', phone: '', chiefComplaint: '' });
   const [delayForm, setDelayForm] = useState({ minutes: 30, reason: '' });
   const [breakDuration, setBreakDuration] = useState(15);
 
@@ -170,7 +170,7 @@ const HospitalQueueManagement = () => {
         { duration: 5000 }
       );
       
-      setEmergencyForm({ name: '', phone: '', chiefComplaint: '', initialSeverity: 5 });
+      setEmergencyForm({ name: '', phone: '', chiefComplaint: '' });
       setShowEmergencyModal(false);
       fetchQueueData();
     } catch (err) {
@@ -666,22 +666,6 @@ const HospitalQueueManagement = () => {
                 placeholder="Chief Complaint (e.g., Chest pain, Difficulty breathing)"
                 className="w-full border border-slate-300 px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
               />
-              <div>
-                <label className="block text-sm font-bold text-slate-600 mb-1">Initial Severity (1-10)</label>
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={emergencyForm.initialSeverity}
-                  onChange={(e) => setEmergencyForm({ ...emergencyForm, initialSeverity: parseInt(e.target.value) })}
-                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-                />
-                <div className="flex justify-between text-xs text-slate-500 mt-1">
-                  <span>1 - Minor</span>
-                  <span className="font-bold text-red-600">{emergencyForm.initialSeverity}</span>
-                  <span>10 - Critical</span>
-                </div>
-              </div>
               <button
                 onClick={handleEmergencyInsertion}
                 className="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700"
