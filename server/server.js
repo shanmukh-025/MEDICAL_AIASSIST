@@ -90,6 +90,7 @@ app.use('/api/reminders', require('./routes/reminders'));
 app.use('/api/patient-records', require('./routes/patientRecords'));
 app.use('/api/call-logs', require('./routes/callLogs'));
 app.use('/api/patient-monitoring', require('./routes/patientMonitoring'));
+app.use('/api/emergency-monitoring', require('./routes/emergencyMonitoring'));
 
 // 6. Test Route
 app.get('/', (req, res) => res.send('API is Running...'));

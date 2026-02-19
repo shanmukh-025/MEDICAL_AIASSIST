@@ -33,7 +33,44 @@ const AppointmentSchema = new mongoose.Schema({
   consultationEndTime: { type: Date },
   rejectionReason: { type: String },
   approvalMessage: { type: String },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+
+  // Emergency Patient Monitoring Fields
+  emergencyMonitoring: {
+    enabled: { type: Boolean, default: false },
+    startedAt: { type: Date },
+    endedAt: { type: Date },
+    initialSymptoms: { type: String },
+    initialSeverity: { type: Number, min: 1, max: 10 },
+    chiefComplaint: { type: String },
+    allergies: { type: String },
+    currentMedications: { type: String },
+    vitalSignsHistory: [{
+      recordedAt: { type: Date, default: Date.now },
+      bloodPressureSystolic: { type: Number },
+      bloodPressureDiastolic: { type: Number },
+      heartRate: { type: Number },
+      temperature: { type: Number },
+      respiratoryRate: { type: Number },
+      oxygenSaturation: { type: Number },
+      painLevel: { type: Number, min: 0, max: 10 },
+      consciousnessLevel: { type: String, enum: ['Alert', 'Voice', 'Pain', 'Unresponsive'] },
+      notes: { type: String },
+      recordedBy: { type: String }
+    }],
+    monitoringNotes: [{
+      note: { type: String },
+      addedAt: { type: Date, default: Date.now },
+      addedBy: { type: String }
+    }],
+    interventions: [{
+      intervention: { type: String },
+      time: { type: Date, default: Date.now },
+      result: { type: String }
+    }],
+    isCritical: { type: Boolean, default: false },
+    lastVitalUpdate: { type: Date }
+  }
 });
 
 module.exports = mongoose.model('Appointment', AppointmentSchema);
