@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft, Activity, Heart, Pill, Clock, TrendingUp, TrendingDown, 
-  Minus, AlertTriangle, CheckCircle, Calendar, ChevronRight, 
+import {
+  ArrowLeft, Activity, Heart, Pill, Clock, TrendingUp, TrendingDown,
+  Minus, AlertTriangle, CheckCircle, Calendar, ChevronRight,
   Thermometer, Star, Send, Bell, RefreshCw, Loader2, Stethoscope,
   Smile, Frown, Meh, ChevronDown, ChevronUp, Hospital, BellRing,
   Sun, Sunset, Moon, Coffee, Check
@@ -90,7 +90,7 @@ const PatientRecoveryTracker = () => {
       const res = await axios.get(`${API_URL}/api/patient-monitoring/my-medicine-schedule`, {
         headers: { 'x-auth-token': token }
       });
-      
+
       // If empty and we have active plans, try syncing reminders first
       if (res.data.length === 0 && autoSync && plans.length > 0) {
         try {
@@ -109,7 +109,7 @@ const PatientRecoveryTracker = () => {
           console.error('Auto-sync reminders failed:', syncErr);
         }
       }
-      
+
       setMedicineSchedule(res.data);
     } catch (err) {
       console.error('Failed to fetch medicine schedule:', err);
@@ -122,7 +122,7 @@ const PatientRecoveryTracker = () => {
   const markMedicineTaken = async (reminderId, timing) => {
     try {
       setMarkingTaken(reminderId + timing);
-      await axios.post(`${API_URL}/api/patient-monitoring/medicine-taken/${reminderId}`, 
+      await axios.post(`${API_URL}/api/patient-monitoring/medicine-taken/${reminderId}`,
         { timing },
         { headers: { 'x-auth-token': token } }
       );
@@ -139,7 +139,7 @@ const PatientRecoveryTracker = () => {
   const subscribeToPush = async () => {
     try {
       setPushRequesting(true);
-      
+
       // Check if browser supports notifications
       if (!('Notification' in window)) {
         toast.error('Your browser does not support notifications');
@@ -159,39 +159,17 @@ const PatientRecoveryTracker = () => {
         return;
       }
 
-      // Register our custom push service worker (separate from the PWA one)
-      let registration;
-      try {
-        registration = await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
-        // Wait for it to be active
-        if (registration.installing) {
-          await new Promise((resolve) => {
-            registration.installing.addEventListener('statechange', (e) => {
-              if (e.target.state === 'activated') resolve();
-            });
-          });
-        } else if (registration.waiting) {
-          await new Promise((resolve) => {
-            registration.waiting.addEventListener('statechange', (e) => {
-              if (e.target.state === 'activated') resolve();
-            });
-          });
-        }
-      } catch (regErr) {
-        console.error('SW registration failed:', regErr);
-        // Fall back to any existing service worker
-        registration = await navigator.serviceWorker.ready;
-      }
-      
-      // Get VAPID public key from server or env
-      const vapidRes = await axios.get(`${API_URL}/api/patient-monitoring/vapid-public-key`, {
-        headers: { 'x-auth-token': token }
-      }).catch(() => null);
-      
-      const vapidPublicKey = vapidRes?.data?.publicKey || import.meta.env.VITE_VAPID_PUBLIC_KEY;
-      
+      // Use the service worker already registered by Vite PWA plugin
+      const registration = await navigator.serviceWorker.ready;
+
+      // Get VAPID public key from env or server
+      let vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
       if (!vapidPublicKey) {
-        // Even without VAPID, we can still show in-app reminders
+        const vapidRes = await axios.get(`${API_URL}/api/notifications/vapid-key`).catch(() => null);
+        vapidPublicKey = vapidRes?.data?.publicKey;
+      }
+
+      if (!vapidPublicKey) {
         toast.success('In-app medicine reminders enabled!');
         setPushEnabled(true);
         return;
@@ -211,7 +189,7 @@ const PatientRecoveryTracker = () => {
 
       // Check for existing subscription first
       let subscription = await registration.pushManager.getSubscription();
-      
+
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
@@ -219,11 +197,17 @@ const PatientRecoveryTracker = () => {
         });
       }
 
-      // Send subscription to server
-      await axios.post(`${API_URL}/api/patient-monitoring/subscribe-push`,
+      // Save subscription globally (works for all notifications)
+      await axios.post(`${API_URL}/api/notifications/subscribe`,
         { subscription: subscription.toJSON() },
         { headers: { 'x-auth-token': token } }
       );
+
+      // Also save to patient-monitoring endpoint for backwards compatibility
+      await axios.post(`${API_URL}/api/patient-monitoring/subscribe-push`,
+        { subscription: subscription.toJSON() },
+        { headers: { 'x-auth-token': token } }
+      ).catch(() => { });
 
       setPushEnabled(true);
       toast.success('Push notifications enabled! You\'ll be reminded to take your medicines.');
@@ -243,13 +227,13 @@ const PatientRecoveryTracker = () => {
         // Auto re-subscribe to ensure server has latest subscription
         if ('serviceWorker' in navigator && token && medicineSchedule.length > 0) {
           try {
-            const registration = await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
+            const registration = await navigator.serviceWorker.ready;
             const existingSub = await registration.pushManager.getSubscription();
             if (existingSub) {
-              await axios.post(`${API_URL}/api/patient-monitoring/subscribe-push`,
+              await axios.post(`${API_URL}/api/notifications/subscribe`,
                 { subscription: existingSub.toJSON() },
                 { headers: { 'x-auth-token': token } }
-              ).catch(() => {});
+              ).catch(() => { });
             }
           } catch (e) {
             // Silent fail
@@ -326,7 +310,7 @@ const PatientRecoveryTracker = () => {
       );
 
       const { trend, needsDoctorAttention } = res.data;
-      
+
       if (needsDoctorAttention) {
         toast('Your doctor has been alerted about your symptoms. They will review your condition.', {
           icon: '🏥',
@@ -407,7 +391,7 @@ const PatientRecoveryTracker = () => {
     const scheduleTime = new Date();
     scheduleTime.setHours(parseInt(hr), parseInt(min), 0, 0);
     const diffMin = (scheduleTime - now) / (1000 * 60);
-    
+
     if (diffMin > 30) return 'upcoming';       // more than 30 min away
     if (diffMin > -15) return 'due';            // within window (-15 to +30 min)
     return 'past';                               // past due
@@ -474,17 +458,15 @@ const PatientRecoveryTracker = () => {
     const allTaken = totalDoses === takenDoses;
 
     return (
-      <div className={`rounded-2xl border-2 p-4 mb-4 ${
-        allTaken 
-          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300' 
+      <div className={`rounded-2xl border-2 p-4 mb-4 ${allTaken
+          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
           : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300'
-      }`}>
+        }`}>
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              allTaken ? 'bg-green-500' : 'bg-indigo-600'
-            }`}>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${allTaken ? 'bg-green-500' : 'bg-indigo-600'
+              }`}>
               <Pill size={20} className="text-white" />
             </div>
             <div>
@@ -496,7 +478,7 @@ const PatientRecoveryTracker = () => {
               </p>
             </div>
           </div>
-          
+
           {/* Push Notification Toggle */}
           {!pushEnabled ? (
             <button
@@ -532,38 +514,35 @@ const PatientRecoveryTracker = () => {
           {medicineSchedule.map((med, idx) => {
             const timingStatus = med.taken ? 'taken' : getTimingStatus(med.scheduledTime);
             const isMarking = markingTaken === med.reminderId + med.scheduledTime;
-            
+
             return (
               <div
                 key={`${med.reminderId}-${med.scheduledTime}-${idx}`}
-                className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
-                  med.taken 
-                    ? 'bg-green-50 border-green-200' 
+                className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${med.taken
+                    ? 'bg-green-50 border-green-200'
                     : timingStatus === 'due'
-                    ? 'bg-amber-50 border-amber-300 shadow-sm ring-1 ring-amber-200' 
-                    : timingStatus === 'past'
-                    ? 'bg-red-50 border-red-200'
-                    : 'bg-white border-slate-200'
-                }`}
+                      ? 'bg-amber-50 border-amber-300 shadow-sm ring-1 ring-amber-200'
+                      : timingStatus === 'past'
+                        ? 'bg-red-50 border-red-200'
+                        : 'bg-white border-slate-200'
+                  }`}
               >
                 {/* Time */}
                 <div className="flex flex-col items-center min-w-[52px]">
                   {getTimeIcon(med.scheduledTime)}
-                  <span className={`text-xs font-bold mt-0.5 ${
-                    med.taken ? 'text-green-600' :
-                    timingStatus === 'due' ? 'text-amber-700' :
-                    timingStatus === 'past' ? 'text-red-600' :
-                    'text-slate-600'
-                  }`}>
+                  <span className={`text-xs font-bold mt-0.5 ${med.taken ? 'text-green-600' :
+                      timingStatus === 'due' ? 'text-amber-700' :
+                        timingStatus === 'past' ? 'text-red-600' :
+                          'text-slate-600'
+                    }`}>
                     {getTimeLabel(med.scheduledTime)}
                   </span>
                 </div>
 
                 {/* Medicine Info */}
                 <div className="flex-1 min-w-0">
-                  <p className={`font-semibold text-sm truncate ${
-                    med.taken ? 'text-green-700 line-through' : 'text-slate-800'
-                  }`}>
+                  <p className={`font-semibold text-sm truncate ${med.taken ? 'text-green-700 line-through' : 'text-slate-800'
+                    }`}>
                     {med.medicineName}
                   </p>
                   <p className="text-xs text-slate-500 truncate">
@@ -584,13 +563,12 @@ const PatientRecoveryTracker = () => {
                   <button
                     onClick={() => markMedicineTaken(med.reminderId, med.scheduledTime)}
                     disabled={isMarking}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                      timingStatus === 'due'
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${timingStatus === 'due'
                         ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm animate-pulse'
                         : timingStatus === 'past'
-                        ? 'bg-red-500 text-white hover:bg-red-600'
-                        : 'bg-indigo-500 text-white hover:bg-indigo-600'
-                    }`}
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                      }`}
                   >
                     {isMarking ? (
                       <Loader2 size={12} className="animate-spin" />
@@ -668,18 +646,16 @@ const PatientRecoveryTracker = () => {
             <div className="p-4 border-b border-slate-100">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-full ${
-                    plan.status === 'ACTIVE' ? 'bg-green-500' :
-                    plan.status === 'FOLLOW_UP_NEEDED' ? 'bg-amber-500' :
-                    'bg-slate-400'
-                  }`} />
+                  <div className={`w-2.5 h-2.5 rounded-full ${plan.status === 'ACTIVE' ? 'bg-green-500' :
+                      plan.status === 'FOLLOW_UP_NEEDED' ? 'bg-amber-500' :
+                        'bg-slate-400'
+                    }`} />
                   <h4 className="font-bold text-slate-800">{plan.diagnosis}</h4>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                  plan.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
-                  plan.status === 'FOLLOW_UP_NEEDED' ? 'bg-amber-100 text-amber-700' :
-                  'bg-slate-100 text-slate-600'
-                }`}>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${plan.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                    plan.status === 'FOLLOW_UP_NEEDED' ? 'bg-amber-100 text-amber-700' :
+                      'bg-slate-100 text-slate-600'
+                  }`}>
                   {plan.status === 'FOLLOW_UP_NEEDED' ? 'Follow-up Needed' : plan.status}
                 </span>
               </div>
@@ -704,11 +680,10 @@ const PatientRecoveryTracker = () => {
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2.5">
                 <div
-                  className={`h-2.5 rounded-full transition-all ${
-                    plan.completionPercentage >= 100 ? 'bg-green-500' :
-                    plan.completionPercentage >= 60 ? 'bg-blue-500' :
-                    'bg-indigo-500'
-                  }`}
+                  className={`h-2.5 rounded-full transition-all ${plan.completionPercentage >= 100 ? 'bg-green-500' :
+                      plan.completionPercentage >= 60 ? 'bg-blue-500' :
+                        'bg-indigo-500'
+                    }`}
                   style={{ width: `${plan.completionPercentage}%` }}
                 />
               </div>
@@ -775,7 +750,7 @@ const PatientRecoveryTracker = () => {
         <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-5 text-white">
           <h3 className="text-xl font-bold mb-1">{plan.diagnosis}</h3>
           <p className="text-indigo-200 text-sm mb-3">Dr. {plan.doctorName} • {plan.hospitalId?.name}</p>
-          
+
           <div className="grid grid-cols-4 gap-3 mt-3">
             <div className="bg-white/15 rounded-xl p-2.5 text-center">
               <p className="text-xs text-indigo-200">Day</p>
@@ -836,7 +811,7 @@ const PatientRecoveryTracker = () => {
               <Calendar size={16} className="text-blue-600" /> Follow-up Visit
             </h4>
             <p className="text-blue-700 text-sm">
-              {plan.followUpDate 
+              {plan.followUpDate
                 ? `Scheduled around ${new Date(plan.followUpDate).toLocaleDateString()}`
                 : 'Follow-up recommended after treatment completion'}
             </p>
@@ -865,12 +840,11 @@ const PatientRecoveryTracker = () => {
                   <div key={i} className="flex-1 flex flex-col items-center gap-1">
                     <span className="text-[10px] text-slate-500">{point.severity}</span>
                     <div
-                      className={`w-full rounded-t-sm transition-all ${
-                        point.severity <= 3 ? 'bg-green-400' :
-                        point.severity <= 5 ? 'bg-yellow-400' :
-                        point.severity <= 7 ? 'bg-orange-400' :
-                        'bg-red-400'
-                      }`}
+                      className={`w-full rounded-t-sm transition-all ${point.severity <= 3 ? 'bg-green-400' :
+                          point.severity <= 5 ? 'bg-yellow-400' :
+                            point.severity <= 7 ? 'bg-orange-400' :
+                              'bg-red-400'
+                        }`}
                       style={{ height: `${(point.severity / 10) * 100}%` }}
                     />
                     <span className="text-[10px] text-slate-400">D{point.day}</span>
@@ -936,11 +910,10 @@ const PatientRecoveryTracker = () => {
               <button
                 key={opt.value}
                 onClick={() => setLogForm(f => ({ ...f, overallFeeling: opt.value }))}
-                className={`flex flex-col items-center p-2.5 rounded-xl border-2 transition text-center ${
-                  logForm.overallFeeling === opt.value
+                className={`flex flex-col items-center p-2.5 rounded-xl border-2 transition text-center ${logForm.overallFeeling === opt.value
                     ? 'border-indigo-500 bg-indigo-50'
                     : 'border-slate-200 hover:border-slate-300'
-                }`}
+                  }`}
               >
                 <span className="text-2xl">{opt.emoji}</span>
                 <span className="text-[10px] font-semibold text-slate-600 mt-1">{opt.label}</span>
@@ -1031,9 +1004,8 @@ const PatientRecoveryTracker = () => {
                         newMeds[i].taken = true;
                         setLogForm(f => ({ ...f, medicinesTaken: newMeds }));
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                        med.taken ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-600 hover:bg-green-100'
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${med.taken ? 'bg-green-500 text-white' : 'bg-slate-200 text-slate-600 hover:bg-green-100'
+                        }`}
                     >
                       ✓ Taken
                     </button>
@@ -1045,9 +1017,8 @@ const PatientRecoveryTracker = () => {
                         newMeds[i].skippedReason = reason || '';
                         setLogForm(f => ({ ...f, medicinesTaken: newMeds }));
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                        !med.taken ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-600 hover:bg-red-100'
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${!med.taken ? 'bg-red-500 text-white' : 'bg-slate-200 text-slate-600 hover:bg-red-100'
+                        }`}
                     >
                       ✗ Skipped
                     </button>
@@ -1224,10 +1195,10 @@ const PatientRecoveryTracker = () => {
 // Log Entry Card (collapsible)
 const LogEntryCard = ({ log, feeling, getSeverityColor, getTrendIcon }) => {
   const [expanded, setExpanded] = useState(false);
-  
+
   return (
     <div className="bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
-      <button 
+      <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between p-3 hover:bg-slate-100 transition"
       >
@@ -1254,7 +1225,7 @@ const LogEntryCard = ({ log, feeling, getSeverityColor, getTrendIcon }) => {
           {expanded ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
         </div>
       </button>
-      
+
       {expanded && (
         <div className="px-3 pb-3 space-y-2 border-t border-slate-100">
           {/* Adherence */}
@@ -1264,7 +1235,7 @@ const LogEntryCard = ({ log, feeling, getSeverityColor, getTrendIcon }) => {
               {log.medicineAdherence}%
             </span>
           </div>
-          
+
           {/* Symptoms */}
           {log.symptoms?.length > 0 && (
             <div>
@@ -1278,7 +1249,7 @@ const LogEntryCard = ({ log, feeling, getSeverityColor, getTrendIcon }) => {
               </div>
             </div>
           )}
-          
+
           {/* Side effects */}
           {log.sideEffects?.length > 0 && (
             <div>

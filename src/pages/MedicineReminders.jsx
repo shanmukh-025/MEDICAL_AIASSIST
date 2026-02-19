@@ -128,23 +128,33 @@ const MedicineReminders = () => {
       if (permission === 'granted') {
         setPushEnabled(true);
         toast.success(t.pushEnabled);
-        
-        // Register service worker and subscribe to push
-        const registration = await navigator.serviceWorker.register('/service-worker.js');
+
+        // Use the service worker already registered by Vite PWA plugin
+        const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY
         });
 
-        // Send subscription to backend
+        const token = localStorage.getItem('token');
+        const headers = {
+          'Content-Type': 'application/json',
+          'x-auth-token': token
+        };
+
+        // Save to per-reminder endpoint
         await fetch(`${import.meta.env.VITE_API_BASE}/api/reminders/subscribe`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
+          headers,
           body: JSON.stringify({ subscription })
         });
+
+        // Also save globally so queue/appointment push works too
+        await fetch(`${import.meta.env.VITE_API_BASE}/api/notifications/subscribe`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ subscription: subscription.toJSON() })
+        }).catch(() => { }); // Non-critical if this fails
       } else {
         toast.error(t.pushBlocked);
       }
@@ -578,7 +588,7 @@ const MedicineReminders = () => {
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-emerald-800">{reminder.medicineName}</h3>
                     <p className="text-gray-600">{reminder.dosage}</p>
-                    
+
                     <div className="mt-2 flex flex-wrap gap-2">
                       {reminder.timings.map((time, index) => (
                         <span key={index} className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-sm">

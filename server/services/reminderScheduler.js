@@ -72,7 +72,7 @@ const startReminderScheduler = () => {
 const sendReminder = async (reminder, currentTime) => {
   try {
     const messages = reminder.notifications.language === 'te' ? teluguMessages : englishMessages;
-    
+
     // Build notification message
     let instructionText = '';
     if (reminder.instructions.beforeFood) {
@@ -87,41 +87,53 @@ const sendReminder = async (reminder, currentTime) => {
     const notificationBody = `${reminder.medicineName} - ${reminder.dosage}${instructionText ? '\n' + instructionText : ''}`;
 
     // 1. Send Push Notification
-    if (reminder.notifications.push && reminder.pushSubscription) {
+    if (reminder.notifications.push) {
       try {
-        const payload = JSON.stringify({
-          title: messages.reminder,
-          body: notificationBody,
-          icon: '/icon-192x192.png',
-          badge: '/badge-72x72.png',
-          tag: `medicine-${reminder._id}-${currentTime}`,
-          data: {
-            reminderId: reminder._id.toString(),
-            timing: currentTime,
-            url: '/recovery-tracker',
-            voice: reminder.notifications.voice,
-            language: reminder.notifications.language
-          },
-          actions: [
-            { action: 'taken', title: reminder.notifications.language === 'te' ? 'తీసుకున్నాను' : 'Taken' },
-            { action: 'snooze', title: reminder.notifications.language === 'te' ? '10 నిమిషాలు ఆలస్యం' : 'Snooze 10min' }
-          ]
-        });
+        // Try per-reminder subscription first, then fall back to user-level subscription
+        let subscription = reminder.pushSubscription;
+        if (!subscription?.endpoint) {
+          const userDoc = await User.findById(reminder.userId._id || reminder.userId).select('pushSubscription');
+          subscription = userDoc?.pushSubscription;
+        }
 
-        await webpush.sendNotification(reminder.pushSubscription, payload);
-        console.log(`✅ Push notification sent to ${reminder.userId.name}`);
+        if (subscription?.endpoint) {
+          const payload = JSON.stringify({
+            title: messages.reminder,
+            body: notificationBody,
+            icon: '/icon-192x192.png',
+            badge: '/badge-72x72.png',
+            tag: `medicine-${reminder._id}-${currentTime}`,
+            requireInteraction: true,
+            data: {
+              reminderId: reminder._id.toString(),
+              timing: currentTime,
+              url: '/recovery-tracker',
+              voice: reminder.notifications.voice,
+              language: reminder.notifications.language
+            },
+            actions: [
+              { action: 'taken', title: reminder.notifications.language === 'te' ? 'తీసుకున్నాను' : '✅ Taken' },
+              { action: 'snooze', title: reminder.notifications.language === 'te' ? '10 నిమిషాలు ఆలస్యం' : '⏰ Snooze 10min' }
+            ]
+          });
 
-        // Log to history
-        reminder.history.push({
-          scheduledTime: new Date(),
-          sentAt: new Date(),
-          status: 'sent',
-          method: 'push',
-          timingSlot: currentTime
-        });
+          await webpush.sendNotification(subscription, payload);
+          console.log(`✅ Push notification sent to ${reminder.userId.name}`);
+
+          // Log to history
+          reminder.history.push({
+            scheduledTime: new Date(),
+            sentAt: new Date(),
+            status: 'sent',
+            method: 'push',
+            timingSlot: currentTime
+          });
+        } else {
+          console.log(`⚠️ No push subscription for ${reminder.userId.name} — skipping push`);
+        }
       } catch (pushError) {
         console.error('❌ Push notification failed:', pushError);
-        
+
         // If push fails, try SMS fallback
         if (reminder.notifications.sms && reminder.userId.phone) {
           await sendSMS(reminder, notificationBody);
@@ -140,7 +152,7 @@ const sendReminder = async (reminder, currentTime) => {
         const familyMessage = reminder.notifications.language === 'te'
           ? `${reminder.userId.name} కు మందు తీసుకునే సమయం వచ్చింది: ${reminder.medicineName}`
           : `Reminder: ${reminder.userId.name} needs to take ${reminder.medicineName}`;
-        
+
         // Send SMS to family member
         // await sendSMS({ userId: { phone: contact.phone } }, familyMessage);
         console.log(`👨‍👩‍👧 Family alert sent to ${contact.name}: ${contact.phone}`);
@@ -158,7 +170,7 @@ const sendSMS = async (reminder, message) => {
   try {
     // Placeholder for SMS integration
     // You can use Twilio, MSG91, or any Indian SMS gateway
-    
+
     /*
     const twilio = require('twilio');
     const client = twilio(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
@@ -171,7 +183,7 @@ const sendSMS = async (reminder, message) => {
     */
 
     console.log(`📱 SMS sent to ${reminder.userId.phone}: ${message}`);
-    
+
     reminder.history.push({
       scheduledTime: new Date(),
       sentAt: new Date(),

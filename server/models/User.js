@@ -81,6 +81,14 @@ const UserSchema = new mongoose.Schema({
     upiId: { type: String, default: null },
     accountName: { type: String, default: null }
   },
+  // Push notification subscription (Web Push API)
+  pushSubscription: {
+    endpoint: String,
+    keys: {
+      p256dh: String,
+      auth: String
+    }
+  },
   date: {
     type: Date,
     default: Date.now

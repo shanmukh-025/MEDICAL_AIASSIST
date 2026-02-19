@@ -78,16 +78,19 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
+  const data = event.notification.data || {};
+  const targetUrl = data.url || '/';
+
   if (event.action === 'taken') {
     // Mark medicine as taken via patient-monitoring API
-    const reminderId = event.notification.data.reminderId;
-    const timing = event.notification.data.timing;
+    const reminderId = data.reminderId;
+    const timing = data.timing;
     event.waitUntil(
       fetch(`/api/patient-monitoring/medicine-taken/${reminderId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-auth-token': event.notification.data.token || ''
+          'x-auth-token': data.token || ''
         },
         body: JSON.stringify({ timing: timing || '' })
       }).catch(err => console.error('Failed to mark taken:', err))
@@ -100,13 +103,24 @@ self.addEventListener('notificationclick', (event) => {
         icon: event.notification.icon,
         badge: event.notification.badge,
         vibrate: [200, 100, 200],
-        requireInteraction: true
+        requireInteraction: true,
+        data: data
       });
     }, 10 * 60 * 1000); // 10 minutes
   } else {
-    // Open app
+    // Default: Open app or focus existing window
     event.waitUntil(
-      clients.openWindow(event.notification.data.url || '/')
+      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+        // Try to focus an existing window
+        for (const client of windowClients) {
+          if (client.url.includes(self.location.origin)) {
+            client.navigate(targetUrl);
+            return client.focus();
+          }
+        }
+        // No existing window — open new one
+        return clients.openWindow(targetUrl);
+      })
     );
   }
 });
@@ -120,7 +134,7 @@ function playVoiceNotification(text, language) {
     utterance.lang = language === 'te' ? 'te-IN' : 'en-US';
     utterance.rate = 0.9; // Slightly slower for clarity
     utterance.volume = 1.0;
-    
+
     // Play the voice notification
     if ('speechSynthesis' in self) {
       self.speechSynthesis.speak(utterance);

@@ -4,7 +4,7 @@ import { Toaster } from 'react-hot-toast';
 
 // Contexts
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { LanguageProvider } from './context/LanguageContext'; 
+import { LanguageProvider } from './context/LanguageContext';
 import { SocketProvider } from './context/SocketContext';
 import { BrandingProvider } from './context/BrandingContext';
 
@@ -14,6 +14,7 @@ import OfflineIndicator from './components/OfflineIndicator'; // Import the offl
 import PWAInstallPrompt from './components/PWAInstallPrompt'; // PWA install prompt
 import VoiceAssistant from './components/VoiceAssistant'; // Voice assistant
 import IncomingCallGlobal from './components/IncomingCallGlobal'; // Global incoming call handler
+import PushNotificationPrompt from './components/PushNotificationPrompt'; // Push notification prompt
 
 // Pages
 import Home from './pages/Home';
@@ -42,13 +43,13 @@ import PatientBilling from './pages/PatientBilling'; // Patient Billing & Discha
 const ConditionalVoiceAssistant = () => {
   const { user } = useAuth();
   const location = useLocation();
-  
+
   // Don't show on login/register pages
   const publicPaths = ['/login', '/register'];
   if (publicPaths.includes(location.pathname) || !user) {
     return null;
   }
-  
+
   return <VoiceAssistant />;
 };
 
@@ -59,51 +60,54 @@ function App() {
         <BrandingProvider>
           <SocketProvider>
             <Router>
-            <div className="App min-h-screen bg-slate-50">
-              {/* Global Toaster for Notifications */}
-              <Toaster position="top-center" />
-              
-              {/* Offline Indicator - Shows when internet is lost */}
-              <OfflineIndicator /> 
-              
-              {/* PWA Install Prompt */}
-              <PWAInstallPrompt />
-              
-              {/* Voice Assistant - Only show when authenticated */}
-              <ConditionalVoiceAssistant />
-              
-              {/* Global Incoming Call Handler - For patients receiving calls from hospitals */}
-              <IncomingCallGlobal />
-              
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
+              <div className="App min-h-screen bg-slate-50">
+                {/* Global Toaster for Notifications */}
+                <Toaster position="top-center" />
 
-                {/* Protect the root/dashboard route */}
-                <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
-                
-                {/* Protected Routes (Require Login) */}
-                <Route path="/wellness" element={<PrivateRoute><Wellness /></PrivateRoute>} />
-                <Route path="/first-aid" element={<PrivateRoute><FirstAid /></PrivateRoute>} />
-                <Route path="/records" element={<PrivateRoute><HealthRecords /></PrivateRoute>} />
-                <Route path="/family" element={<PrivateRoute><FamilyProfile /></PrivateRoute>} />
-                <Route path="/reminders" element={<PrivateRoute><Reminders /></PrivateRoute>} />
-                <Route path="/scan" element={<PrivateRoute><Scan /></PrivateRoute>} />
-                <Route path="/analytics" element={<Navigate to="/symptom-analysis" replace />} />
-                <Route path="/appointments" element={<PrivateRoute><Appointments /></PrivateRoute>} />
-                <Route path="/patient-appointments" element={<PrivateRoute><PatientAppointments /></PrivateRoute>} />
-                <Route path="/queue-dashboard" element={<PrivateRoute><QueueDashboard /></PrivateRoute>} />
-                <Route path="/hospital-dashboard" element={<PrivateRoute><HospitalDashboard /></PrivateRoute>} />
-                <Route path="/hospital-branding" element={<PrivateRoute><HospitalBranding /></PrivateRoute>} />
-                <Route path="/result/:medicineName" element={<PrivateRoute><Result /></PrivateRoute>} />
-                <Route path="/doctors" element={<PrivateRoute><Doctors /></PrivateRoute>} />
-                <Route path="/symptom-analysis" element={<PrivateRoute><SymptomAnalysis /></PrivateRoute>} />
-                <Route path="/family-health-analysis" element={<PrivateRoute><FamilyHealthAnalysis /></PrivateRoute>} />
-                <Route path="/recovery-tracker" element={<PrivateRoute><PatientRecoveryTracker /></PrivateRoute>} />
-                <Route path="/my-bills" element={<PrivateRoute><PatientBilling /></PrivateRoute>} />
-              </Routes>
-            </div>
+                {/* Offline Indicator - Shows when internet is lost */}
+                <OfflineIndicator />
+
+                {/* PWA Install Prompt */}
+                <PWAInstallPrompt />
+
+                {/* Voice Assistant - Only show when authenticated */}
+                <ConditionalVoiceAssistant />
+
+                {/* Global Incoming Call Handler - For patients receiving calls from hospitals */}
+                <IncomingCallGlobal />
+
+                {/* Push Notification Prompt - Shows when user hasn't enabled push yet */}
+                <PushNotificationPrompt />
+
+                <Routes>
+                  {/* Public Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+
+                  {/* Protect the root/dashboard route */}
+                  <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+
+                  {/* Protected Routes (Require Login) */}
+                  <Route path="/wellness" element={<PrivateRoute><Wellness /></PrivateRoute>} />
+                  <Route path="/first-aid" element={<PrivateRoute><FirstAid /></PrivateRoute>} />
+                  <Route path="/records" element={<PrivateRoute><HealthRecords /></PrivateRoute>} />
+                  <Route path="/family" element={<PrivateRoute><FamilyProfile /></PrivateRoute>} />
+                  <Route path="/reminders" element={<PrivateRoute><Reminders /></PrivateRoute>} />
+                  <Route path="/scan" element={<PrivateRoute><Scan /></PrivateRoute>} />
+                  <Route path="/analytics" element={<Navigate to="/symptom-analysis" replace />} />
+                  <Route path="/appointments" element={<PrivateRoute><Appointments /></PrivateRoute>} />
+                  <Route path="/patient-appointments" element={<PrivateRoute><PatientAppointments /></PrivateRoute>} />
+                  <Route path="/queue-dashboard" element={<PrivateRoute><QueueDashboard /></PrivateRoute>} />
+                  <Route path="/hospital-dashboard" element={<PrivateRoute><HospitalDashboard /></PrivateRoute>} />
+                  <Route path="/hospital-branding" element={<PrivateRoute><HospitalBranding /></PrivateRoute>} />
+                  <Route path="/result/:medicineName" element={<PrivateRoute><Result /></PrivateRoute>} />
+                  <Route path="/doctors" element={<PrivateRoute><Doctors /></PrivateRoute>} />
+                  <Route path="/symptom-analysis" element={<PrivateRoute><SymptomAnalysis /></PrivateRoute>} />
+                  <Route path="/family-health-analysis" element={<PrivateRoute><FamilyHealthAnalysis /></PrivateRoute>} />
+                  <Route path="/recovery-tracker" element={<PrivateRoute><PatientRecoveryTracker /></PrivateRoute>} />
+                  <Route path="/my-bills" element={<PrivateRoute><PatientBilling /></PrivateRoute>} />
+                </Routes>
+              </div>
             </Router>
           </SocketProvider>
         </BrandingProvider>

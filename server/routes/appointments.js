@@ -5,6 +5,7 @@ const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const BillingService = require('../services/BillingService');
+const { notifyQueueAssigned, notifyQueueCalledIn, notifyQueueApproaching, notifyAppointmentUpdate } = require('../services/pushNotificationService');
 
 // GET /api/appointments -> Generic endpoint for both patients and hospitals
 router.get('/', auth, async (req, res) => {
@@ -15,15 +16,15 @@ router.get('/', auth, async (req, res) => {
     let appts;
     if (caller.role === 'HOSPITAL') {
       // Hospitals see their pending appointments
-      appts = await Appointment.find({ 
+      appts = await Appointment.find({
         hospitalId: caller._id,
-        status: 'PENDING' 
+        status: 'PENDING'
       }).sort({ createdAt: -1 });
     } else {
       // Patients see all their appointments
       appts = await Appointment.find({ patientId: caller._id }).sort({ createdAt: -1 });
     }
-    
+
     res.json(appts);
   } catch (err) {
     console.error(err.message);
@@ -43,13 +44,13 @@ router.post('/', auth, async (req, res) => {
     // Find hospital user by name (case-insensitive) or create if doesn't exist
     let hospitalUser = null;
     let hospitalId = null;
-    
+
     if (hospitalName) {
-      hospitalUser = await User.findOne({ 
+      hospitalUser = await User.findOne({
         name: { $regex: new RegExp(`^${hospitalName}$`, 'i') },
-        role: 'HOSPITAL' 
+        role: 'HOSPITAL'
       });
-      
+
       if (hospitalUser) {
         hospitalId = hospitalUser._id;
       }
@@ -75,7 +76,7 @@ router.post('/', auth, async (req, res) => {
       // Find emergency appointments created in the last 90 minutes (emergency impact window)
       const now = new Date();
       const emergencyWindowStart = new Date(now.getTime() - 90 * 60 * 1000); // 90 minutes ago
-      
+
       const activeEmergency = await Appointment.findOne({
         hospitalId: hospitalId,
         appointmentDate,
@@ -83,7 +84,7 @@ router.post('/', auth, async (req, res) => {
         type: 'EMERGENCY',
         createdAt: { $gte: emergencyWindowStart } // Only emergencies from last 90 mins
       }).sort({ createdAt: -1 });
-      
+
       if (activeEmergency) {
         // Emergency exists and was created recently
         // Now check if user's booking time falls within the emergency impact period
@@ -92,7 +93,7 @@ router.post('/', auth, async (req, res) => {
             const emergencyTime = new Date(activeEmergency.createdAt);
             const emergencyEndTime = new Date(emergencyTime.getTime() + 90 * 60 * 1000); // Emergency affects next 90 mins
             const bookingDateTime = new Date(`${appointmentDate}T${appointmentTime}`);
-            
+
             // Only show warning if booking time is within emergency impact window
             // i.e., booking is between emergency start and emergency end (start + 90 mins)
             if (bookingDateTime >= emergencyTime && bookingDateTime <= emergencyEndTime) {
@@ -133,11 +134,11 @@ router.get('/patient', auth, async (req, res) => {
   try {
     const caller = await User.findById(req.user.id).select('-password');
     if (!caller || caller.role !== 'PATIENT') return res.status(403).json({ msg: 'Access denied' });
-    
+
     const appts = await Appointment.find({ patientId: caller._id })
       .sort({ createdAt: -1 })
       .populate('hospitalId', 'name phone address');
-    
+
     // Enhance appointments with hospital phone if available
     const enhancedAppts = appts.map(appt => {
       const apptObj = appt.toObject();
@@ -146,7 +147,7 @@ router.get('/patient', auth, async (req, res) => {
       }
       return apptObj;
     });
-    
+
     res.json(enhancedAppts);
   } catch (err) {
     console.error(err.message);
@@ -159,18 +160,18 @@ router.get('/hospital', auth, async (req, res) => {
   try {
     const caller = await User.findById(req.user.id).select('-password');
     if (!caller || caller.role !== 'HOSPITAL') return res.status(403).json({ msg: 'Access denied' });
-    
+
     // Find appointments by both hospitalId and hospital name
-    const appts = await Appointment.find({ 
+    const appts = await Appointment.find({
       $or: [
         { hospitalId: caller._id },
         { hospitalName: caller.name }
       ],
-      status: { $in: ['PENDING', 'CONFIRMED', 'COMPLETED', 'CHECKED_IN', 'IN_PROGRESS'] } 
+      status: { $in: ['PENDING', 'CONFIRMED', 'COMPLETED', 'CHECKED_IN', 'IN_PROGRESS'] }
     }).sort({ createdAt: -1 }).populate('patientId', 'name email');
-    
+
     console.log(`Hospital ${caller.name} has ${appts.length} appointments`);
-    
+
     res.json(appts);
   } catch (err) {
     console.error(err.message);
@@ -197,29 +198,36 @@ router.put('/:id/approve', auth, async (req, res) => {
         appointmentDate: appt.appointmentDate,
         queueNumber: { $exists: true }
       }).sort({ queueNumber: -1 });
-      
+
       appt.queueNumber = lastAppt ? lastAppt.queueNumber + 1 : 1;
       appt.tokenNumber = `${appt.appointmentDate.replace(/-/g, '')}-${String(appt.queueNumber).padStart(3, '0')}`;
     }
 
     appt.status = 'CONFIRMED';
     appt.approvalMessage = message || '';
-    
+
     // Auto check-in if appointment is for today
     const today = new Date().toISOString().split('T')[0];
     if (appt.appointmentDate === today) {
       appt.status = 'CHECKED_IN';
     }
-    
+
     await appt.save();
-    
+
     // Queue number already assigned - no need to re-sort
 
-    // notify patient
+    // notify patient (socket + push)
     const msg = `Your appointment on ${appt.appointmentDate} at ${appt.appointmentTime} has been CONFIRMED. Your queue number is #${appt.queueNumber}. ${message || ''}`;
     await Notification.create({ userId: appt.patientId, message: msg, type: 'APPOINTMENT' });
     const io = req.app.get('io');
     if (io) io.to(`user_${appt.patientId}`).emit('notification', { message: msg, apptId: appt._id, status: 'CONFIRMED', queueNumber: appt.queueNumber });
+
+    // Push notification (works even when app is closed)
+    notifyQueueAssigned(appt.patientId, {
+      queueNumber: appt.queueNumber,
+      hospitalName: appt.hospitalName || caller.name,
+      appointmentTime: appt.appointmentTime
+    }).catch(err => console.warn('Push notify failed:', err.message));
 
     res.json({ success: true, appt });
   } catch (err) {
@@ -243,11 +251,17 @@ router.put('/:id/reject', auth, async (req, res) => {
     appt.rejectionReason = reason || '';
     await appt.save();
 
-    // notify patient
+    // notify patient (socket + push)
     const msg = `Your appointment on ${appt.appointmentDate} at ${appt.appointmentTime} was REJECTED. ${reason || ''}`;
     await Notification.create({ userId: appt.patientId, message: msg, type: 'APPOINTMENT' });
     const io = req.app.get('io');
     if (io) io.to(`user_${appt.patientId}`).emit('notification', { message: msg, apptId: appt._id, status: 'REJECTED' });
+
+    // Push notification
+    notifyAppointmentUpdate(appt.patientId, {
+      status: 'CANCELLED',
+      hospitalName: appt.hospitalName || caller.name
+    }).catch(err => console.warn('Push notify failed:', err.message));
 
     res.json({ success: true, appt });
   } catch (err) {
@@ -416,23 +430,23 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
       .populate('patientId', 'name phone');
 
     console.log(`Found ${appointments.length} appointments for ${caller.name} on ${date}`);
-    
+
     // Auto-assign queue numbers and check-in appointments for today
     const today = new Date().toISOString().split('T')[0];
     if (date === today) {
       // Check if this is the first time opening the queue (no queue numbers assigned yet)
       const hasExistingQueueNumbers = appointments.some(appt => appt.queueNumber);
-      
+
       // Find appointments that need queue numbers
-      const needsQueueNumber = appointments.filter(appt => 
+      const needsQueueNumber = appointments.filter(appt =>
         !appt.queueNumber && (appt.status === 'PENDING' || appt.status === 'CONFIRMED' || appt.status === 'CHECKED_IN')
       );
-      
+
       if (needsQueueNumber.length > 0) {
         if (!hasExistingQueueNumbers) {
           // First time opening queue - sort ALL appointments by time
           console.log('🎯 First queue open - sorting all appointments by time');
-          
+
           // Sort by appointment time
           needsQueueNumber.sort((a, b) => {
             if (a.appointmentTime && b.appointmentTime) {
@@ -446,21 +460,21 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
             if (!a.appointmentTime && b.appointmentTime) return 1;
             return new Date(a.createdAt) - new Date(b.createdAt);
           });
-          
+
           // Assign queue numbers 1, 2, 3... based on time order
           let queueNum = 1;
           for (let appt of needsQueueNumber) {
             appt.queueNumber = queueNum++;
             appt.tokenNumber = `${date.replace(/-/g, '')}-${String(appt.queueNumber).padStart(3, '0')}`;
             appt.status = 'CHECKED_IN';
-            
+
             if (!appt.hospitalId && appt.hospitalName === caller.name) {
               appt.hospitalId = caller._id;
             }
-            
+
             await appt.save();
             console.log(`✓ Queue #${appt.queueNumber} → ${appt.patientId?.name || appt.patientName || 'patient'} (${appt.appointmentTime})`);
-            
+
             // Notify patient
             if (appt.patientId) {
               try {
@@ -468,11 +482,11 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
                 await Notification.create({ userId: appt.patientId, message: msg, type: 'APPOINTMENT' });
                 const io = req.app.get('io');
                 if (io) {
-                  io.to(`user_${appt.patientId}`).emit('notification', { 
-                    message: msg, 
-                    apptId: appt._id, 
-                    status: 'CHECKED_IN', 
-                    queueNumber: appt.queueNumber 
+                  io.to(`user_${appt.patientId}`).emit('notification', {
+                    message: msg,
+                    apptId: appt._id,
+                    status: 'CHECKED_IN',
+                    queueNumber: appt.queueNumber
                   });
                 }
               } catch (err) {
@@ -483,26 +497,26 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
         } else {
           // Queue already active - assign next sequential numbers (PERMANENT)
           console.log('📝 Queue already active - assigning permanent sequential numbers');
-          
+
           // Find the highest queue number across ALL appointments
-          const maxQueueNumber = appointments.reduce((max, appt) => 
+          const maxQueueNumber = appointments.reduce((max, appt) =>
             Math.max(max, appt.queueNumber || 0), 0
           );
-          
+
           let nextQueueNumber = maxQueueNumber + 1;
-          
+
           for (let appt of needsQueueNumber) {
             appt.queueNumber = nextQueueNumber++;
             appt.tokenNumber = `${date.replace(/-/g, '')}-${String(appt.queueNumber).padStart(3, '0')}`;
             appt.status = 'CHECKED_IN';
-            
+
             if (!appt.hospitalId && appt.hospitalName === caller.name) {
               appt.hospitalId = caller._id;
             }
-            
+
             await appt.save();
             console.log(`✓ Queue #${appt.queueNumber} → ${appt.patientId?.name || appt.patientName || 'patient'} (late booking at ${appt.appointmentTime})`);
-            
+
             // Notify patient
             if (appt.patientId) {
               try {
@@ -510,11 +524,11 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
                 await Notification.create({ userId: appt.patientId, message: msg, type: 'APPOINTMENT' });
                 const io = req.app.get('io');
                 if (io) {
-                  io.to(`user_${appt.patientId}`).emit('notification', { 
-                    message: msg, 
-                    apptId: appt._id, 
-                    status: 'CHECKED_IN', 
-                    queueNumber: appt.queueNumber 
+                  io.to(`user_${appt.patientId}`).emit('notification', {
+                    message: msg,
+                    apptId: appt._id,
+                    status: 'CHECKED_IN',
+                    queueNumber: appt.queueNumber
                   });
                 }
               } catch (err) {
@@ -524,18 +538,18 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
           }
         }
       }
-      
+
       // Reload appointments after updates
       const updatedAppointments = await Appointment.find(query)
         .sort({ queueNumber: 1 })
         .populate('patientId', 'name phone');
-      
+
       appointments.length = 0;
       appointments.push(...updatedAppointments);
     }
 
     // Calculate statistics
-    const totalInQueue = appointments.filter(a => 
+    const totalInQueue = appointments.filter(a =>
       ['PENDING', 'CONFIRMED', 'CHECKED_IN'].includes(a.status)
     ).length;
 
@@ -546,7 +560,7 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
 
     // Calculate average consultation time from completed appointments
     let avgConsultationTime = null;
-    const completedWithTimes = appointments.filter(a => 
+    const completedWithTimes = appointments.filter(a =>
       a.status === 'COMPLETED' && a.consultationStartTime && a.consultationEndTime
     );
 
@@ -596,7 +610,7 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
       let position = 1;
       // First find the max existing queue number
       const maxExisting = formattedAppointments.reduce((max, a) => Math.max(max, a.queueNumber || 0), 0);
-      
+
       for (let appt of formattedAppointments) {
         if (appt.queueNumber === 0) {
           // For future dates, assign provisional positions based on time order
@@ -651,11 +665,34 @@ router.put('/:id/start-consultation', auth, async (req, res) => {
 
       if (appt.patientId) {
         // Also notify the specific patient
-        io.to(`user_${appt.patientId}`).emit('queueUpdated', { 
+        io.to(`user_${appt.patientId}`).emit('queueUpdated', {
           message: 'Your consultation has started',
           apptId: appt._id,
           status: 'IN_PROGRESS'
         });
+      }
+    }
+
+    // Push notification: "It's your turn!"
+    if (appt.patientId) {
+      notifyQueueCalledIn(appt.patientId, {
+        queueNumber: appt.queueNumber,
+        hospitalName: appt.hospitalName || caller.name
+      }).catch(err => console.warn('Push notify failed:', err.message));
+
+      // Also notify the NEXT patient (2 patients ahead) via push
+      const nextAppt = await Appointment.findOne({
+        hospitalId: appt.hospitalId,
+        appointmentDate: appt.appointmentDate,
+        queueNumber: appt.queueNumber + 1,
+        status: { $in: ['CHECKED_IN', 'CONFIRMED'] }
+      });
+      if (nextAppt?.patientId) {
+        notifyQueueApproaching(nextAppt.patientId, {
+          queueNumber: nextAppt.queueNumber,
+          hospitalName: appt.hospitalName || caller.name,
+          patientsAhead: 1
+        }).catch(err => console.warn('Push notify next failed:', err.message));
       }
     }
 
@@ -689,7 +726,7 @@ router.put('/:id/end-consultation', auth, async (req, res) => {
       const msg = `Your consultation at ${appt.hospitalName || 'the hospital'} has been completed. Thank you!`;
       await Notification.create({ userId: appt.patientId, message: msg, type: 'APPOINTMENT' });
     }
-    
+
     // Broadcast queue update globally so ALL clients update in real-time
     const io = req.app.get('io');
     if (io) {
@@ -726,7 +763,7 @@ router.post('/:id/send-reminder', auth, async (req, res) => {
 
     const appt = await Appointment.findById(req.params.id).populate('patientId', 'name phone');
     if (!appt) return res.status(404).json({ msg: 'Appointment not found' });
-    
+
     console.log('📋 Appointment details:', {
       id: appt._id,
       patientId: appt.patientId?._id,
@@ -734,12 +771,12 @@ router.post('/:id/send-reminder', auth, async (req, res) => {
       type: appt.type,
       hasPatientId: !!appt.patientId
     });
-    
+
     if (!appt.patientId) {
       console.log('⚠️ No patientId - this is a walk-in appointment, cannot send socket reminder');
       return res.status(400).json({ msg: 'Cannot send reminder to walk-in patients without user account' });
     }
-    
+
     if (appt.hospitalId && appt.hospitalId.toString() !== caller._id.toString()) {
       return res.status(403).json({ msg: 'Not authorized' });
     }
@@ -775,15 +812,15 @@ router.post('/:id/send-reminder', auth, async (req, res) => {
       const R = 6371; // Earth's radius in km
       const dLat = (patientLocation.latitude - hospitalLocation.latitude) * Math.PI / 180;
       const dLon = (patientLocation.longitude - hospitalLocation.longitude) * Math.PI / 180;
-      const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(hospitalLocation.latitude * Math.PI / 180) * Math.cos(patientLocation.latitude * Math.PI / 180) *
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const distanceKm = R * c;
-      
+
       distance = distanceKm.toFixed(1) + ' km';
-      
+
       // Estimate travel time (assuming 30 km/h average speed in rural areas + 5 min traffic buffer)
       travelTime = Math.ceil((distanceKm / 30) * 60) + 5;
     }
@@ -820,21 +857,21 @@ router.post('/:id/send-reminder', auth, async (req, res) => {
 
     // Send reminder notification
     const msg = `🔔 Your turn is approaching! Queue #${displayQueueNumber}\n📍 Distance: ${distance}\n⏱️ Est. travel time: ${travelTime} mins\n⏳ ${queuePosition} patients ahead\n\nPlease start heading to the hospital.`;
-    
-    await Notification.create({ 
-      userId: appt.patientId._id, 
-      message: msg, 
-      type: 'REMINDER' 
+
+    await Notification.create({
+      userId: appt.patientId._id,
+      message: msg,
+      type: 'REMINDER'
     });
-    
+
     const io = req.app.get('io');
     const patientUserId = appt.patientId._id || appt.patientId;
     const roomName = `user_${patientUserId}`;
-    
+
     console.log('📢 Emitting reminder to room:', roomName);
     console.log('📢 Patient ID:', patientUserId.toString());
     console.log('📢 Reminder message:', msg);
-    
+
     if (io) {
       // Check if there are any sockets in the room
       const socketsInRoom = io.sockets.adapter.rooms.get(roomName);
@@ -842,9 +879,9 @@ router.post('/:id/send-reminder', auth, async (req, res) => {
       if (socketsInRoom) {
         console.log('🔌 Socket IDs in room:', Array.from(socketsInRoom));
       }
-      
-      io.to(roomName).emit('reminder', { 
-        message: msg, 
+
+      io.to(roomName).emit('reminder', {
+        message: msg,
         apptId: appt._id,
         hospitalId: appt.hospitalId ? appt.hospitalId.toString() : null,
         hospitalName: appt.hospitalName || '',
@@ -860,8 +897,8 @@ router.post('/:id/send-reminder', auth, async (req, res) => {
       console.log('❌ Socket.IO instance not found!');
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Reminder sent',
       patientName: appt.patientId.name,
       distance,
@@ -878,7 +915,7 @@ router.post('/:id/send-reminder', auth, async (req, res) => {
 router.get('/live-queue/:appointmentId', auth, async (req, res) => {
   try {
     console.log('📊 Live queue request for appointment:', req.params.appointmentId);
-    
+
     const appt = await Appointment.findById(req.params.appointmentId);
     if (!appt) return res.status(404).json({ msg: 'Appointment not found' });
 
@@ -913,7 +950,7 @@ router.get('/live-queue/:appointmentId', auth, async (req, res) => {
       // For future-date appointments without queue numbers, calculate position from time
       const hospital = appt.hospitalId ? await User.findById(appt.hospitalId) : null;
       const hospitalName = hospital ? hospital.name : appt.hospitalName;
-      
+
       const patientsAhead = await Appointment.countDocuments({
         $or: [
           { hospitalId: appt.hospitalId },
@@ -923,11 +960,11 @@ router.get('/live-queue/:appointmentId', auth, async (req, res) => {
         appointmentTime: { $lt: appt.appointmentTime },
         status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] }
       });
-      
+
       // Calculate display queue number
       const displayQueueNumber = patientsAhead + 1;
       const estimatedWaitTime = patientsAhead * 15;
-      
+
       let message = '';
       if (patientsAhead === 0) {
         message = '🎯 You\'re first in line!';
@@ -936,7 +973,7 @@ router.get('/live-queue/:appointmentId', auth, async (req, res) => {
       } else {
         message = '🕒 Please wait for your turn';
       }
-      
+
       return res.json({
         success: true,
         queueNumber: displayQueueNumber,
@@ -974,7 +1011,7 @@ router.get('/live-queue/:appointmentId', auth, async (req, res) => {
       queueNumber: { $lt: appt.queueNumber },
       status: { $in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] }
     };
-    
+
     const patientsAhead = await Appointment.countDocuments(patientsAheadQuery);
 
     // Count emergency cases ahead of this patient
@@ -992,14 +1029,14 @@ router.get('/live-queue/:appointmentId', auth, async (req, res) => {
 
     // Check for active doctor break
     const smartQueueRoutes = require('./smartQueue');
-    const breakInfo = smartQueueRoutes.getActiveBreak && appt.hospitalId 
+    const breakInfo = smartQueueRoutes.getActiveBreak && appt.hospitalId
       ? smartQueueRoutes.getActiveBreak(appt.hospitalId.toString())
       : null;
 
     // Calculate intelligent wait time
     // Base: 15 mins per regular patient, 20 mins per emergency patient
     let estimatedWaitTime = (patientsAhead - emergenciesAhead) * 15 + emergenciesAhead * 20;
-    
+
     // Add break time if doctor is on break
     if (breakInfo && breakInfo.isOnBreak) {
       estimatedWaitTime += breakInfo.remainingMinutes;
