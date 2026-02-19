@@ -1088,4 +1088,49 @@ router.get('/live-queue/:appointmentId', auth, async (req, res) => {
   }
 });
 
+// GET /api/appointments/emergency/:hospitalId/:date -> Get emergency patients for hospital
+router.get('/emergency/:hospitalId/:date', auth, async (req, res) => {
+  try {
+    const { hospitalId, date } = req.params;
+
+    // Verify hospital access
+    const caller = await User.findById(req.user.id).select('-password');
+    if (!caller || caller.role !== 'HOSPITAL') {
+      return res.status(403).json({ msg: 'Access denied' });
+    }
+
+    // Get emergency appointments for the specified date
+    const emergencyAppointments = await Appointment.find({
+      $or: [
+        { hospitalId: caller._id },
+        { hospitalName: caller.name }
+      ],
+      appointmentDate: date,
+      type: 'EMERGENCY'
+    }).sort({ queueNumber: 1, createdAt: -1 }).populate('patientId', 'name phone email');
+
+    // Format the response
+    const formattedEmergencies = emergencyAppointments.map(appt => ({
+      _id: appt._id,
+      patientName: appt.patientName || appt.patientId?.name || 'Unknown',
+      phone: appt.phone || appt.patientId?.phone || '',
+      email: appt.patientId?.email || '',
+      queueNumber: appt.queueNumber,
+      tokenNumber: appt.tokenNumber,
+      status: appt.status,
+      appointmentDate: appt.appointmentDate,
+      appointmentTime: appt.appointmentTime,
+      type: appt.type,
+      createdAt: appt.createdAt,
+      consultationStartTime: appt.consultationStartTime,
+      consultationEndTime: appt.consultationEndTime
+    }));
+
+    res.json(formattedEmergencies);
+  } catch (err) {
+    console.error('Emergency patients error:', err.message);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
 module.exports = router;
