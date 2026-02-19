@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { ArrowLeft, Save, Upload, Palette, Building2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, Upload, Palette, Building2, RefreshCw, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useBranding } from '../context/BrandingContext';
 import toast from 'react-hot-toast';
@@ -14,7 +14,9 @@ const HospitalBranding = () => {
     logo: branding.logo || null,
     primaryColor: branding.primaryColor || '#059669',
     secondaryColor: branding.secondaryColor || '#10b981',
-    accentColor: branding.accentColor || '#34d399'
+    accentColor: branding.accentColor || '#34d399',
+    upiId: branding.upiId || '',
+    accountName: branding.accountName || ''
   });
   
   const [logoPreview, setLogoPreview] = useState(branding.logo);
@@ -99,7 +101,9 @@ const HospitalBranding = () => {
       logo: null,
       primaryColor: '#059669',
       secondaryColor: '#10b981',
-      accentColor: '#34d399'
+      accentColor: '#34d399',
+      upiId: '',
+      accountName: ''
     });
     setLogoPreview(null);
   };
@@ -271,6 +275,50 @@ const HospitalBranding = () => {
                     Accent
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Payment Settings */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <Smartphone className="text-green-600" size={24} />
+                Payment Settings
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">
+                Patients will use this UPI ID to pay bills directly through UPI apps like Google Pay, PhonePe, and Paytm.
+              </p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Hospital UPI ID
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.upiId}
+                    onChange={(e) => setFormData({ ...formData, upiId: e.target.value })}
+                    placeholder="hospital@hdfc  or  hospital@ybl"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">e.g. abchospital@hdfcbank · citycare@ybl · medclinic@paytm</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Account / Display Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.accountName}
+                    onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
+                    placeholder="Name that appears in UPI app"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm"
+                  />
+                </div>
+                {formData.upiId && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2 text-sm text-green-800">
+                    <Smartphone size={16} />
+                    <span>Patients will pay to <strong>{formData.upiId}</strong></span>
+                  </div>
+                )}
               </div>
             </div>
 

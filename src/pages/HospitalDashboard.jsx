@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2, LogOut, Menu, Activity } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User, Loader2, AlertTriangle, Check, Trash2, Edit2, Phone, MapPin, Users, Briefcase, Heart, Save, Plus, X as CloseIcon, Upload, FileText, Building2, LogOut, Menu, Activity, CreditCard, Smartphone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import HospitalQueueManagement from '../components/HospitalQueueManagement';
@@ -11,9 +11,176 @@ import AudioCall from '../components/AudioCall';
 import PatientRecordsManager from '../components/PatientRecordsManager';
 import PatientRecoveryDashboard from '../components/PatientRecoveryDashboard';
 import CallHistory from '../components/CallHistory';
+import BillingDashboard from '../components/BillingDashboard';
+import DischargeDashboard from '../components/DischargeDashboard';
 import webrtcService from '../services/webrtc';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+
+/* ─── Payment Settings Sub-Component ─── */
+// Valid UPI ID: something@bankhandle  e.g. 7013304524@ybl, name@paytm, user@oksbi
+const UPI_REGEX = /^[a-zA-Z0-9._\-+]+@[a-zA-Z]{2,}$/;
+
+const PaymentSettingsTab = ({ profile, token, API: apiBase, onSaved }) => {
+  const [upiId, setUpiId] = useState(profile?.paymentInfo?.upiId || '');
+  const [accountName, setAccountName] = useState(profile?.paymentInfo?.accountName || '');
+  const [saving, setSaving] = useState(false);
+
+  const trimmedUpi = upiId.trim();
+  const isValidUpi = UPI_REGEX.test(trimmedUpi);
+  // Show live feedback only when user has typed something
+  const showError = trimmedUpi.length > 0 && !isValidUpi;
+
+  const handleSave = async () => {
+    if (!trimmedUpi) {
+      toast.error('Please enter a UPI ID');
+      return;
+    }
+    if (!isValidUpi) {
+      toast.error('Invalid UPI ID — format must be like name@ybl or 9999@paytm');
+      return;
+    }
+    setSaving(true);
+    try {
+      await axios.put(
+        `${apiBase}/api/hospitals/profile`,
+        { paymentInfo: { upiId: upiId.trim(), accountName: accountName.trim() } },
+        { headers: { 'x-auth-token': token } }
+      );
+      toast.success('✅ Payment settings saved!');
+      if (onSaved) onSaved();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save payment settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-3xl p-6 text-white shadow-lg">
+        <div className="flex items-center gap-3 mb-2">
+          <CreditCard size={28} />
+          <h2 className="text-2xl font-bold">Payment Settings</h2>
+        </div>
+        <p className="text-amber-100 text-sm">Configure how patients pay you. Add your UPI ID so patients can make direct payments.</p>
+      </div>
+
+      {/* UPI Settings Card */}
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+        <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-6">
+          <Smartphone size={20} className="text-amber-600" />
+          UPI Payment Configuration
+        </h3>
+
+        <div className="space-y-5">
+          <div>
+            <label className="text-sm font-bold text-slate-700 mb-2 block">UPI ID *</label>
+            <input
+              type="text"
+              value={upiId}
+              onChange={(e) => setUpiId(e.target.value)}
+              placeholder="e.g., hospital@ybl or 9999999999@paytm"
+              className={`w-full p-3 border rounded-xl focus:ring-2 text-slate-900 ${
+                showError
+                  ? 'border-red-400 bg-red-50 focus:ring-red-400 focus:border-red-400'
+                  : isValidUpi
+                  ? 'border-green-400 bg-green-50 focus:ring-amber-500 focus:border-amber-500'
+                  : 'border-slate-200 focus:ring-amber-500 focus:border-amber-500'
+              }`}
+            />
+            {showError && (
+              <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                <XCircle size={12} /> Invalid format — must be <span className="font-mono font-bold">name@bankhandle</span> (e.g. 9999@ybl, hospital@paytm)
+              </p>
+            )}
+            {isValidUpi && (
+              <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                <CheckCircle size={12} /> Valid UPI ID format
+              </p>
+            )}
+            {!trimmedUpi && (
+              <p className="text-xs text-slate-400 mt-1">Format: username@bankhandle · e.g. 7013304524@ybl</p>
+            )}
+          </div>
+
+          <div>
+            <label className="text-sm font-bold text-slate-700 mb-2 block">Account / Business Name</label>
+            <input
+              type="text"
+              value={accountName}
+              onChange={(e) => setAccountName(e.target.value)}
+              placeholder="e.g., City Hospital"
+              className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-slate-900"
+            />
+            <p className="text-xs text-slate-400 mt-1">Name shown to patients during payment</p>
+          </div>
+
+          {/* Current Status */}
+          <div className={`p-4 rounded-xl border ${isValidUpi ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+            <div className="flex items-center gap-2">
+              {isValidUpi ? (
+                <>
+                  <CheckCircle size={18} className="text-green-600" />
+                  <span className="font-bold text-green-800 text-sm">UPI payments enabled</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle size={18} className="text-yellow-600" />
+                  <span className="font-bold text-yellow-800 text-sm">UPI payments not configured</span>
+                </>
+              )}
+            </div>
+            {isValidUpi && (
+              <p className="text-sm text-green-700 mt-1 ml-7">Patients can pay to: <span className="font-mono font-bold">{trimmedUpi}</span></p>
+            )}
+          </div>
+
+          <button
+            onClick={handleSave}
+            disabled={saving || !isValidUpi}
+            className="w-full bg-amber-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-amber-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-amber-200"
+          >
+            {saving ? (
+              <>
+                <Loader2 size={18} className="animate-spin" /> Saving...
+              </>
+            ) : (
+              <>
+                <Save size={18} /> Save Payment Settings
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Info Card */}
+      <div className="bg-blue-50 rounded-3xl border border-blue-200 p-6">
+        <h4 className="font-bold text-blue-900 mb-2">How it works</h4>
+        <ul className="text-sm text-blue-800 space-y-2">
+          <li className="flex items-start gap-2">
+            <span className="font-bold text-blue-600 mt-0.5">1.</span>
+            <span>Add your hospital's UPI ID above</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-bold text-blue-600 mt-0.5">2.</span>
+            <span>When a patient views their bill, they'll see a "Pay via UPI" option</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-bold text-blue-600 mt-0.5">3.</span>
+            <span>Payment is sent directly to your UPI ID — no middleman</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-bold text-blue-600 mt-0.5">4.</span>
+            <span>Patient confirms payment and it's recorded in the billing system</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+};
 
 const HospitalDashboard = () => {
   const navigate = useNavigate();
@@ -607,6 +774,42 @@ const HospitalDashboard = () => {
               <span>Call History</span>
             </button>
 
+            <button
+              onClick={() => setActiveTab('BILLING')}
+              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
+                activeTab === 'BILLING' 
+                  ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-200' 
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Briefcase size={20} />
+              <span>Billing</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('DISCHARGE')}
+              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
+                activeTab === 'DISCHARGE' 
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <FileText size={20} />
+              <span>Discharge</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('PAYMENT_SETTINGS')}
+              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
+                activeTab === 'PAYMENT_SETTINGS' 
+                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-200' 
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <CreditCard size={20} />
+              <span>Payment Settings</span>
+            </button>
+
             <div className="pt-4 border-t border-slate-200 mt-4 space-y-2">
               <p className="text-xs font-bold text-slate-400 uppercase px-4 mb-2">Appointments</p>
               
@@ -719,6 +922,23 @@ const HospitalDashboard = () => {
               setIncomingCallData({ from: `user_${userId}`, callType: 'audio', name, isOutgoing: true });
               setShowIncomingCall(true);
             }}
+          />
+        )}
+
+        {activeTab === 'BILLING' && (
+          <BillingDashboard />
+        )}
+
+        {activeTab === 'DISCHARGE' && (
+          <DischargeDashboard />
+        )}
+
+        {activeTab === 'PAYMENT_SETTINGS' && (
+          <PaymentSettingsTab
+            profile={profile}
+            token={token}
+            API={API}
+            onSaved={fetchProfile}
           />
         )}
 
@@ -1015,7 +1235,7 @@ const HospitalDashboard = () => {
         )}
 
         {/* Appointments Tab Content */}
-        {!['PROFILE', 'SCHEDULING', 'QUEUE', 'RECORDS', 'CALL_HISTORY'].includes(activeTab) && (
+        {!['PROFILE', 'SCHEDULING', 'QUEUE', 'RECORDS', 'CALL_HISTORY', 'BILLING', 'DISCHARGE', 'PAYMENT_SETTINGS'].includes(activeTab) && (
           loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="animate-spin text-emerald-600" size={32} />

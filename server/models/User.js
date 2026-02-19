@@ -77,6 +77,10 @@ const UserSchema = new mongoose.Schema({
   logo: {
     type: String
   },
+  paymentInfo: {
+    upiId: { type: String, default: null },
+    accountName: { type: String, default: null }
+  },
   date: {
     type: Date,
     default: Date.now

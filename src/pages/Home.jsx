@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils,
-  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee, Stethoscope
+  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee, Stethoscope, Receipt
 } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
@@ -414,6 +414,7 @@ const Home = () => {
             <ToolCard icon={Users} color="emerald" label={t.family} onClick={() => navigate('/family')} />
             <ToolCard icon={Utensils} color="orange" label={t.diet} onClick={() => navigate('/wellness')} />
             <ToolCard icon={Stethoscope} color="cyan" label={t.recovery} onClick={() => navigate('/recovery-tracker')} />
+            <ToolCard icon={Receipt} color="sky" label="My Bills" onClick={() => navigate('/my-bills')} />
           </div>
         </div>
 

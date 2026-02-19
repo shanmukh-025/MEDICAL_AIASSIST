@@ -56,7 +56,7 @@ router.put('/profile', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Access denied' });
     }
 
-    const { phone, workingHours, services, doctors, about, emergencyContact, address, logo, location } = req.body;
+    const { phone, workingHours, services, doctors, about, emergencyContact, address, logo, location, paymentInfo } = req.body;
 
     const updateFields = {};
     if (phone) updateFields.phone = phone;
@@ -72,6 +72,10 @@ router.put('/profile', auth, async (req, res) => {
         latitude: parseFloat(location.latitude),
         longitude: parseFloat(location.longitude)
       };
+    }
+    if (paymentInfo) {
+      updateFields['paymentInfo.upiId'] = paymentInfo.upiId || null;
+      updateFields['paymentInfo.accountName'] = paymentInfo.accountName || null;
     }
     
     console.log('🔄 Updating hospital profile - User ID:', req.user.id);
@@ -184,7 +188,7 @@ router.get('/:id/branding', async (req, res) => {
 // Update hospital branding
 router.put('/:id/branding', auth, async (req, res) => {
   try {
-    const { logo, primaryColor, secondaryColor, accentColor, appName } = req.body;
+    const { logo, primaryColor, secondaryColor, accentColor, appName, upiId, accountName } = req.body;
     
     const hospital = await Hospital.findById(req.params.id);
     if (!hospital) return res.status(404).json({ msg: 'Hospital not found' });
@@ -197,6 +201,16 @@ router.put('/:id/branding', auth, async (req, res) => {
       accentColor: accentColor || hospital.branding?.accentColor || '#34d399',
       appName: appName || hospital.branding?.appName || 'VillageMed'
     };
+
+    // Update payment info if provided
+    if (upiId !== undefined) {
+      if (!hospital.paymentInfo) hospital.paymentInfo = {};
+      hospital.paymentInfo.upiId = upiId || null;
+    }
+    if (accountName !== undefined) {
+      if (!hospital.paymentInfo) hospital.paymentInfo = {};
+      hospital.paymentInfo.accountName = accountName || null;
+    }
     
     await hospital.save();
     
@@ -206,7 +220,9 @@ router.put('/:id/branding', auth, async (req, res) => {
       secondaryColor: hospital.branding.secondaryColor,
       accentColor: hospital.branding.accentColor,
       appName: hospital.branding.appName,
-      hospitalName: hospital.name
+      hospitalName: hospital.name,
+      upiId: hospital.paymentInfo?.upiId || null,
+      accountName: hospital.paymentInfo?.accountName || null
     });
   } catch (err) {
     console.error(err.message);

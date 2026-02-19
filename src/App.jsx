@@ -36,6 +36,7 @@ import QueueDashboard from './pages/QueueDashboard';
 import SymptomAnalysis from './pages/SymptomAnalysis'; // AI Symptom Analysis
 import FamilyHealthAnalysis from './pages/FamilyHealthAnalysis'; // Family Genetic Analysis
 import PatientRecoveryTracker from './pages/PatientRecoveryTracker'; // Patient Recovery Monitoring
+import PatientBilling from './pages/PatientBilling'; // Patient Billing & Discharge View
 
 // Conditional Voice Assistant - only show when authenticated
 const ConditionalVoiceAssistant = () => {
@@ -100,6 +101,7 @@ function App() {
                 <Route path="/symptom-analysis" element={<PrivateRoute><SymptomAnalysis /></PrivateRoute>} />
                 <Route path="/family-health-analysis" element={<PrivateRoute><FamilyHealthAnalysis /></PrivateRoute>} />
                 <Route path="/recovery-tracker" element={<PrivateRoute><PatientRecoveryTracker /></PrivateRoute>} />
+                <Route path="/my-bills" element={<PrivateRoute><PatientBilling /></PrivateRoute>} />
               </Routes>
             </div>
             </Router>

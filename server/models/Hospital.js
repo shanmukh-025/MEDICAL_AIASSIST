@@ -35,6 +35,17 @@ const HospitalSchema = new mongoose.Schema({
       default: 'VillageMed'
     }
   },
+  // Payment settings
+  paymentInfo: {
+    upiId: {
+      type: String,
+      default: null  // e.g. hospital@hdfc or hospital@ybl
+    },
+    accountName: {
+      type: String,
+      default: null
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now
