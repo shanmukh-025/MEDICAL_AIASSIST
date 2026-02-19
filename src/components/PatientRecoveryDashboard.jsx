@@ -18,6 +18,7 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
   const [recoveryData, setRecoveryData] = useState(null);
   const [recoveryLoading, setRecoveryLoading] = useState(false); // eslint-disable-line
   const [statusFilter, setStatusFilter] = useState('');
+  const [emergencyFilter, setEmergencyFilter] = useState(''); // '', 'emergency', 'regular'
   const [showTreatmentForm, setShowTreatmentForm] = useState(false);
   const [patientSearch, setPatientSearch] = useState('');
   const [patientResults, setPatientResults] = useState([]);
@@ -30,14 +31,16 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
     patientName: '',
     doctorName: '',
     diagnosis: '',
-    durationDays: 7,
-    medicines: [{ name: '', dosage: '', frequency: 'twice', duration: 7, timings: [], instructions: { beforeFood: false, afterFood: true, notes: '' } }],
+    durationDays: 30, // Default to 30 days
+    medicines: [{ name: '', dosage: '', frequency: 'twice', duration: 30, timings: [], instructions: { beforeFood: false, afterFood: true, notes: '' } }],
     symptomsToMonitor: [],
     followUpRequired: true,
     followUpDays: 14,
     followUpNotes: '',
     specialInstructions: '',
+    doctorNotes: '', // Internal doctor notes
     initialSeverity: 5,
+    isEmergency: false, // Flag for emergency patients
     newSymptom: ''
   });
   const token = localStorage.getItem('token');
@@ -50,14 +53,21 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
         headers: { 'x-auth-token': token },
         params
       });
-      setPatients(res.data);
+      // Filter by emergency status on client side
+      let filteredPatients = res.data;
+      if (emergencyFilter === 'emergency') {
+        filteredPatients = res.data.filter(p => p.isEmergency);
+      } else if (emergencyFilter === 'regular') {
+        filteredPatients = res.data.filter(p => !p.isEmergency);
+      }
+      setPatients(filteredPatients);
     } catch (err) {
       console.error('Failed to fetch patients:', err);
       toast.error('Failed to load patient monitoring data');
     } finally {
       setLoading(false);
     }
-  }, [token, statusFilter]);
+  }, [token, statusFilter, emergencyFilter]);
 
   const fetchRecoveryData = useCallback(async (planId) => {
     try {
@@ -221,14 +231,16 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
       patientName: '',
       doctorName: '',
       diagnosis: '',
-      durationDays: 7,
-      medicines: [{ name: '', dosage: '', frequency: 'twice', duration: 7, timings: [], instructions: { beforeFood: false, afterFood: true, notes: '' } }],
+      durationDays: 30,
+      medicines: [{ name: '', dosage: '', frequency: 'twice', duration: 30, timings: [], instructions: { beforeFood: false, afterFood: true, notes: '' } }],
       symptomsToMonitor: [],
       followUpRequired: true,
       followUpDays: 14,
       followUpNotes: '',
       specialInstructions: '',
+      doctorNotes: '',
       initialSeverity: 5,
+      isEmergency: false,
       newSymptom: ''
     });
     setSelectedPatientForPlan(null);
@@ -648,6 +660,27 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
         ))}
       </div>
 
+      {/* Emergency Filter */}
+      <div className="flex gap-2 flex-wrap">
+        {[
+          { value: '', label: 'All Patients' },
+          { value: 'emergency', label: '🚨 Emergency' },
+          { value: 'regular', label: '📋 Regular' }
+        ].map(f => (
+          <button
+            key={f.value}
+            onClick={() => setEmergencyFilter(f.value)}
+            className={`px-3 py-1.5 rounded-xl text-sm font-semibold transition ${
+              emergencyFilter === f.value
+                ? f.value === 'emergency' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
       {/* Alert Patients Summary */}
       {(() => {
         const critical = patients.filter(p => p.overallTrend === 'worsening' || p.latestLog?.needsDoctorAttention);
@@ -794,7 +827,21 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
                 )}
               </div>
 
-              {/* Link to Appointment (shown after patient selected) */}
+              {/* Emergency Patient Toggle */}
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={treatmentForm.isEmergency}
+                    onChange={e => setTreatmentForm(f => ({ ...f, isEmergency: e.target.checked }))}
+                    className="w-5 h-5 text-red-600 rounded focus:ring-red-500"
+                  />
+                  <div>
+                    <span className="font-bold text-red-800">Emergency Patient (No Appointment)</span>
+                    <p className="text-xs text-red-600">Check this if the patient came as an emergency case without a scheduled appointment</p>
+                  </div>
+                </label>
+              </div>
               {selectedPatientForPlan && (
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Link to Appointment (Optional)</label>
@@ -922,6 +969,8 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
                         <option value="twice">Twice daily</option>
                         <option value="thrice">Thrice daily</option>
                         <option value="four-times">Four times daily</option>
+                        <option value="weekly_once">Weekly Once</option>
+                        <option value="as_needed">As Needed (PRN)</option>
                       </select>
                     </div>
                     <div className="flex items-center gap-3 text-xs">
@@ -975,6 +1024,20 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
                           Remove
                         </button>
                       )}
+                    </div>
+                    {/* Custom Notes for Medicine */}
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        placeholder="Custom notes for this medicine (e.g., take with milk, avoid sunlight)..."
+                        value={med.instructions.notes || ''}
+                        onChange={e => {
+                          const newMeds = [...treatmentForm.medicines];
+                          newMeds[i].instructions.notes = e.target.value;
+                          setTreatmentForm(f => ({ ...f, medicines: newMeds }));
+                        }}
+                        className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-400"
+                      />
                     </div>
                   </div>
                 ))}
@@ -1071,6 +1134,17 @@ const PatientRecoveryDashboard = ({ initialPlanData, onInitialDataConsumed }) =>
                 />
               </div>
 
+              {/* Doctor Notes (Internal) */}
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Doctor's Private Notes</label>
+                <textarea
+                  placeholder="Internal notes for hospital staff (not visible to patient)..."
+                  value={treatmentForm.doctorNotes}
+                  onChange={e => setTreatmentForm(f => ({ ...f, doctorNotes: e.target.value }))}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 resize-none h-20 bg-yellow-50"
+                />
+              </div>
+
               {/* Submit */}
               <button
                 onClick={submitTreatmentPlan}
@@ -1111,6 +1185,9 @@ const PatientCard = ({ patient, getTrendBadge, onViewRecovery, onRequestFollowUp
             'bg-yellow-500'
           }`} />
           <h4 className="font-bold text-slate-800">{patient.patientId?.name || 'Patient'}</h4>
+          {patient.isEmergency && (
+            <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded-full">🚨 Emergency</span>
+          )}
         </div>
         {getTrendBadge(patient.overallTrend)}
       </div>

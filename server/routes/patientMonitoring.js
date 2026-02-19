@@ -25,13 +25,15 @@ router.post('/treatment-plan', auth, async (req, res) => {
       appointmentId, patientId, doctorName, diagnosis,
       medicines, durationDays, symptomsToMonitor,
       followUpRequired, followUpDays, followUpNotes,
-      specialInstructions, initialSeverity
+      specialInstructions, initialSeverity, doctorNotes,
+      isEmergency
     } = req.body;
 
-    // Calculate dates
+    // Calculate dates - default to 30 days if not specified
+    const duration = durationDays || 30;
     const startDate = new Date();
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() + (durationDays || 7));
+    endDate.setDate(endDate.getDate() + duration);
 
     let followUpDate = null;
     if (followUpRequired && followUpDays) {
@@ -40,7 +42,7 @@ router.post('/treatment-plan', auth, async (req, res) => {
     }
 
     const plan = new TreatmentPlan({
-      appointmentId,
+      appointmentId: appointmentId || null, // Optional for emergency patients
       patientId,
       hospitalId: doctor._id,
       doctorName: doctorName || doctor.name,
@@ -53,7 +55,9 @@ router.post('/treatment-plan', auth, async (req, res) => {
       followUpDate,
       followUpNotes,
       specialInstructions,
+      doctorNotes: doctorNotes || '', // Internal doctor notes
       initialSeverity: initialSeverity || 5,
+      isEmergency: isEmergency || false, // Flag for emergency patients
       status: 'ACTIVE'
     });
 
@@ -67,7 +71,9 @@ router.post('/treatment-plan', auth, async (req, res) => {
     // Notify the patient
     const notification = new Notification({
       userId: patientId,
-      message: `Your doctor has created a recovery plan for "${diagnosis}". Please track your symptoms daily for the next ${durationDays} days.`,
+      message: isEmergency 
+        ? `Emergency treatment plan created for "${diagnosis}". Please track your symptoms daily for the next ${duration} days.`
+        : `Your doctor has created a recovery plan for "${diagnosis}". Please track your symptoms daily for the next ${duration} days.`,
       type: 'TREATMENT_PLAN'
     });
     await notification.save();
@@ -86,7 +92,9 @@ router.post('/treatment-plan', auth, async (req, res) => {
       'once': ['09:00'],
       'twice': ['09:00', '21:00'],
       'thrice': ['08:00', '14:00', '21:00'],
-      'four-times': ['08:00', '12:00', '17:00', '22:00']
+      'four-times': ['08:00', '12:00', '17:00', '22:00'],
+      'weekly_once': ['09:00'], // Once a week
+      'as_needed': [] // No fixed timings - patient takes as needed
     };
 
     const createdReminders = [];
@@ -859,7 +867,9 @@ router.post('/sync-reminders', auth, async (req, res) => {
       'once': ['09:00'],
       'twice': ['09:00', '21:00'],
       'thrice': ['08:00', '14:00', '21:00'],
-      'four-times': ['08:00', '12:00', '17:00', '22:00']
+      'four-times': ['08:00', '12:00', '17:00', '22:00'],
+      'weekly_once': ['09:00'], // Once a week
+      'as_needed': [] // No fixed timings - patient takes as needed
     };
 
     let totalCreated = 0;
