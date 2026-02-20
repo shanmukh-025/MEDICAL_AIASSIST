@@ -4,7 +4,8 @@ import Tesseract from 'tesseract.js';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Type, ScanBarcode, Image as ImageIcon, Zap, ZapOff, Search, RefreshCw, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useLanguage } from '../context/LanguageContext'; // 1. Import Context
+import { useLanguage } from '../context/LanguageContext';
+import { validateScannedText, getErrorMessage } from '../utils/medicineValidator';
 
 const Scan = () => {
   const navigate = useNavigate();
@@ -46,7 +47,9 @@ const Scan = () => {
     errorBlurry: lang === 'en' ? 'Text too blurry' : 'టెక్స్ట్ అస్పష్టంగా ఉంది',
     errorRead: lang === 'en' ? 'Could not read text. Try uploading a clear photo.' : 'టెక్స్ట్ చదవడం కుదరలేదు. స్పష్టమైన ఫోటో అప్‌లోడ్ చేయండి.',
     success: lang === 'en' ? 'Text Detected!' : 'టెక్స్ట్ గుర్తించబడింది!',
-    torchError: lang === 'en' ? 'Flashlight not supported' : 'ఫ్లాష్‌లైట్ పని చేయదు'
+    torchError: lang === 'en' ? 'Flashlight not supported' : 'ఫ్లాష్‌లైట్ పని చేయదు',
+    errorNotMedicine: lang === 'en' ? 'Not relevant to medicine. Please scan medicine-related content.' : '医薬有關されていません。医薬相關のコンテンツをスキャンしてください。',
+    errorNotMedicineBarcode: lang === 'en' ? 'Not a valid medicine barcode' : '有効な医薬のバーコードではありません'
   };
 
   // --- 1. HANDLE LIVE CAMERA CAPTURE ---
@@ -95,6 +98,16 @@ const Scan = () => {
           
           if (cleanText.length < 3) throw new Error(t.errorBlurry);
           
+          // Validate if the scanned text is medicine-related
+          const validation = validateScannedText(cleanText);
+          
+          if (!validation.isMedicineRelated) {
+            setError(t.errorNotMedicine);
+            setIsProcessing(false);
+            toast.error(t.errorNotMedicine);
+            return;
+          }
+          
           setScannedText(cleanText);
           setIsProcessing(false);
           setShowVerifyModal(true);
@@ -106,9 +119,17 @@ const Scan = () => {
           toast.error("Scan Failed");
         }
     } else {
-        // BARCODE SIMULATION
+        // BARCODE SIMULATION - Validate medicine barcode format
         setTimeout(() => {
-            setScannedText("8901023004562"); 
+            const mockBarcode = "8901023004562";
+            // Basic validation for medicine barcode format (Indian pharma barcodes start with 890)
+            if (!mockBarcode.startsWith('890')) {
+              setError(t.errorNotMedicineBarcode);
+              setIsProcessing(false);
+              toast.error(t.errorNotMedicineBarcode);
+              return;
+            }
+            setScannedText(mockBarcode); 
             setIsProcessing(false);
             setShowVerifyModal(true); 
         }, 2000);
