@@ -74,6 +74,42 @@ const Scan = () => {
     }
   };
 
+  // --- 3. VALIDATE INPUT TEXT (Manual entry or from scan) ---
+  const validateInputText = (text) => {
+    if (!text || text.trim().length < 3) {
+      return { isValid: false, message: t.errorBlurry || 'Please enter a valid medicine name' };
+    }
+    
+    const validation = validateScannedText(text.trim());
+    
+    if (!validation.isMedicineRelated) {
+      return { isValid: false, message: validation.message || t.errorNotMedicine };
+    }
+    
+    return { isValid: true, message: '' };
+  };
+
+  // --- 4. HANDLE MANUAL TEXT INPUT ---
+  const handleManualInput = (e) => {
+    if (e.key === 'Enter') {
+      const inputValue = e.target.value.trim();
+      if (!inputValue) return;
+      
+      // Validate the input
+      const validation = validateInputText(inputValue);
+      
+      if (!validation.isValid) {
+        // Show error alert and stop navigation
+        setError(validation.message);
+        toast.error(validation.message);
+        return;
+      }
+      
+      // If valid, navigate to result
+      navigate(`/result/${encodeURIComponent(inputValue)}`);
+    }
+  };
+
   // --- 3. INTELLIGENT PROCESSING ---
   const processImage = async (imgSrc) => {
     setImage(imgSrc); 
@@ -230,11 +266,19 @@ const Scan = () => {
                             type="text" 
                             placeholder={mode === 'text' ? t.placeholderText : t.placeholderCode}
                             className="flex-1 bg-black/50 border border-white/30 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-500 transition"
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') navigate(`/result/${e.target.value}`);
-                            }}
+                            onKeyDown={handleManualInput}
                         />
-                        <button className="bg-emerald-600 p-2 rounded-lg text-white"><Search size={16}/></button>
+                        <button 
+                            className="bg-emerald-600 p-2 rounded-lg text-white"
+                            onClick={(e) => {
+                                const input = e.target.previousSibling;
+                                if (input) {
+                                    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+                                }
+                            }}
+                        >
+                            <Search size={16}/>
+                        </button>
                       </div>
                 </div>
             </div>
@@ -325,7 +369,16 @@ const Scan = () => {
                         {t.retake}
                     </button>
                     <button 
-                        onClick={() => navigate(`/result/${scannedText}`)} 
+                        onClick={() => {
+                            // Validate the scanned text before navigation
+                            const validation = validateInputText(scannedText);
+                            if (!validation.isValid) {
+                                setError(validation.message);
+                                toast.error(validation.message);
+                                return;
+                            }
+                            navigate(`/result/${scannedText}`);
+                        }} 
                         className="flex-1 py-3.5 rounded-xl bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 active:scale-95 transition"
                     >
                         {t.analyze}
