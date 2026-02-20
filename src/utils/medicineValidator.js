@@ -28,11 +28,11 @@ const medicalKeywords = [
   'follow up', 'review', 'checkup', 'appointment',
   'report', 'result', 'finding', 'summary',
   // Telugu keywords (common medical terms in Telugu)
-  'జ్వరం', 'దగ్గు', 'తలనొప్పి', 'నొప్పి', 'ఉష్ణోగ్రత', 'బ్లడ్', 'ప్రెషర్', 'షుగర్',
-  'హృదయ', 'ఛాతీ', 'శ్వాస', 'కడుపు', 'వాంతి', ' వికారం', ' విరేచన', ' మలబద్ధకం',
-  'మందు', 'టాబ్లెట్', 'క్యాప్స్యూల్', 'షిరాప్', 'ఇంజెక్షన్', 'डोज़', 'डोसेज',
-  'डॉक्टर', 'ఆసుపత్రి', 'క్లినిక్', ' చికిత్స', ' లక్షణ', ' వ్యాధి', 'అనారోహ',
-  'Infection', 'virus', 'bacteria', ' allergy', 'asthma', 'cancer', 'TB',
+  'fever', 'cough', 'headache', 'pain', 'temperature', 'blood pressure', 'sugar',
+  'heart', 'chest', 'breath', 'stomach', 'vomiting', 'diarrhea', 'constipation',
+  'medicine', 'tablet', 'capsule', 'syrup', 'injection', 'dose', 'dosage',
+  'doctor', 'hospital', 'clinic', 'treatment', 'diagnosis', 'symptom', 'disease',
+  'Infection', 'virus', 'bacteria', 'allergy', 'asthma', 'cancer', 'TB',
   'pregnancy', 'baby', 'child', 'adult', 'elderly', 'skin', 'eye', 'ear', 'nose', 'throat',
   'bone', 'joint', 'muscle', 'nerve', 'brain', 'kidney', 'liver', 'lung', 'stomach',
   'health', 'weight', 'height', 'BMI', 'oxygen', 'pulse', 'heartbeat',
@@ -55,7 +55,7 @@ const medicalKeywords = [
   'prescription', 'rx', 'tablet', 'cap', 'susp', 'ointment', 'cream', 'gel',
   'drops', 'inhaler', 'nebulizer', 'pump', 'patch', 'bandage', 'plaster',
   'medical', 'healthcare', 'pharma', 'chemist', 'pharmacy', 'dispensary',
-  'nurse', 'surgeon', 'physician', 'specialist', 'consultant', ' врач',
+  'nurse', 'surgeon', 'physician', 'specialist', 'consultant', 'doctor',
   'diagnosis', 'prognosis', 'chronic', 'acute', 'terminal', 'benign', 'malignant',
   'contagious', 'infectious', 'communicable', 'non-communicable',
   'pathology', 'radiology', 'cardiology', 'neurology', 'orthopedics', 'pediatrics',
@@ -233,11 +233,11 @@ export function getErrorMessage(lang = 'en', type = 'non_medical') {
       not_medicine_related: 'Not relevant to medicine. Please scan or enter medicine-related content like medicine names, prescriptions, or medical reports.'
     },
     te: {
-      empty: 'దయచేసి విశ్లేషణకు కావల్సిన టెక్స్ట్‌ను నమోదు చేయండి',
-      non_medical: 'ఈ కంటెంట్ వైద్యం లేదా ఆరోగ्यంత联的相关联不明显。',
-      no_medical_keywords: 'ఇది వైద్యంత联的相关不明显。',
-      invalid_text: 'స్కాన్ చేస టెక్స్ట్ достаточно واضح.',
-      not_medicine_related: '医学无关。请扫描或输入医学相关内容，如药品名称、处方或医疗报告。'
+      empty: 'Please enter some text to analyze',
+      non_medical: 'This content is not related to medicine or health',
+      no_medical_keywords: 'This does not appear to be related to medicine',
+      invalid_text: 'The scanned text is not clear',
+      not_medicine_related: 'Not relevant to medicine'
     }
   };
 
@@ -250,4 +250,3 @@ export default {
   validateSymptomInput,
   getErrorMessage
 };
-
