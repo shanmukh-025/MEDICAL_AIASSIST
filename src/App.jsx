@@ -17,6 +17,7 @@ import IncomingCallGlobal from './components/IncomingCallGlobal'; // Global inco
 import PushNotificationPrompt from './components/PushNotificationPrompt'; // Push notification prompt
 
 // Pages
+import LandingPage from './pages/LandingPage';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -44,8 +45,8 @@ const ConditionalVoiceAssistant = () => {
   const { user } = useAuth();
   const location = useLocation();
 
-  // Don't show on login/register pages
-  const publicPaths = ['/login', '/register'];
+  // Don't show on login/register/landing pages
+  const publicPaths = ['/', '/login', '/register'];
   if (publicPaths.includes(location.pathname) || !user) {
     return null;
   }
@@ -81,11 +82,12 @@ function App() {
 
                 <Routes>
                   {/* Public Routes */}
+                  <Route path="/" element={<LandingPage />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
 
-                  {/* Protect the root/dashboard route */}
-                  <Route path="/" element={<PrivateRoute><Home /></PrivateRoute>} />
+                  {/* Protected Dashboard Route */}
+                  <Route path="/dashboard" element={<PrivateRoute><Home /></PrivateRoute>} />
 
                   {/* Protected Routes (Require Login) */}
                   <Route path="/wellness" element={<PrivateRoute><Wellness /></PrivateRoute>} />

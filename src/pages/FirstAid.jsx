@@ -345,7 +345,7 @@ const FirstAid = () => {
       {/* Header */}
       <div className="bg-white p-4 shadow-sm border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/')} className="p-2 hover:bg-slate-100 rounded-full transition">
+            <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-slate-100 rounded-full transition">
             <ArrowLeft size={20} className="text-slate-600"/>
             </button>
             <div>

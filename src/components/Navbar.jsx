@@ -54,7 +54,7 @@ const Navbar = () => {
     <nav className="bg-white border-b border-slate-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex justify-between h-16 items-center">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to={token ? "/dashboard" : "/"} className="flex items-center gap-2">
             {branding.logo ? (
               <img 
                 src={branding.logo} 
@@ -72,7 +72,7 @@ const Navbar = () => {
           </Link>
 
           <div className="hidden md:flex items-center gap-2">
-            <Link to="/" className={navClass('/')}>Home</Link>
+            <Link to={token ? "/dashboard" : "/"} className={navClass(token ? '/dashboard' : '/')}>Home</Link>
             {token && (
               <>
                 <Link to="/wellness" className={navClass('/wellness')}><Activity size={16}/> Wellness</Link>
@@ -101,7 +101,7 @@ const Navbar = () => {
       
       {isOpen && (
         <div className="md:hidden bg-white border-t p-4 space-y-2">
-            <Link to="/" className="block py-2">Home</Link>
+            <Link to={token ? "/dashboard" : "/"} className="block py-2">Home</Link>
             {token && <Link to="/wellness" className="block py-2">Wellness</Link>}
             {token && <Link to="/records" className="block py-2">Records</Link>}
             {token && <button onClick={handleLogout} className="block py-2 text-red-500">Logout</button>}

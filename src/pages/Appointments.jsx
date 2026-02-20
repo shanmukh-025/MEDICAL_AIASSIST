@@ -138,7 +138,7 @@ const Appointments = () => {
       
       {/* Header */}
       <div className="flex items-center gap-3 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-gray-100 sticky top-0 z-10">
-        <button onClick={() => navigate('/')} className="bg-gray-100 p-2.5 rounded-full hover:bg-gray-200 transition text-gray-700">
+        <button onClick={() => navigate('/dashboard')} className="bg-gray-100 p-2.5 rounded-full hover:bg-gray-200 transition text-gray-700">
             <ArrowLeft size={20}/>
         </button>
         <h1 className="text-xl font-bold text-gray-900">{t.title}</h1>

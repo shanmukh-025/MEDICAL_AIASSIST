@@ -76,7 +76,7 @@ const HealthCenter = () => {
       
       {/* Header */}
       <div className="bg-white sticky top-0 z-10 border-b border-gray-200 px-6 py-4 flex items-center gap-4">
-        <button onClick={() => navigate('/')} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition"><ArrowLeft size={20}/></button>
+        <button onClick={() => navigate('/dashboard')} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition"><ArrowLeft size={20}/></button>
         <div>
             <h1 className="text-xl font-bold text-slate-900">Health Center</h1>
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Long-term Tracking</p>

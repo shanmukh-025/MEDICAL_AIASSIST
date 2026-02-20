@@ -42,7 +42,7 @@ const Register = () => {
         localStorage.setItem('autoLogin', 'true'); // Auto-enable for Google sign-ups
         
         toast.success(`Welcome ${data.user.name}!`);
-        navigate('/');
+        navigate('/dashboard');
       } else {
         toast.error(data.error || 'Google sign-up failed');
       }
@@ -129,7 +129,7 @@ const Register = () => {
         if (role === 'HOSPITAL') {
           navigate('/hospital-dashboard');
         } else {
-          navigate('/');
+          navigate('/dashboard');
         }
       } else {
         toast.error(data.msg || "Registration failed");

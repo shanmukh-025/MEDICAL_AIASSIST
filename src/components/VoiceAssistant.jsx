@@ -1137,7 +1137,7 @@ const VoiceAssistant = () => {
         en: ['home', 'go home', 'main page', 'dashboard', 'home page', 'open home', 'show home', 'back home', 'return home'],
         te: ['హోమ్', 'ముఖ్య పేజీ', 'మొదటి పేజీ'],
         action: () => {
-          navigate('/');
+          navigate('/dashboard');
           speak(lang === 'en' ? 'Opening home page' : 'హోమ్ పేజీ తెరుస్తున్నాను');
         }
       },

@@ -32,7 +32,7 @@ const Login = () => {
         }
         
         toast.success(`Welcome ${data.user.name}!`);
-        navigate('/');
+        navigate('/dashboard');
       } else {
         toast.error(data.error || 'Google sign-in failed');
       }
@@ -84,7 +84,7 @@ const Login = () => {
             if (userRole === 'HOSPITAL') {
                 navigate('/hospital-dashboard');
             } else {
-                navigate('/');
+                navigate('/dashboard');
             }
         } else {
             toast.error(data.msg || "Invalid credentials");

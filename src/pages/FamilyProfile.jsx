@@ -228,7 +228,7 @@ const FamilyProfile = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-8 sticky top-0 bg-slate-50 z-10 py-2">
         <div>
-          <button onClick={() => navigate('/')} className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition mb-2">
+          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 text-slate-400 hover:text-emerald-600 transition mb-2">
             <ArrowLeft size={16}/> Back
           </button>
           <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">

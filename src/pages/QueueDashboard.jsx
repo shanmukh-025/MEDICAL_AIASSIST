@@ -313,7 +313,7 @@ const QueueDashboard = () => {
 
         <div className="max-w-2xl mx-auto relative z-10">
           <div className="flex items-center gap-3 mb-5">
-            <button onClick={() => navigate('/')} className="bg-white/15 p-2.5 rounded-full hover:bg-white/25 transition">
+            <button onClick={() => navigate('/dashboard')} className="bg-white/15 p-2.5 rounded-full hover:bg-white/25 transition">
               <ArrowLeft size={20} />
             </button>
             <div className="flex-1">

@@ -163,7 +163,7 @@ const Result = () => {
         {debugMsg}
       </div>
       <div className="flex gap-4 w-full max-w-sm">
-        <button onClick={() => navigate('/')} className="flex-1 bg-white border border-gray-300 text-gray-700 py-3 rounded-xl font-bold">Back</button>
+        <button onClick={() => navigate('/dashboard')} className="flex-1 bg-white border border-gray-300 text-gray-700 py-3 rounded-xl font-bold">Back</button>
         <button onClick={() => window.location.reload()} className="flex-1 bg-rose-600 text-white py-3 rounded-xl font-bold shadow-lg">Retry</button>
       </div>
     </div>

@@ -144,7 +144,7 @@ const FamilyHealthAnalysis = () => {
       <div className="bg-white sticky top-0 z-10 border-b border-slate-200 px-6 py-4 shadow-sm">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => navigate('/')} 
+            onClick={() => navigate('/dashboard')} 
             className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition"
           >
             <ArrowLeft size={20}/>

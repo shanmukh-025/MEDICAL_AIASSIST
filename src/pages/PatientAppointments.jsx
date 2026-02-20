@@ -354,7 +354,7 @@ const PatientAppointments = () => {
     <div className="min-h-screen bg-slate-50 p-6 font-sans pb-24">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 sticky top-0 z-10">
-        <button onClick={() => navigate('/')} className="bg-slate-100 p-2.5 rounded-full hover:bg-slate-200 transition text-slate-700">
+        <button onClick={() => navigate('/dashboard')} className="bg-slate-100 p-2.5 rounded-full hover:bg-slate-200 transition text-slate-700">
           <ArrowLeft size={20} />
         </button>
         <div className="flex-1">

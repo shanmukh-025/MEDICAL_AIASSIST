@@ -658,7 +658,7 @@ const HospitalDashboard = () => {
       <div className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-20">
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => navigate('/')} className="bg-slate-100 p-2.5 rounded-full hover:bg-slate-200 transition text-slate-700">
+            <button onClick={() => navigate('/dashboard')} className="bg-slate-100 p-2.5 rounded-full hover:bg-slate-200 transition text-slate-700">
               <ArrowLeft size={20} />
             </button>
             <button 

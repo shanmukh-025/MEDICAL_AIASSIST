@@ -12,7 +12,7 @@ const Doctors = () => {
   return (
     <div className="h-screen w-screen bg-slate-50">
       <DoctorList 
-        onClose={() => navigate('/')} 
+        onClose={() => navigate('/dashboard')} 
         familyMemberName={familyMemberName}
         familyMemberId={familyMemberId}
         familyMemberCity={familyMemberCity}
