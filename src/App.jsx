@@ -15,6 +15,7 @@ import PWAInstallPrompt from './components/PWAInstallPrompt'; // PWA install pro
 import VoiceAssistant from './components/VoiceAssistant'; // Voice assistant
 import IncomingCallGlobal from './components/IncomingCallGlobal'; // Global incoming call handler
 import PushNotificationPrompt from './components/PushNotificationPrompt'; // Push notification prompt
+import Navbar from './components/Navbar';
 
 // Pages
 import LandingPage from './pages/LandingPage';
@@ -84,7 +85,7 @@ function App() {
                 {/* Global Incoming Call Handler - For patients receiving calls from hospitals */}
                 <IncomingCallGlobal />
 
-                {/* Push Notification Prompt - Shows when user hasn't enabled push yet */}
+                {/* Global Notification Prompt */}
                 <PushNotificationPrompt />
 
                 <Routes>

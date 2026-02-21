@@ -70,7 +70,7 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="bg-red-200 border-b border-slate-100 sticky top-0 z-50">
+    <nav className="bg-white/95 backdrop-blur-sm border-b border-slate-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex justify-between h-16 items-center">
           <Link to={token ? "/dashboard" : "/"} className="flex items-center gap-2">

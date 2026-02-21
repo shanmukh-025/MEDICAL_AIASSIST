@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils,
-  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee, Stethoscope, Receipt
+  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee, Stethoscope, Receipt, Shield
 } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
@@ -22,11 +22,20 @@ const Home = () => {
   const [breakSeconds, setBreakSeconds] = useState(0);
   const [delaySeconds, setDelaySeconds] = useState(0);
   const [emergencySeconds, setEmergencySeconds] = useState(0);
+  const [userRole, setUserRole] = useState('');
+
+  const CREATOR_EMAILS = ['shanmukhasai250@gmail.com', 'varunmeruga@gmail.com'];
+  const isCreator = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user && user.email && CREATOR_EMAILS.includes(user.email.toLowerCase());
+  };
 
   useEffect(() => {
     // Redirect hospitals to their dashboard
-    const userRole = localStorage.getItem('userRole');
-    if (userRole === 'HOSPITAL') {
+    const role = localStorage.getItem('userRole');
+    setUserRole(role || 'PATIENT');
+
+    if (role === 'HOSPITAL') {
       navigate('/hospital-dashboard');
       return;
     }
@@ -204,7 +213,7 @@ const Home = () => {
     recovery: lang === 'en' ? 'Recovery' : 'రికవరీ',
     appointments: lang === 'en' ? 'My Appointments' : 'నా అపాయింట్‌మెంట్లు',
     viewBookings: lang === 'en' ? 'View Bookings' : 'బుకింగ్‌లను చూడండి',
-    
+
     // AI Features
     aiFeatures: lang === 'en' ? 'AI Health Analysis' : 'AI ఆరోగ్య విశ్లేషణ',
     symptomAnalysis: lang === 'en' ? 'Symptom Analysis' : 'లక్షణ విశ్లేషణ',
@@ -238,6 +247,16 @@ const Home = () => {
               <button onClick={handleLogout} className="bg-white/10 hover:bg-red-500/80 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition flex items-center gap-1 border border-white/10">
                 <LogOut size={12} />
               </button>
+
+              {(userRole === 'ADMIN' || isCreator()) && (
+                <button
+                  onClick={() => navigate('/admin-dashboard')}
+                  className="bg-white/10 hover:bg-blue-500/80 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition flex items-center gap-1 border border-white/10"
+                  title="Admin Dashboard"
+                >
+                  <Shield size={12} /> ADMIN
+                </button>
+              )}
             </div>
           </div>
 
@@ -415,6 +434,9 @@ const Home = () => {
             <ToolCard icon={Utensils} color="orange" label={t.diet} onClick={() => navigate('/wellness')} />
             <ToolCard icon={Stethoscope} color="cyan" label={t.recovery} onClick={() => navigate('/recovery-tracker')} />
             <ToolCard icon={Receipt} color="sky" label="My Bills" onClick={() => navigate('/my-bills')} />
+            {(userRole === 'ADMIN' || isCreator()) && (
+              <ToolCard icon={Shield} color="red" label="Admin" onClick={() => navigate('/admin-dashboard')} />
+            )}
           </div>
         </div>
 
