@@ -30,6 +30,14 @@ const Home = () => {
       navigate('/hospital-dashboard');
       return;
     }
+    if (userRole === 'DOCTOR') {
+      navigate('/doctor-dashboard');
+      return;
+    }
+    if (userRole === 'PHARMACY') {
+      navigate('/pharmacy-dashboard');
+      return;
+    }
 
     const savedName = localStorage.getItem('userName');
     if (savedName) setUserName(savedName);
@@ -204,6 +212,7 @@ const Home = () => {
     recovery: lang === 'en' ? 'Recovery' : 'రికవరీ',
     appointments: lang === 'en' ? 'My Appointments' : 'నా అపాయింట్‌మెంట్లు',
     viewBookings: lang === 'en' ? 'View Bookings' : 'బుకింగ్‌లను చూడండి',
+    prescriptions: lang === 'en' ? 'Prescriptions' : 'మందుల చీటీలు',
 
     // AI Features
     aiFeatures: lang === 'en' ? 'AI Health Analysis' : 'AI ఆరోగ్య విశ్లేషణ',
@@ -400,7 +409,7 @@ const Home = () => {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.toolsTitle}</h3>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-9 gap-3">
             <div className="relative">
               <ToolCard icon={Bell} color="purple" label={t.reminders} onClick={() => navigate('/reminders')} />
               {reminders && reminders.length > 0 && (
@@ -416,6 +425,7 @@ const Home = () => {
             <ToolCard icon={Utensils} color="orange" label={t.diet} onClick={() => navigate('/wellness')} />
             <ToolCard icon={Stethoscope} color="cyan" label={t.recovery} onClick={() => navigate('/recovery-tracker')} />
             <ToolCard icon={Receipt} color="sky" label="My Bills" onClick={() => navigate('/my-bills')} />
+            <ToolCard icon={Pill} color="indigo" label={t.prescriptions} onClick={() => navigate('/my-prescriptions')} />
           </div>
         </div>
 

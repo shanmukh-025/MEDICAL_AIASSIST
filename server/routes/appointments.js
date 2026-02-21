@@ -35,30 +35,47 @@ router.get('/', auth, async (req, res) => {
 // POST /api/appointments -> Patient books appointment (status = PENDING)
 router.post('/', auth, async (req, res) => {
   try {
-    const { hospitalName, doctor, appointmentDate, appointmentTime, reason, patientName, familyMemberId } = req.body;
+    const {
+      hospitalName, hospitalId: reqHospitalId, doctor, doctorId: reqDoctorId, doctorEmail,
+      appointmentDate, appointmentTime, reason, patientName, familyMemberId
+    } = req.body;
+
     // ensure caller is a patient
     const caller = await User.findById(req.user.id).select('-password');
     if (!caller) return res.status(401).json({ msg: 'User not found' });
     if (caller.role !== 'PATIENT') return res.status(403).json({ msg: 'Only patients can book appointments' });
 
-    // Find hospital user by name (case-insensitive) or create if doesn't exist
-    let hospitalUser = null;
-    let hospitalId = null;
-
-    if (hospitalName) {
-      hospitalUser = await User.findOne({
+    // Find hospital user
+    let hospitalId = reqHospitalId;
+    if (!hospitalId && hospitalName) {
+      const hospitalUser = await User.findOne({
         name: { $regex: new RegExp(`^${hospitalName}$`, 'i') },
         role: 'HOSPITAL'
       });
+      if (hospitalUser) hospitalId = hospitalUser._id;
+    }
 
-      if (hospitalUser) {
-        hospitalId = hospitalUser._id;
-      }
+    // Resolve doctorId if email is provided
+    let finalDoctorId = reqDoctorId;
+    if (!finalDoctorId && doctorEmail) {
+      const docUser = await User.findOne({ email: doctorEmail, role: 'DOCTOR' });
+      if (docUser) finalDoctorId = docUser._id;
+    }
+
+    // Fallback: Resolve doctorId by name and hospitalId if still missing
+    if (!finalDoctorId && doctor && hospitalId) {
+      const docUser = await User.findOne({
+        name: { $regex: new RegExp(`^${doctor.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+        role: 'DOCTOR',
+        hospitalId: hospitalId
+      });
+      if (docUser) finalDoctorId = docUser._id;
     }
 
     const appt = new Appointment({
       patientId: caller._id,
       hospitalId: hospitalId,
+      doctorId: finalDoctorId,
       hospitalName: hospitalName || '',
       patientName: patientName || caller.name,
       doctor: doctor || '',
@@ -116,7 +133,10 @@ router.post('/', auth, async (req, res) => {
         const msg = `New appointment request from ${displayName} for ${hospitalName} on ${appointmentDate} at ${appointmentTime}`;
         await Notification.create({ userId: hospitalUser._id, message: msg, type: 'APPOINTMENT' });
         const io = req.app.get('io');
-        if (io) io.to(`user_${hospitalUser._id}`).emit('notification', { message: msg, apptId: appt._id });
+        if (io) {
+          io.to(`user_${hospitalUser._id}`).emit('notification', { message: msg, apptId: appt._id });
+          io.to(`hospital_${hospitalUser._id}`).emit('queueUpdated');
+        }
       }
     } catch (e) {
       console.warn('Notification creation failed', e.message);
@@ -179,16 +199,47 @@ router.get('/hospital', auth, async (req, res) => {
   }
 });
 
+// GET /api/appointments/doctor -> Doctor views their specific appointments
+router.get('/doctor', auth, async (req, res) => {
+  try {
+    const caller = await User.findById(req.user.id).select('-password');
+    if (!caller || caller.role !== 'DOCTOR') return res.status(403).json({ msg: 'Access denied' });
+
+    const cleanName = caller.name.replace(/^(dr|doctor)\.?\s+/i, '').trim();
+    const appts = await Appointment.find({
+      $or: [
+        { doctorId: caller._id },
+        {
+          hospitalId: caller.hospitalId,
+          doctor: { $regex: new RegExp(`^((dr|doctor)\\.?\\s+)?${cleanName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+        },
+        {
+          hospitalId: caller.hospitalId,
+          doctor: { $regex: new RegExp(`^${caller.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+        }
+      ]
+    }).sort({ createdAt: -1 }).populate('patientId', 'name email phone location');
+
+    res.json(appts);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 // PUT /api/appointments/:id/approve -> Hospital approves
 router.put('/:id/approve', auth, async (req, res) => {
   try {
     const { message } = req.body;
     const caller = await User.findById(req.user.id).select('-password');
-    if (!caller || caller.role !== 'HOSPITAL') return res.status(403).json({ msg: 'Access denied' });
+    if (!caller || (caller.role !== 'HOSPITAL' && caller.role !== 'DOCTOR')) return res.status(403).json({ msg: 'Access denied' });
 
     const appt = await Appointment.findById(req.params.id);
     if (!appt) return res.status(404).json({ msg: 'Appointment not found' });
-    if (appt.hospitalId && appt.hospitalId.toString() !== caller._id.toString()) return res.status(403).json({ msg: 'Not authorized' });
+
+    const isHospitalMatch = appt.hospitalId?.toString() === (caller.role === 'DOCTOR' ? caller.hospitalId?.toString() : caller._id.toString());
+    const isDoctorMatch = appt.doctorId?.toString() === caller._id.toString();
+    if (!isHospitalMatch && !isDoctorMatch) return res.status(403).json({ msg: 'Not authorized' });
 
     // Assign queue number if not already assigned
     if (!appt.queueNumber) {
@@ -220,7 +271,10 @@ router.put('/:id/approve', auth, async (req, res) => {
     const msg = `Your appointment on ${appt.appointmentDate} at ${appt.appointmentTime} has been CONFIRMED. Your queue number is #${appt.queueNumber}. ${message || ''}`;
     await Notification.create({ userId: appt.patientId, message: msg, type: 'APPOINTMENT' });
     const io = req.app.get('io');
-    if (io) io.to(`user_${appt.patientId}`).emit('notification', { message: msg, apptId: appt._id, status: 'CONFIRMED', queueNumber: appt.queueNumber });
+    if (io) {
+      io.to(`user_${appt.patientId}`).emit('notification', { message: msg, apptId: appt._id, status: 'CONFIRMED', queueNumber: appt.queueNumber });
+      io.to(`hospital_${appt.hospitalId}`).emit('queueUpdated');
+    }
 
     // Push notification (works even when app is closed)
     notifyQueueAssigned(appt.patientId, {
@@ -241,11 +295,14 @@ router.put('/:id/reject', auth, async (req, res) => {
   try {
     const { reason } = req.body;
     const caller = await User.findById(req.user.id).select('-password');
-    if (!caller || caller.role !== 'HOSPITAL') return res.status(403).json({ msg: 'Access denied' });
+    if (!caller || (caller.role !== 'HOSPITAL' && caller.role !== 'DOCTOR')) return res.status(403).json({ msg: 'Access denied' });
 
     const appt = await Appointment.findById(req.params.id);
     if (!appt) return res.status(404).json({ msg: 'Appointment not found' });
-    if (appt.hospitalId && appt.hospitalId.toString() !== caller._id.toString()) return res.status(403).json({ msg: 'Not authorized' });
+
+    const isHospitalMatch = appt.hospitalId?.toString() === (caller.role === 'DOCTOR' ? caller.hospitalId?.toString() : caller._id.toString());
+    const isDoctorMatch = appt.doctorId?.toString() === caller._id.toString();
+    if (!isHospitalMatch && !isDoctorMatch) return res.status(403).json({ msg: 'Not authorized' });
 
     appt.status = 'REJECTED';
     appt.rejectionReason = reason || '';
@@ -255,7 +312,10 @@ router.put('/:id/reject', auth, async (req, res) => {
     const msg = `Your appointment on ${appt.appointmentDate} at ${appt.appointmentTime} was REJECTED. ${reason || ''}`;
     await Notification.create({ userId: appt.patientId, message: msg, type: 'APPOINTMENT' });
     const io = req.app.get('io');
-    if (io) io.to(`user_${appt.patientId}`).emit('notification', { message: msg, apptId: appt._id, status: 'REJECTED' });
+    if (io) {
+      io.to(`user_${appt.patientId}`).emit('notification', { message: msg, apptId: appt._id, status: 'REJECTED' });
+      io.to(`hospital_${appt.hospitalId}`).emit('queueUpdated');
+    }
 
     // Push notification
     notifyAppointmentUpdate(appt.patientId, {
@@ -274,12 +334,16 @@ router.put('/:id/reject', auth, async (req, res) => {
 router.put('/:id/complete', auth, async (req, res) => {
   try {
     const caller = await User.findById(req.user.id).select('-password');
-    if (!caller || caller.role !== 'HOSPITAL') return res.status(403).json({ msg: 'Access denied' });
+    if (!caller || (caller.role !== 'HOSPITAL' && caller.role !== 'DOCTOR')) return res.status(403).json({ msg: 'Access denied' });
 
     const appt = await Appointment.findById(req.params.id);
     if (!appt) return res.status(404).json({ msg: 'Appointment not found' });
-    if (appt.hospitalId && appt.hospitalId.toString() !== caller._id.toString()) return res.status(403).json({ msg: 'Not authorized' });
 
+    const isHospitalMatch = appt.hospitalId?.toString() === (caller.role === 'DOCTOR' ? caller.hospitalId?.toString() : caller._id.toString());
+    const isDoctorMatch = appt.doctorId?.toString() === caller._id.toString();
+    if (!isHospitalMatch && !isDoctorMatch) return res.status(403).json({ msg: 'Not authorized' });
+
+    const io = req.app.get('io');
     appt.status = 'COMPLETED';
     await appt.save();
 
@@ -287,7 +351,7 @@ router.put('/:id/complete', auth, async (req, res) => {
     try {
       const autoBill = await BillingService.autoGenerateBillFromAppointment({
         appointmentId: appt._id,
-        hospitalId: caller._id,
+        hospitalId: appt.hospitalId,
         createdBy: caller._id,
         consultationFee: req.body.consultationFee || 500,
         req
@@ -308,8 +372,10 @@ router.put('/:id/complete', auth, async (req, res) => {
     // notify patient
     const msg = `Your visit to ${appt.hospitalName} on ${appt.appointmentDate} has been marked as COMPLETED. Thank you!`;
     await Notification.create({ userId: appt.patientId, message: msg, type: 'APPOINTMENT' });
-    const io = req.app.get('io');
-    if (io) io.to(`user_${appt.patientId}`).emit('notification', { message: msg, apptId: appt._id, status: 'COMPLETED' });
+    if (io) {
+      io.to(`user_${appt.patientId}`).emit('notification', { message: msg, apptId: appt._id, status: 'COMPLETED' });
+      io.to(`hospital_${appt.hospitalId}`).emit('queueUpdated');
+    }
 
     res.json({ success: true, appt });
   } catch (err) {
@@ -351,7 +417,7 @@ router.put('/:id/cancel', auth, async (req, res) => {
       await Notification.create({ userId: appt.hospitalId, message: hospitalMsg, type: 'APPOINTMENT' });
       if (io) {
         io.to(`user_${appt.hospitalId}`).emit('notification', { message: hospitalMsg, apptId: appt._id, status: 'CANCELLED' });
-        io.to(`user_${appt.hospitalId}`).emit('queueUpdated', { type: 'APPOINTMENT_CANCELLED', apptId: appt._id, hospitalId: appt.hospitalId });
+        io.to(`hospital_${appt.hospitalId}`).emit('queueUpdated', { type: 'APPOINTMENT_CANCELLED', apptId: appt._id, hospitalId: appt.hospitalId });
       }
     }
 
@@ -373,11 +439,14 @@ router.put('/:id/cancel', auth, async (req, res) => {
 router.delete('/:id', auth, async (req, res) => {
   try {
     const caller = await User.findById(req.user.id).select('-password');
-    if (!caller || caller.role !== 'HOSPITAL') return res.status(403).json({ msg: 'Only hospitals can delete appointments' });
+    if (!caller || (caller.role !== 'HOSPITAL' && caller.role !== 'DOCTOR')) return res.status(403).json({ msg: 'Only medical staff can delete appointments' });
 
     const appt = await Appointment.findById(req.params.id);
     if (!appt) return res.status(404).json({ msg: 'Appointment not found' });
-    if (appt.hospitalId && appt.hospitalId.toString() !== caller._id.toString()) return res.status(403).json({ msg: 'Not authorized' });
+
+    const isHospitalMatch = appt.hospitalId?.toString() === (caller.role === 'DOCTOR' ? caller.hospitalId?.toString() : caller._id.toString());
+    const isDoctorMatch = appt.doctorId?.toString() === caller._id.toString();
+    if (!isHospitalMatch && !isDoctorMatch) return res.status(403).json({ msg: 'Not authorized' });
 
     // Only allow deleting completed appointments
     if (appt.status !== 'COMPLETED') {
@@ -397,11 +466,15 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
   try {
     const { hospitalId, date } = req.params;
 
-    // Verify hospital access
+    // Verify access
     const caller = await User.findById(req.user.id).select('-password');
-    if (!caller || caller.role !== 'HOSPITAL') {
+    if (!caller || (caller.role !== 'HOSPITAL' && caller.role !== 'DOCTOR')) {
       return res.status(403).json({ msg: 'Access denied' });
     }
+
+    // Resolve which hospital we're looking at
+    const targetHospitalId = (caller.role === 'DOCTOR') ? caller.hospitalId : caller._id;
+    if (!targetHospitalId) return res.status(400).json({ msg: 'No hospital association found' });
 
     console.log('Queue status request:', { hospitalId, date, callerName: caller.name, callerId: caller._id });
 
@@ -411,16 +484,11 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
       status: { $in: ['PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CHECKED_IN'] }
     };
 
-    // Add hospital filter - use caller's actual ID and name
-    if (hospitalId && hospitalId !== 'null' && hospitalId !== 'undefined') {
-      query.$or = [
-        { hospitalId: caller._id },
-        { hospitalName: caller.name }
-      ];
-    } else {
-      // If hospitalId is null/invalid, search only by name
-      query.hospitalName = caller.name;
-    }
+    // Add hospital filter
+    query.$or = [
+      { hospitalId: targetHospitalId },
+      { hospitalName: caller.name }
+    ];
 
     console.log('Query:', JSON.stringify(query));
 
@@ -539,6 +607,10 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
         }
       }
 
+      // Notify hospital of queue changes
+      const io = req.app.get('io');
+      if (io) io.to(`hospital_${targetHospitalId}`).emit('queueUpdated');
+
       // Reload appointments after updates
       const updatedAppointments = await Appointment.find(query)
         .sort({ queueNumber: 1 })
@@ -584,6 +656,7 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
         queueNumber: appt.queueNumber || 0,
         status: appt.status,
         appointmentTime: appt.appointmentTime,
+        doctor: appt.doctor || 'Unassigned',
         type: appt.type || 'REGULAR',
         tokenNumber: appt.tokenNumber
       }));
@@ -628,7 +701,6 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
       appointments: formattedAppointments,
       date
     });
-
   } catch (err) {
     console.error('Queue status error:', err.message);
     res.status(500).json({ msg: 'Failed to load queue data', error: err.message });
@@ -639,13 +711,16 @@ router.get('/queue-status/:hospitalId/:date', auth, async (req, res) => {
 router.put('/:id/start-consultation', auth, async (req, res) => {
   try {
     const caller = await User.findById(req.user.id).select('-password');
-    if (!caller || caller.role !== 'HOSPITAL') {
+    if (!caller || (caller.role !== 'HOSPITAL' && caller.role !== 'DOCTOR')) {
       return res.status(403).json({ msg: 'Access denied' });
     }
 
     const appt = await Appointment.findById(req.params.id);
     if (!appt) return res.status(404).json({ msg: 'Appointment not found' });
-    if (appt.hospitalId && appt.hospitalId.toString() !== caller._id.toString()) {
+
+    const isHospitalMatch = appt.hospitalId?.toString() === (caller.role === 'DOCTOR' ? caller.hospitalId?.toString() : caller._id.toString());
+    const isDoctorMatch = appt.doctorId?.toString() === caller._id.toString();
+    if (!isHospitalMatch && !isDoctorMatch) {
       return res.status(403).json({ msg: 'Not authorized' });
     }
 
@@ -656,7 +731,7 @@ router.put('/:id/start-consultation', auth, async (req, res) => {
     // Broadcast queue update globally so ALL clients (including QueueDashboard) update in real-time
     const io = req.app.get('io');
     if (io) {
-      io.emit('queueUpdated', {
+      io.to(`hospital_${appt.hospitalId}`).emit('queueUpdated', {
         type: 'CONSULTATION_STARTED',
         doctorId: appt.hospitalId,
         queueNumber: appt.queueNumber,
@@ -707,13 +782,16 @@ router.put('/:id/start-consultation', auth, async (req, res) => {
 router.put('/:id/end-consultation', auth, async (req, res) => {
   try {
     const caller = await User.findById(req.user.id).select('-password');
-    if (!caller || caller.role !== 'HOSPITAL') {
+    if (!caller || (caller.role !== 'HOSPITAL' && caller.role !== 'DOCTOR')) {
       return res.status(403).json({ msg: 'Access denied' });
     }
 
     const appt = await Appointment.findById(req.params.id);
     if (!appt) return res.status(404).json({ msg: 'Appointment not found' });
-    if (appt.hospitalId && appt.hospitalId.toString() !== caller._id.toString()) {
+
+    const isHospitalMatch = appt.hospitalId?.toString() === (caller.role === 'DOCTOR' ? caller.hospitalId?.toString() : caller._id.toString());
+    const isDoctorMatch = appt.doctorId?.toString() === caller._id.toString();
+    if (!isHospitalMatch && !isDoctorMatch) {
       return res.status(403).json({ msg: 'Not authorized' });
     }
 
@@ -730,7 +808,7 @@ router.put('/:id/end-consultation', auth, async (req, res) => {
     // Broadcast queue update globally so ALL clients update in real-time
     const io = req.app.get('io');
     if (io) {
-      io.emit('queueUpdated', {
+      io.to(`hospital_${appt.hospitalId}`).emit('queueUpdated', {
         type: 'CONSULTATION_ENDED',
         doctorId: appt.hospitalId,
         apptId: appt._id.toString(),
@@ -757,27 +835,16 @@ router.post('/:id/send-reminder', auth, async (req, res) => {
   try {
     const { patientLocation } = req.body; // { latitude, longitude }
     const caller = await User.findById(req.user.id).select('-password');
-    if (!caller || caller.role !== 'HOSPITAL') {
+    if (!caller || (caller.role !== 'HOSPITAL' && caller.role !== 'DOCTOR')) {
       return res.status(403).json({ msg: 'Access denied' });
     }
 
     const appt = await Appointment.findById(req.params.id).populate('patientId', 'name phone');
     if (!appt) return res.status(404).json({ msg: 'Appointment not found' });
 
-    console.log('📋 Appointment details:', {
-      id: appt._id,
-      patientId: appt.patientId?._id,
-      patientName: appt.patientName,
-      type: appt.type,
-      hasPatientId: !!appt.patientId
-    });
-
-    if (!appt.patientId) {
-      console.log('⚠️ No patientId - this is a walk-in appointment, cannot send socket reminder');
-      return res.status(400).json({ msg: 'Cannot send reminder to walk-in patients without user account' });
-    }
-
-    if (appt.hospitalId && appt.hospitalId.toString() !== caller._id.toString()) {
+    const isHospitalMatch = appt.hospitalId?.toString() === (caller.role === 'DOCTOR' ? caller.hospitalId?.toString() : caller._id.toString());
+    const isDoctorMatch = appt.doctorId?.toString() === caller._id.toString();
+    if (!isHospitalMatch && !isDoctorMatch) {
       return res.status(403).json({ msg: 'Not authorized' });
     }
 
@@ -1093,16 +1160,19 @@ router.get('/emergency/:hospitalId/:date', auth, async (req, res) => {
   try {
     const { hospitalId, date } = req.params;
 
-    // Verify hospital access
+    // Verify access
     const caller = await User.findById(req.user.id).select('-password');
-    if (!caller || caller.role !== 'HOSPITAL') {
+    if (!caller || (caller.role !== 'HOSPITAL' && caller.role !== 'DOCTOR')) {
       return res.status(403).json({ msg: 'Access denied' });
     }
+
+    const targetHospitalId = (caller.role === 'DOCTOR') ? caller.hospitalId : caller._id;
+    if (!targetHospitalId) return res.status(400).json({ msg: 'No hospital association found' });
 
     // Get emergency appointments for the specified date
     const emergencyAppointments = await Appointment.find({
       $or: [
-        { hospitalId: caller._id },
+        { hospitalId: targetHospitalId },
         { hospitalName: caller.name }
       ],
       appointmentDate: date,

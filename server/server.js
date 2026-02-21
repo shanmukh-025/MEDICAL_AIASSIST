@@ -20,8 +20,8 @@ if (!fs.existsSync(uploadsDir)) {
   console.log('✅ Created uploads/logos directory');
 }
 
-// 1. Connect Database
-connectDB();
+// 1. Connect Database (Server starts inside startServer() at the bottom of the file)
+// connectDB(); // Removed from here, moved to the bottom
 
 // --- AUTO-FIX: Drop the bad 'clerkId' index ---
 // This runs once when the server starts to clean up your database
@@ -92,6 +92,7 @@ app.use('/api/call-logs', require('./routes/callLogs'));
 app.use('/api/patient-monitoring', require('./routes/patientMonitoring'));
 app.use('/api/billing', require('./routes/billing'));          // Billing & Payments
 app.use('/api/discharge', require('./routes/discharge'));      // Discharge Summaries
+app.use('/api/prescriptions', require('./routes/prescriptions')); // Digital Prescriptions
 app.use('/api/admin', require('./routes/admin'));
 
 // 6. Test Route
@@ -111,9 +112,9 @@ const activeCalls = new Map();
 const clearActiveCall = async (room, reason) => {
   const callData = activeCalls.get(room);
   if (!callData) return;
-  
+
   if (callData.timeout) clearTimeout(callData.timeout);
-  
+
   if (callData.callLogId) {
     try {
       const duration = Math.round((Date.now() - callData.startedAt) / 1000);
@@ -123,7 +124,7 @@ const clearActiveCall = async (room, reason) => {
       });
     } catch (e) { console.error('Failed to update call log on clear:', e); }
   }
-  
+
   activeCalls.delete(room);
   console.log(`🟢 Hospital ${room} is now FREE (${reason})`);
 };
@@ -167,7 +168,7 @@ io.on('connection', (socket) => {
       const existing = activeCalls.get(to);
       const age = Date.now() - existing.startedAt;
       if (age > 120000) {
-        console.log(`⚠️ Stale call detected for ${to} (${Math.round(age/1000)}s old), clearing...`);
+        console.log(`⚠️ Stale call detected for ${to} (${Math.round(age / 1000)}s old), clearing...`);
         await clearActiveCall(to, 'stale timeout');
       } else {
         console.log(`🔴 Hospital ${to} is BUSY — rejecting call from ${socket.id}`);
@@ -340,10 +341,22 @@ io.on('connection', (socket) => {
 });
 app.set('io', io);
 
-// Start medicine reminder scheduler
-startReminderScheduler();
+// Start Server & Schedulers after DB connection
+const startServer = async () => {
+  try {
+    await connectDB();
 
-// Start patient monitoring scheduler
-startMonitoringScheduler(io);
+    // Start medicine reminder scheduler
+    startReminderScheduler();
 
-server.listen(PORT, () => console.log(`🚀 Backend Server running on port ${PORT}`));
+    // Start patient monitoring scheduler
+    startMonitoringScheduler(io);
+
+    server.listen(PORT, () => console.log(`🚀 Backend Server running on port ${PORT}`));
+  } catch (err) {
+    console.error('CRITICAL: Failed to start server:', err.message);
+    process.exit(1);
+  }
+};
+
+startServer();

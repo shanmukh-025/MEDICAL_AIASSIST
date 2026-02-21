@@ -13,13 +13,13 @@ export const AuthProvider = ({ children }) => {
         const autoLogin = localStorage.getItem('autoLogin');
         const savedUser = localStorage.getItem('user');
         const token = localStorage.getItem('token');
-        
+
         if (autoLogin === 'true' && savedUser && token && savedUser !== "undefined") {
           // Verify token is still valid
           const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/auth/verify`, {
             headers: { 'x-auth-token': token }
           });
-          
+
           if (res.ok) {
             setUser(JSON.parse(savedUser));
             console.log('Auto-login successful');
@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
       }
     };
-    
+
     checkAutoLogin();
   }, []);
 
@@ -50,14 +50,14 @@ export const AuthProvider = ({ children }) => {
   const handleResponse = async (res) => {
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.message || "Request failed");
-        return data;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Request failed");
+      return data;
     } else {
-        // If server crashes and sends HTML instead of JSON
-        const text = await res.text();
-        console.error("Server Error (Non-JSON):", text);
-        throw new Error("Server Error. Check Backend Terminal.");
+      // If server crashes and sends HTML instead of JSON
+      const text = await res.text();
+      console.error("Server Error (Non-JSON):", text);
+      throw new Error("Server Error. Check Backend Terminal.");
     }
   };
 
@@ -109,7 +109,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, signup, logout, loading }}>
       {!loading ? children : <div className="min-h-screen flex items-center justify-center text-gray-400">Loading App...</div>}
     </AuthContext.Provider>
   );

@@ -35,11 +35,14 @@ import FamilyProfile from './pages/FamilyProfile';
 import UserProfile from './pages/UserProfile';
 import HospitalBranding from './pages/HospitalBranding';
 import QueueDashboard from './pages/QueueDashboard';
+import DoctorDashboard from './pages/DoctorDashboard';
 import SymptomAnalysis from './pages/SymptomAnalysis'; // AI Symptom Analysis
 
 import PatientRecoveryTracker from './pages/PatientRecoveryTracker'; // Patient Recovery Monitoring
 import PatientBilling from './pages/PatientBilling'; // Patient Billing & Discharge View
 import AdminDashboard from './pages/AdminDashboard';
+import PharmacyDashboard from './pages/PharmacyDashboard';
+import PrescriptionList from './pages/PrescriptionList';
 
 // Conditional Voice Assistant - only show when authenticated
 const ConditionalVoiceAssistant = () => {
@@ -119,9 +122,12 @@ function App() {
                   <Route path="/result/:medicineName" element={<PrivateRoute><Result /></PrivateRoute>} />
                   <Route path="/doctors" element={<PrivateRoute><Doctors /></PrivateRoute>} />
                   <Route path="/symptom-analysis" element={<PrivateRoute><SymptomAnalysis /></PrivateRoute>} />
+                  <Route path="/doctor-dashboard" element={<PrivateRoute><DoctorDashboard /></PrivateRoute>} />
 
                   <Route path="/recovery-tracker" element={<PrivateRoute><PatientRecoveryTracker /></PrivateRoute>} />
                   <Route path="/my-bills" element={<PrivateRoute><PatientBilling /></PrivateRoute>} />
+                  <Route path="/pharmacy-dashboard" element={<PrivateRoute><PharmacyDashboard /></PrivateRoute>} />
+                  <Route path="/my-prescriptions" element={<PrivateRoute><PrescriptionList /></PrivateRoute>} />
                 </Routes>
               </div>
             </Router>

@@ -31,16 +31,16 @@ const Register = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential: credentialResponse.credential })
       });
-      
+
       const data = await res.json();
-      
+
       if (res.ok) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('userName', data.user.name);
         localStorage.setItem('userRole', data.user.role || 'PATIENT');
         localStorage.setItem('autoLogin', 'true'); // Auto-enable for Google sign-ups
-        
+
         toast.success(`Welcome ${data.user.name}!`);
         navigate('/dashboard');
       } else {
@@ -79,7 +79,7 @@ const Register = () => {
 
   const onSubmit = async e => {
     e.preventDefault();
-    
+
     // Validate hospital requirements
     if (role === 'HOSPITAL') {
       if (!address || !latitude || !longitude) {
@@ -87,17 +87,17 @@ const Register = () => {
         return;
       }
     }
-    
+
     setLoading(true);
-    
+
     try {
-      const payload = { 
-        name, 
-        email, 
-        password, 
+      const payload = {
+        name,
+        email,
+        password,
         role
       };
-      
+
       // Include location data for hospitals
       if (role === 'HOSPITAL') {
         payload.address = address;
@@ -106,7 +106,7 @@ const Register = () => {
           longitude: parseFloat(longitude)
         };
       }
-      
+
       const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
@@ -122,9 +122,9 @@ const Register = () => {
         localStorage.setItem('userName', name);
         localStorage.setItem('userRole', role);
         if (data.user) localStorage.setItem('user', JSON.stringify(data.user));
-        
+
         toast.success("Account created successfully!");
-        
+
         // Redirect based on role
         if (role === 'HOSPITAL') {
           navigate('/hospital-dashboard');
@@ -145,7 +145,7 @@ const Register = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-slate-100">
-        
+
         {/* Logo/Header */}
         <div className="text-center mb-8">
           <div className="bg-emerald-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-emerald-600">
@@ -157,7 +157,7 @@ const Register = () => {
 
         {/* Form */}
         <form onSubmit={onSubmit} className="space-y-4">
-          
+
           {/* Role Selector */}
           <div className="relative">
             <Building2 className="absolute left-4 top-3.5 text-slate-400" size={20} />
@@ -170,48 +170,50 @@ const Register = () => {
             >
               <option value="PATIENT">Patient / User</option>
               <option value="HOSPITAL">Hospital / Clinic</option>
+              <option value="DOCTOR">Doctor</option>
+              <option value="PHARMACY">Pharmacy</option>
             </select>
           </div>
 
           {/* Name Input */}
           <div className="relative">
             <User className="absolute left-4 top-3.5 text-slate-400" size={20} />
-            <input 
-              type="text" 
-              name="name" 
-              value={name} 
-              onChange={onChange} 
+            <input
+              type="text"
+              name="name"
+              value={name}
+              onChange={onChange}
               placeholder={role === 'HOSPITAL' ? 'Hospital/Clinic Name' : 'Full Name'}
               className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
-              required 
+              required
             />
           </div>
 
           {/* Email Input */}
           <div className="relative">
             <Mail className="absolute left-4 top-3.5 text-slate-400" size={20} />
-            <input 
-              type="email" 
-              name="email" 
-              value={email} 
-              onChange={onChange} 
-              placeholder="Email Address" 
+            <input
+              type="email"
+              name="email"
+              value={email}
+              onChange={onChange}
+              placeholder="Email Address"
               className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
-              required 
+              required
             />
           </div>
 
           {/* Password Input */}
           <div className="relative">
             <Lock className="absolute left-4 top-3.5 text-slate-400" size={20} />
-            <input 
-              type="password" 
-              name="password" 
-              value={password} 
-              onChange={onChange} 
-              placeholder="Password" 
+            <input
+              type="password"
+              name="password"
+              value={password}
+              onChange={onChange}
+              placeholder="Password"
               className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
-              required 
+              required
               minLength="6"
             />
           </div>
@@ -226,12 +228,12 @@ const Register = () => {
               {/* Address */}
               <div className="relative">
                 <MapPin className="absolute left-4 top-3.5 text-slate-400" size={20} />
-                <input 
-                  type="text" 
-                  name="address" 
-                  value={address} 
-                  onChange={onChange} 
-                  placeholder="Full Address" 
+                <input
+                  type="text"
+                  name="address"
+                  value={address}
+                  onChange={onChange}
+                  placeholder="Full Address"
                   className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
                   required={role === 'HOSPITAL'}
                 />
@@ -239,23 +241,23 @@ const Register = () => {
 
               {/* Location Inputs */}
               <div className="grid grid-cols-2 gap-3">
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="any"
-                  name="latitude" 
-                  value={latitude} 
-                  onChange={onChange} 
-                  placeholder="Latitude" 
+                  name="latitude"
+                  value={latitude}
+                  onChange={onChange}
+                  placeholder="Latitude"
                   className="bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
                   required={role === 'HOSPITAL'}
                 />
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   step="any"
-                  name="longitude" 
-                  value={longitude} 
-                  onChange={onChange} 
-                  placeholder="Longitude" 
+                  name="longitude"
+                  value={longitude}
+                  onChange={onChange}
+                  placeholder="Longitude"
                   className="bg-slate-50 border border-slate-200 py-3 px-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
                   required={role === 'HOSPITAL'}
                 />
@@ -277,8 +279,8 @@ const Register = () => {
             </>
           )}
 
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={loading}
             className="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 hover:shadow-emerald-300 transition flex items-center justify-center gap-2 mt-4"
           >
@@ -289,23 +291,23 @@ const Register = () => {
         {role === 'PATIENT' && (
           <>
             <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-200"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-white text-slate-500 font-medium">Or sign up with</span>
-                </div>
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-slate-500 font-medium">Or sign up with</span>
+              </div>
             </div>
 
             <div className="flex justify-center">
-                <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={() => toast.error('Google sign-up failed')}
-                    theme="outline"
-                    size="large"
-                    text="signup_with"
-                    shape="rectangular"
-                />
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => toast.error('Google sign-up failed')}
+                theme="outline"
+                size="large"
+                text="signup_with"
+                shape="rectangular"
+              />
             </div>
           </>
         )}

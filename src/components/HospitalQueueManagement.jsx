@@ -2,20 +2,22 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Clock, PlayCircle, CheckCircle, RefreshCw, Calendar, UserPlus, AlertOctagon, Coffee, X, UserMinus, Bell } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { useSocket } from '../context/SocketContext';
 
 const API_URL = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
 const HospitalQueueManagement = () => {
+  const { socket } = useSocket();
   const [queueData, setQueueData] = useState(null);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
-  
+
   // Modal states
   const [showWalkInModal, setShowWalkInModal] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [showDelayModal, setShowDelayModal] = useState(false);
   const [showBreakModal, setShowBreakModal] = useState(false);
-  
+
   // Form states
   const [walkInName, setWalkInName] = useState('');
   const [walkInTime, setWalkInTime] = useState('');
@@ -29,7 +31,7 @@ const HospitalQueueManagement = () => {
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
       const userId = user?.id || user?._id;
-      
+
       if (!userId) {
         console.error('No user ID found in localStorage');
         toast.error('Please log in again');
@@ -42,7 +44,7 @@ const HospitalQueueManagement = () => {
         `${API_URL}/api/appointments/queue-status/${userId}/${selectedDate}`,
         { headers: { 'x-auth-token': token } }
       );
-      
+
       console.log('Queue data received:', res.data);
       setQueueData(res.data);
       setLoading(false);
@@ -58,7 +60,7 @@ const HospitalQueueManagement = () => {
         avgConsultationTime: null,
         appointments: []
       });
-      
+
       // Only show error if it's a server error (not just empty data)
       if (err.response?.status === 500) {
         console.error('Server error loading queue data');
@@ -79,12 +81,12 @@ const HospitalQueueManagement = () => {
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
       const userId = user?.id || user?._id;
-      
+
       if (!userId) {
         toast.error('User ID not found. Please log in again.');
         return;
       }
-      
+
       const res = await axios.post(
         `${API_URL}/api/smart-queue/walk-in-token`,
         { patientName: walkInName, appointmentTime: walkInTime || undefined, doctorId: userId },
@@ -94,7 +96,7 @@ const HospitalQueueManagement = () => {
       toast.success(`✅ Walk-in Token Generated!\nQueue #${res.data.serialNumber}`, {
         duration: 5000
       });
-      
+
       setWalkInName('');
       setWalkInTime('');
       setShowWalkInModal(false);
@@ -118,20 +120,20 @@ const HospitalQueueManagement = () => {
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
       const userId = user?.id || user?._id;
-      
+
       if (!userId) {
         toast.error('User ID not found. Please log in again.');
         return;
       }
-      
+
       console.log('Inserting emergency patient with doctorId:', userId);
-      
+
       const res = await axios.post(
         `${API_URL}/api/smart-queue/emergency`,
-        { 
+        {
           patientName: emergencyForm.name,
           phone: emergencyForm.phone,
-          doctorId: userId 
+          doctorId: userId
         },
         { headers: { 'x-auth-token': token } }
       );
@@ -140,7 +142,7 @@ const HospitalQueueManagement = () => {
         `🚨 ${res.data.message}\n${res.data.affectedPatients} patients shifted`,
         { duration: 5000 }
       );
-      
+
       setEmergencyForm({ name: '', phone: '' });
       setShowEmergencyModal(false);
       fetchQueueData();
@@ -158,12 +160,12 @@ const HospitalQueueManagement = () => {
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
       const userId = user?.id || user?._id;
-      
+
       if (!userId) {
         toast.error('User ID not found. Please log in again.');
         return;
       }
-      
+
       const res = await axios.post(
         `${API_URL}/api/smart-queue/broadcast-delay`,
         {
@@ -178,7 +180,7 @@ const HospitalQueueManagement = () => {
         `📢 Delay broadcasted to ${res.data.notificationsSent} patients`,
         { duration: 5000 }
       );
-      
+
       setDelayForm({ minutes: 30, reason: '' });
       setShowDelayModal(false);
       fetchQueueData();
@@ -201,19 +203,19 @@ const HospitalQueueManagement = () => {
       const userStr = localStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
       const userId = user?.id || user?._id;
-      
+
       if (!userId) {
         toast.error('User ID not found. Please log in again.');
         return;
       }
-      
+
       console.log('Scheduling break for doctorId:', userId, 'Duration:', breakDuration);
-      
+
       const res = await axios.post(
         `${API_URL}/api/smart-queue/doctor-break`,
-        { 
+        {
           doctorId: userId,
-          breakDurationMinutes: breakDuration 
+          breakDurationMinutes: breakDuration
         },
         { headers: { 'x-auth-token': token } }
       );
@@ -222,7 +224,7 @@ const HospitalQueueManagement = () => {
         `☕ Break scheduled for ${breakDuration} minutes!\n${res.data.affectedPatients} patients notified`,
         { duration: 6000 }
       );
-      
+
       setShowBreakModal(false);
       setBreakDuration(15);
       fetchQueueData();
@@ -294,13 +296,13 @@ const HospitalQueueManagement = () => {
   const handleSendReminder = async (appointmentId, patientName) => {
     try {
       const token = localStorage.getItem('token');
-      
+
       // Get patient's current location if available
       let patientLocation = null;
-      
+
       // Try to get location (in real app, this would come from patient's device)
       // For now, we'll send reminder without exact location
-      
+
       const res = await axios.post(
         `${API_URL}/api/appointments/${appointmentId}/send-reminder`,
         { patientLocation },
@@ -316,6 +318,18 @@ const HospitalQueueManagement = () => {
       toast.error(err.response?.data?.msg || 'Failed to send reminder');
     }
   };
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleQueueUpdate = (data) => {
+      console.log('🔄 Socket: Queue updated, refreshing dashboard...', data);
+      fetchQueueData();
+    };
+
+    socket.on('queueUpdated', handleQueueUpdate);
+    return () => socket.off('queueUpdated', handleQueueUpdate);
+  }, [socket, fetchQueueData]);
 
   useEffect(() => {
     fetchQueueData();
@@ -465,13 +479,12 @@ const HospitalQueueManagement = () => {
               <div key={appt._id} className="p-4 hover:bg-slate-50 transition">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm ${
-                      appt.status === 'IN_PROGRESS' 
-                        ? 'bg-emerald-100 text-emerald-700' 
-                        : appt.status === 'EMERGENCY'
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm ${appt.status === 'IN_PROGRESS'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : appt.status === 'EMERGENCY'
                         ? 'bg-red-100 text-red-700'
                         : 'bg-slate-100 text-slate-600'
-                    }`}>
+                      }`}>
                       #{appt.queueNumber}
                     </div>
                     <div>
@@ -619,7 +632,7 @@ const HospitalQueueManagement = () => {
                 onClick={handleEmergencyInsertion}
                 className="w-full bg-red-600 text-white py-3 rounded-lg font-bold hover:bg-red-700"
               >
-                 Insert as Emergency
+                Insert as Emergency
               </button>
             </div>
           </div>
@@ -696,36 +709,33 @@ const HospitalQueueManagement = () => {
                 />
                 <p className="text-xs text-slate-500 mt-1">Between 5 and 120 minutes</p>
               </div>
-              
+
               {/* Quick duration buttons */}
               <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => setBreakDuration(15)}
-                  className={`py-2 rounded-lg font-bold transition ${
-                    breakDuration === 15 
-                      ? 'bg-purple-600 text-white' 
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+                  className={`py-2 rounded-lg font-bold transition ${breakDuration === 15
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
                 >
                   15 min
                 </button>
                 <button
                   onClick={() => setBreakDuration(30)}
-                  className={`py-2 rounded-lg font-bold transition ${
-                    breakDuration === 30 
-                      ? 'bg-purple-600 text-white' 
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+                  className={`py-2 rounded-lg font-bold transition ${breakDuration === 30
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
                 >
                   30 min
                 </button>
                 <button
                   onClick={() => setBreakDuration(60)}
-                  className={`py-2 rounded-lg font-bold transition ${
-                    breakDuration === 60 
-                      ? 'bg-purple-600 text-white' 
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
+                  className={`py-2 rounded-lg font-bold transition ${breakDuration === 60
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
                 >
                   60 min
                 </button>

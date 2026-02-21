@@ -13,6 +13,10 @@ const AppointmentSchema = new mongoose.Schema({
   patientName: { type: String }, // For walk-ins without user accounts
   phone: { type: String }, // For walk-ins
   doctor: { type: String },
+  doctorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   appointmentDate: { type: String, required: true },
   appointmentTime: { type: String, required: true },
   reason: { type: String },

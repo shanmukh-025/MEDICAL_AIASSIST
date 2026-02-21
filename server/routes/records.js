@@ -30,7 +30,7 @@ router.post('/', auth, async (req, res) => {
   try {
     // UPDATED: Destructure 'image' instead of 'fileData'
     const { title, doctor, type, date, image, familyMember } = req.body;
-    
+
     const newRecord = new Record({
       user: req.user.id,
       title,
@@ -55,15 +55,15 @@ router.post('/', auth, async (req, res) => {
 router.post('/send-to-patient', auth, async (req, res) => {
   try {
     const caller = await User.findById(req.user.id).select('-password');
-    if (!caller || caller.role !== 'HOSPITAL') {
-      return res.status(403).json({ msg: 'Only hospitals can send test reports' });
+    if (!caller || (caller.role !== 'HOSPITAL' && caller.role !== 'DOCTOR')) {
+      return res.status(403).json({ msg: 'Only hospitals and doctors can send test reports' });
     }
 
     const { patientId, title, doctor, type, date, image, appointmentId } = req.body;
-    console.log('📤 Hospital sending report to patient:', { 
-      hospitalName: caller.name, 
-      patientId, 
-      title 
+    console.log('📤 Hospital sending report to patient:', {
+      hospitalName: caller.name,
+      patientId,
+      title
     });
 
     if (!patientId || !title || !image) {
@@ -98,16 +98,16 @@ router.post('/send-to-patient', auth, async (req, res) => {
     // Send notification to patient
     try {
       const msg = `${caller.name} has sent you a test report: ${title}`;
-      await Notification.create({ 
-        userId: patientId, 
-        message: msg, 
-        type: 'TEST_REPORT' 
+      await Notification.create({
+        userId: patientId,
+        message: msg,
+        type: 'TEST_REPORT'
       });
-      
+
       const io = req.app.get('io');
       if (io) {
-        io.to(`user_${patientId}`).emit('notification', { 
-          message: msg, 
+        io.to(`user_${patientId}`).emit('notification', {
+          message: msg,
           recordId: record._id,
           type: 'TEST_REPORT'
         });

@@ -14,11 +14,16 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // Role for RBAC: 'PATIENT' or 'HOSPITAL' or 'ADMIN'
+  // Role for RBAC: 'PATIENT' or 'HOSPITAL' or 'ADMIN' or 'DOCTOR' or 'PHARMACY'
   role: {
     type: String,
-    enum: ['PATIENT', 'HOSPITAL', 'ADMIN'],
+    enum: ['PATIENT', 'HOSPITAL', 'ADMIN', 'DOCTOR', 'PHARMACY'],
     default: 'PATIENT'
+  },
+  // Link to hospital (for Doctors and Patients)
+  hospitalId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   // Contact email for hospital notifications (optional)
   contactEmail: {
@@ -55,10 +60,19 @@ const UserSchema = new mongoose.Schema({
     type: String
   }],
   doctors: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     name: String,
     specialty: String,
     qualification: String,
-    experience: String
+    experience: String,
+    email: String,
+    isRegistered: { type: Boolean, default: false }
+  }],
+  pharmacies: [{
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    name: String,
+    email: String,
+    isRegistered: { type: Boolean, default: false }
   }],
   about: {
     type: String

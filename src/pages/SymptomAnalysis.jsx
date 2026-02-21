@@ -136,6 +136,8 @@ const SymptomAnalysis = () => {
       : 'మీ లాగ్‌లలో వేర్వేరు వ్యాధులు ఉన్నాయి. ఖచ్చితమైన విశ్లేషణ కోసం దయచేసి నిర్దిష్ట వ్యాధి ద్వారా ఫిల్టర్ చేయండి.',
     selectConditionFirst: lang === 'en' ? 'Select a condition first' : 'ముందు ఒక వ్యాధిని ఎంచుకోండి',
     analyzeAnyway: lang === 'en' ? 'Analyze All Anyway' : 'అన్నింటినీ విశ్లేషించండి',
+    selectDoctor: lang === 'en' ? 'Select Doctor' : 'వైద్యుడిని ఎంచుకోండి',
+    dutyDoctor: lang === 'en' ? 'Duty Medical Officer' : 'డ్యూటీ డాక్టర్',
   };
 
   // Default common symptoms list
@@ -207,6 +209,7 @@ const SymptomAnalysis = () => {
   const [bookDate, setBookDate] = useState('');
   const [bookTime, setBookTime] = useState('');
   const [bookReason, setBookReason] = useState('');
+  const [selectedDoctorId, setSelectedDoctorId] = useState(''); // New: Track which doctor is selected
   const [bookingStep, setBookingStep] = useState('form'); // 'form' | 'loading' | 'success'
 
   // Fetch family members on mount
@@ -791,12 +794,19 @@ const SymptomAnalysis = () => {
     try {
       if (!token) throw new Error('Login required');
 
+      // Find selected doctor info
+      const docList = bookingHospital.hospital?.doctors || bookingHospital.doctors || [];
+      const selectedDoc = docList.find(d => d._id === selectedDoctorId || d.email === selectedDoctorId);
+
       const appointmentData = {
         hospitalName: bookingHospital.hospital?.name || bookingHospital.name,
-        doctor: lang === 'en' ? 'Duty Medical Officer' : 'డ్యూటీ డాక్టర్',
+        hospitalId: bookingHospital.hospital?._id || bookingHospital._id,
+        doctor: selectedDoc ? selectedDoc.name : t.dutyDoctor,
+        doctorId: selectedDoc?._id || null,
+        doctorEmail: selectedDoc?.email || null,
         appointmentDate: bookDate,
         appointmentTime: bookTime,
-        reason: bookReason || (analysis?.possibleConditions?.[0] || 'General consultation'),
+        reason: bookReason || (analysis?.primaryDiagnosis || analysis?.possibleConditions?.[0] || 'General consultation'),
         ...(selectedPerson !== 'self' && {
           patientName: familyMembers.find(m => m._id === selectedPerson)?.name,
           familyMemberId: selectedPerson
@@ -1543,8 +1553,8 @@ const SymptomAnalysis = () => {
               <button
                 onClick={() => setViewMode('entry')}
                 className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${viewMode === 'entry'
-                    ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 <Activity size={16} />
@@ -1553,8 +1563,8 @@ const SymptomAnalysis = () => {
               <button
                 onClick={() => setViewMode('history')}
                 className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${viewMode === 'history'
-                    ? 'bg-white text-purple-600 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-white text-purple-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
                   }`}
               >
                 <HistoryIcon size={16} />
@@ -2077,8 +2087,8 @@ const SymptomAnalysis = () => {
                     <div
                       key={result.hospital._id}
                       className={`border rounded-2xl p-4 hover:shadow-md transition ${result.isOSM
-                          ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
-                          : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200'
+                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+                        : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200'
                         }`}
                     >
                       <div className="flex items-start justify-between mb-2">
@@ -2298,8 +2308,8 @@ const SymptomAnalysis = () => {
                         onClick={() => selectDayRange(days)}
                         disabled={loadingMultiDay}
                         className={`px-4 py-3 rounded-xl font-bold text-sm transition ${selectedDayRange === days
-                            ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg'
-                            : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-indigo-400 hover:shadow-md'
+                          ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg'
+                          : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-indigo-400 hover:shadow-md'
                           } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
                         <div className="text-2xl font-black">{days}</div>
@@ -2697,8 +2707,8 @@ const SymptomAnalysis = () => {
                         <div
                           key={result.hospital._id}
                           className={`border rounded-2xl p-4 hover:shadow-md transition ${result.isOSM
-                              ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
-                              : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200'
+                            ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200'
+                            : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200'
                             }`}
                         >
                           <div className="flex items-start justify-between mb-2">
@@ -2937,8 +2947,8 @@ const SymptomAnalysis = () => {
                                   <div className="flex items-center gap-2">
                                     <Thermometer size={14} className="text-slate-400" />
                                     <span className={`text-sm font-bold ${log.severity >= 7 ? 'text-red-600' :
-                                        log.severity >= 5 ? 'text-orange-600' :
-                                          'text-green-600'
+                                      log.severity >= 5 ? 'text-orange-600' :
+                                        'text-green-600'
                                       }`}>
                                       {log.severity}/10
                                     </span>
@@ -3012,147 +3022,170 @@ const SymptomAnalysis = () => {
       {/* BOOKING MODAL - Adapted from Doctors page */}
       {bookingHospital && (
         <div className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center mb-4 shrink-0 px-1">
               <h3 className="font-bold text-xl text-slate-900">
                 {lang === 'en' ? 'Book Appointment' : 'అపాయింట్‌మెంట్ బుక్ చేయండి'}
               </h3>
               <button
                 onClick={() => setBookingHospital(null)}
-                className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"
+                className="p-2 bg-slate-100 rounded-full hover:bg-slate-200 text-slate-600"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {bookingStep === 'form' && (
-              <form onSubmit={handleBookVisit} className="space-y-4">
-                {/* Hospital Info */}
-                <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                  <p className="text-sm font-bold text-emerald-900">
-                    {bookingHospital.hospital?.name || bookingHospital.name}
-                  </p>
-                  <div className="flex justify-between mt-2 text-xs text-emerald-700 font-medium">
-                    <span>{lang === 'en' ? 'Duty Medical Officer' : 'డ్యూటీ డాక్టర్'}</span>
-                    <span>{lang === 'en' ? 'General OPD' : 'సాధారణ చికిత్స'}</span>
-                  </div>
-                  {bookingHospital.isOSM && (
-                    <p className="text-[10px] text-blue-600 font-bold mt-2 bg-blue-50 px-2 py-1 rounded inline-block">
-                      {lang === 'en' ? 'External Hospital - Walk-in may be required' : 'బాహ్య ఆసుపత్రి - వాక్-ఇన్ అవసరం కావచ్చు'}
+            <div className="overflow-y-auto flex-1 pr-1 custom-scrollbar -mr-1">
+              {bookingStep === 'form' && (
+                <form onSubmit={handleBookVisit} className="space-y-4 pb-2">
+                  {/* Hospital Info */}
+                  <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
+                    <p className="text-sm font-bold text-emerald-900 leading-tight">
+                      {bookingHospital.hospital?.name || bookingHospital.name}
                     </p>
-                  )}
-                </div>
+                    <div className="flex justify-between mt-1 text-[10px] text-emerald-700 font-bold uppercase tracking-wider">
+                      <span>{t.dutyDoctor}</span>
+                      <span>{lang === 'en' ? 'General OPD' : 'సాధారణ చికిత్స'}</span>
+                    </div>
+                    {bookingHospital.isOSM && (
+                      <p className="text-[10px] text-blue-600 font-bold mt-2 bg-blue-50 px-2 py-0.5 rounded inline-block border border-blue-100">
+                        {lang === 'en' ? 'External Hospital' : 'బాహ్య ఆసుపత్రి'}
+                      </p>
+                    )}
+                  </div>
 
-                {/* Family Member Banner */}
-                {selectedPerson !== 'self' && (
-                  <div className="bg-blue-50 p-3 rounded-2xl border border-blue-200 flex items-center gap-3">
-                    <div className="bg-blue-100 p-2 rounded-full">
-                      <Users size={16} className="text-blue-600" />
+                  {/* Family Member Banner */}
+                  {selectedPerson !== 'self' && (
+                    <div className="bg-blue-50 p-2.5 rounded-2xl border border-blue-100 flex items-center gap-3">
+                      <div className="bg-blue-100 p-2 rounded-full">
+                        <Users size={14} className="text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-blue-500 font-black uppercase tracking-wider leading-none mb-1">
+                          {lang === 'en' ? 'Booking For' : 'బుకింగ్ ఎవరి కోసం'}
+                        </p>
+                        <p className="text-sm font-bold text-blue-900 leading-none">
+                          {familyMembers.find(m => m._id === selectedPerson)?.name || 'Family Member'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Doctor Selection */}
+                  {((bookingHospital.hospital?.doctors || bookingHospital.doctors)?.length > 0) && (
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        {t.selectDoctor}
+                      </label>
+                      <select
+                        className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-bold text-sm text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                        value={selectedDoctorId}
+                        onChange={e => setSelectedDoctorId(e.target.value)}
+                      >
+                        <option value="">{t.dutyDoctor}</option>
+                        {(bookingHospital.hospital?.doctors || bookingHospital.doctors).map((doc, idx) => (
+                          <option key={idx} value={doc._id || doc.email}>
+                            {doc.name} ({doc.specialty})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Reason */}
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                      {lang === 'en' ? 'REASON' : 'కారణం'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder={lang === 'en' ? 'Optional' : 'ఐచ్ఛికం'}
+                      className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-bold text-sm text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                      value={bookReason}
+                      onChange={e => setBookReason(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Date & Time */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        {lang === 'en' ? 'DATE' : 'తేదీ'}
+                      </label>
+                      <input
+                        required
+                        type="date"
+                        min={new Date().toISOString().split('T')[0]}
+                        className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-bold text-sm text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                        value={bookDate}
+                        onChange={e => setBookDate(e.target.value)}
+                      />
                     </div>
                     <div>
-                      <p className="text-xs text-blue-500 font-bold uppercase tracking-wider">
-                        {lang === 'en' ? 'Booking For' : 'బుకింగ్ ఎవరి కోసం'}
-                      </p>
-                      <p className="text-sm font-bold text-blue-900">
-                        {familyMembers.find(m => m._id === selectedPerson)?.name || 'Family Member'}
-                      </p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        {lang === 'en' ? 'TIME' : 'సమయం'}
+                      </label>
+                      <input
+                        required
+                        type="time"
+                        className="w-full bg-slate-50 border border-slate-100 p-3 rounded-xl font-bold text-sm text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition"
+                        value={bookTime}
+                        onChange={e => setBookTime(e.target.value)}
+                      />
                     </div>
                   </div>
-                )}
 
-                {/* Reason */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                    {lang === 'en' ? 'REASON' : 'కారణం'}
-                  </label>
-                  <input
-                    type="text"
-                    placeholder={lang === 'en' ? 'Optional' : 'ఐచ్ఛికం'}
-                    className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition"
-                    value={bookReason}
-                    onChange={e => setBookReason(e.target.value)}
-                  />
-                </div>
+                  {/* Get Directions link inside modal */}
+                  {bookingHospital.hospital?.location?.latitude && bookingHospital.hospital?.location?.longitude && (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${bookingHospital.hospital.location.latitude},${bookingHospital.hospital.location.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full bg-slate-50 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-100 transition text-[11px] border border-slate-200"
+                    >
+                      <MapPin size={14} className="text-blue-600" />
+                      {lang === 'en' ? 'View Location on Map' : 'మ్యాప్‌లో స్థానం చూడండి'}
+                    </a>
+                  )}
 
-                {/* Date & Time */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      {lang === 'en' ? 'DATE' : 'తేదీ'}
-                    </label>
-                    <input
-                      required
-                      type="date"
-                      min={new Date().toISOString().split('T')[0]}
-                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition"
-                      value={bookDate}
-                      onChange={e => setBookDate(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      {lang === 'en' ? 'PREFERRED TIME' : 'సమయం'}
-                    </label>
-                    <input
-                      required
-                      type="time"
-                      className="w-full bg-slate-50 border border-slate-200 p-3.5 rounded-xl font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500 transition"
-                      value={bookTime}
-                      onChange={e => setBookTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Get Directions link inside modal */}
-                {bookingHospital.hospital?.location?.latitude && bookingHospital.hospital?.location?.longitude && (
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${bookingHospital.hospital.location.latitude},${bookingHospital.hospital.location.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full bg-slate-100 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-200 transition text-sm"
+                  <button
+                    type="submit"
+                    className="w-full bg-emerald-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-emerald-100 mt-2 hover:bg-emerald-700 transition active:scale-95"
                   >
-                    <MapPin size={16} className="text-blue-600" />
-                    {lang === 'en' ? 'View Location on Map' : 'మ్యాప్‌లో స్థానం చూడండి'}
-                  </a>
-                )}
+                    {lang === 'en' ? 'Confirm Appointment' : 'అపాయింట్‌మెంట్ నిర్ధారించండి'}
+                  </button>
+                </form>
+              )}
 
-                <button
-                  type="submit"
-                  className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold shadow-xl shadow-emerald-200 mt-2 hover:bg-emerald-700 transition active:scale-95"
-                >
-                  {lang === 'en' ? 'Confirm Appointment' : 'అపాయింట్‌మెంట్ నిర్ధారించండి'}
-                </button>
-              </form>
-            )}
-
-            {bookingStep === 'loading' && (
-              <div className="py-12 text-center">
-                <Loader2 className="animate-spin mx-auto text-emerald-600 mb-4" size={48} />
-                <p className="font-bold text-slate-600">
-                  {lang === 'en' ? 'Processing...' : 'ప్రాసెస్ చేస్తోంది...'}
-                </p>
-              </div>
-            )}
-
-            {bookingStep === 'success' && (
-              <div className="text-center py-8">
-                <div className="bg-emerald-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                  <CheckCircle size={40} className="text-emerald-600" />
+              {bookingStep === 'loading' && (
+                <div className="py-12 text-center flex flex-col items-center justify-center">
+                  <Loader2 className="animate-spin text-emerald-600 mb-4" size={48} />
+                  <p className="font-bold text-slate-600">
+                    {lang === 'en' ? 'Processing...' : 'ప్రాసెస్ చేస్తోంది...'}
+                  </p>
                 </div>
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">
-                  {lang === 'en' ? 'Booking Confirmed!' : 'బుకింగ్ ధృవీకరించబడింది!'}
-                </h2>
-                <p className="text-slate-500 text-sm mb-6">
-                  {lang === 'en' ? 'Your token has been generated.' : 'మీ టోకెన్ జనరేట్ చేయబడింది.'}
-                </p>
-                <button
-                  onClick={() => setBookingHospital(null)}
-                  className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 transition"
-                >
-                  {lang === 'en' ? 'Done' : 'పూర్తయింది'}
-                </button>
-              </div>
-            )}
+              )}
+
+              {bookingStep === 'success' && (
+                <div className="text-center py-8">
+                  <div className="bg-emerald-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                    <CheckCircle size={40} className="text-emerald-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">
+                    {lang === 'en' ? 'Booking Confirmed!' : 'బుకింగ్ ధృవీకరించబడింది!'}
+                  </h2>
+                  <p className="text-slate-500 text-sm mb-6">
+                    {lang === 'en' ? 'Your token has been generated.' : 'మీ టోకెన్ జనరేట్ చేయబడింది.'}
+                  </p>
+                  <button
+                    onClick={() => setBookingHospital(null)}
+                    className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-slate-800 transition"
+                  >
+                    {lang === 'en' ? 'Done' : 'పూర్తయింది'}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

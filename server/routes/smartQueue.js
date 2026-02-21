@@ -154,6 +154,11 @@ router.post('/book-smart', auth, async (req, res) => {
       emergencyPatient: activeEmergency.patientName
     } : null;
 
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`hospital_${doctorId}`).emit('queueUpdated');
+    }
+
     res.json({
       success: true,
       ...result,
@@ -361,7 +366,7 @@ router.get('/mobile/queue-status/:tokenNumber', auth, async (req, res) => {
     try {
       const appointment = await Appointment.findOne({ tokenNumber: parseInt(tokenNumber) })
         .populate('hospitalId', 'name phone address');
-      
+
       if (appointment && appointment.hospitalId) {
         mobileStatus.hospitalName = appointment.hospitalId.name || appointment.hospitalName;
         mobileStatus.hospitalPhone = appointment.hospitalId.phone;

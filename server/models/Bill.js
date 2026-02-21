@@ -229,7 +229,6 @@ const BillSchema = new mongoose.Schema({
 BillSchema.index({ hospitalId: 1, status: 1 });
 BillSchema.index({ patientId: 1, createdAt: -1 });
 BillSchema.index({ hospitalId: 1, billDate: -1 });
-BillSchema.index({ billNumber: 1 });
 
 /**
  * Pre-save: Auto-generate bill number and compute checksum

@@ -25,7 +25,7 @@ const upload = multer({
     const allowedTypes = /jpeg|jpg|png|gif|svg/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
-    
+
     if (mimetype && extname) {
       return cb(null, true);
     } else {
@@ -56,13 +56,14 @@ router.put('/profile', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Access denied' });
     }
 
-    const { phone, workingHours, services, doctors, about, emergencyContact, address, logo, location, paymentInfo } = req.body;
+    const { phone, workingHours, services, doctors, pharmacies, about, emergencyContact, address, logo, location, paymentInfo } = req.body;
 
     const updateFields = {};
     if (phone) updateFields.phone = phone;
     if (workingHours) updateFields.workingHours = workingHours;
     if (services) updateFields.services = services;
     if (doctors) updateFields.doctors = doctors;
+    if (pharmacies) updateFields.pharmacies = pharmacies;
     if (about) updateFields.about = about;
     if (emergencyContact) updateFields.emergencyContact = emergencyContact;
     if (address) updateFields.address = address;
@@ -77,7 +78,7 @@ router.put('/profile', auth, async (req, res) => {
       updateFields['paymentInfo.upiId'] = paymentInfo.upiId || null;
       updateFields['paymentInfo.accountName'] = paymentInfo.accountName || null;
     }
-    
+
     console.log('🔄 Updating hospital profile - User ID:', req.user.id);
     console.log('🔄 Logo in request:', logo);
     console.log('🔄 Update fields:', updateFields);
@@ -87,7 +88,7 @@ router.put('/profile', auth, async (req, res) => {
       { $set: updateFields },
       { new: true }
     ).select('-password');
-    
+
     console.log('✅ Profile updated - Logo in DB:', updated.logo);
 
     res.json(updated);
@@ -111,7 +112,7 @@ router.post('/upload-logo', auth, upload.single('logo'), async (req, res) => {
 
     // Generate logo URL (in production, this would be your CDN/storage URL)
     const logoUrl = `/uploads/logos/${req.file.filename}`;
-    
+
     console.log('📸 Logo upload - User ID:', req.user.id);
     console.log('📸 File:', req.file.filename);
     console.log('📸 Logo URL:', logoUrl);
@@ -122,7 +123,7 @@ router.post('/upload-logo', auth, upload.single('logo'), async (req, res) => {
       { $set: { logo: logoUrl } },
       { new: true }
     );
-    
+
     console.log('📸 Updated user logo field:', updatedUser.logo);
 
     res.json({ logoUrl, success: true });
@@ -136,7 +137,7 @@ router.post('/upload-logo', auth, upload.single('logo'), async (req, res) => {
 router.get('/registered', async (req, res) => {
   try {
     const hospitals = await User.find(
-      { 
+      {
         role: 'HOSPITAL',
         'location.latitude': { $exists: true, $ne: null },
         'location.longitude': { $exists: true, $ne: null }
@@ -155,7 +156,7 @@ router.get('/registered', async (req, res) => {
         logo: 1  // Include logo field
       }
     ).lean(); // Use lean() for faster read-only queries
-    
+
     // Set cache headers so the browser can cache results for 60 seconds
     res.set('Cache-Control', 'public, max-age=60');
     res.json(hospitals);
@@ -170,7 +171,7 @@ router.get('/:id/branding', async (req, res) => {
   try {
     const hospital = await Hospital.findById(req.params.id);
     if (!hospital) return res.status(404).json({ msg: 'Hospital not found' });
-    
+
     res.json({
       logo: hospital.branding?.logo || null,
       primaryColor: hospital.branding?.primaryColor || '#059669',
@@ -189,10 +190,10 @@ router.get('/:id/branding', async (req, res) => {
 router.put('/:id/branding', auth, async (req, res) => {
   try {
     const { logo, primaryColor, secondaryColor, accentColor, appName, upiId, accountName } = req.body;
-    
+
     const hospital = await Hospital.findById(req.params.id);
     if (!hospital) return res.status(404).json({ msg: 'Hospital not found' });
-    
+
     // Update branding
     hospital.branding = {
       logo: logo || hospital.branding?.logo,
@@ -211,9 +212,9 @@ router.put('/:id/branding', auth, async (req, res) => {
       if (!hospital.paymentInfo) hospital.paymentInfo = {};
       hospital.paymentInfo.accountName = accountName || null;
     }
-    
+
     await hospital.save();
-    
+
     res.json({
       logo: hospital.branding.logo,
       primaryColor: hospital.branding.primaryColor,
@@ -236,20 +237,20 @@ router.post('/:id/logo', auth, upload.single('logo'), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ msg: 'No file uploaded' });
     }
-    
+
     const hospital = await Hospital.findById(req.params.id);
     if (!hospital) return res.status(404).json({ msg: 'Hospital not found' });
-    
+
     // Save logo URL
     const logoUrl = `/uploads/logos/${req.file.filename}`;
-    
+
     if (!hospital.branding) {
       hospital.branding = {};
     }
     hospital.branding.logo = logoUrl;
-    
+
     await hospital.save();
-    
+
     res.json({ logo: logoUrl, msg: 'Logo uploaded successfully' });
   } catch (err) {
     console.error(err.message);
@@ -284,50 +285,50 @@ router.get('/:id/notifications', async (req, res) => {
 router.post('/search-by-condition', async (req, res) => {
   try {
     const { latitude, longitude, specialties, maxDistance = 50 } = req.body;
-    
+
     console.log('🏥 Hospital search request:', {
       hasLocation: !!(latitude && longitude),
       specialties,
       maxDistance
     });
-    
+
     // Get all hospitals (don't require location - some may not have it set)
     const hospitals = await User.find({ role: 'HOSPITAL' });
-    
+
     console.log(`📊 Found ${hospitals.length} total hospitals in database`);
-    
+
     // Calculate distance and filter by specialty/service
     const hospitalResults = hospitals.map(hospital => {
       let distance = null;
-      
+
       // Calculate distance only if both user and hospital locations are available
       if (latitude && longitude && hospital.location?.latitude && hospital.location?.longitude) {
         const lat1 = latitude * Math.PI / 180;
         const lat2 = hospital.location.latitude * Math.PI / 180;
         const deltaLat = (hospital.location.latitude - latitude) * Math.PI / 180;
         const deltaLon = (hospital.location.longitude - longitude) * Math.PI / 180;
-        
-        const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
-                  Math.cos(lat1) * Math.cos(lat2) *
-                  Math.sin(deltaLon/2) * Math.sin(deltaLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+        const a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+          Math.cos(lat1) * Math.cos(lat2) *
+          Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         distance = Math.round(6371 * c * 10) / 10;
       }
-      
+
       // Check if hospital has any of the requested specialties (broad matching)
       let hasSpecialty = false;
       let matchScore = 0; // Higher = better match
-      
+
       if (specialties && specialties.length > 0) {
         const hospitalServices = (hospital.services || []).map(s => s.toLowerCase());
         const doctorSpecialties = (hospital.doctors || []).map(d => d.specialty?.toLowerCase() || '').filter(Boolean);
         const allHospitalTerms = [...hospitalServices, ...doctorSpecialties];
-        
+
         // Check each requested specialty for matches
         for (const specialty of specialties) {
           const specLower = specialty.toLowerCase();
           const specWords = specLower.split(/\s+/); // Split "General Physician" into ["general", "physician"]
-          
+
           for (const term of allHospitalTerms) {
             // Exact match
             if (term === specLower) { hasSpecialty = true; matchScore += 10; continue; }
@@ -337,14 +338,14 @@ router.post('/search-by-condition', async (req, res) => {
             if (specWords.some(word => word.length > 3 && term.includes(word))) { hasSpecialty = true; matchScore += 5; continue; }
           }
         }
-        
+
         if (hasSpecialty) {
           console.log(`✅ ${hospital.name} matches specialty filter (score: ${matchScore})`);
         }
       } else {
         hasSpecialty = true;
       }
-      
+
       return {
         hospital: {
           _id: hospital._id,
@@ -363,7 +364,7 @@ router.post('/search-by-condition', async (req, res) => {
         matchScore
       };
     });
-    
+
     // First try: specialty-matched hospitals within distance
     let filtered = hospitalResults
       .filter(result => {
@@ -371,7 +372,7 @@ router.post('/search-by-condition', async (req, res) => {
         if (result.distance !== null && maxDistance) return result.distance <= maxDistance;
         return true;
       });
-    
+
     // Fallback: if no specialty matches found, show ALL hospitals (sorted by distance)
     if (filtered.length === 0) {
       console.log('⚠️ No specialty matches found - falling back to ALL hospitals');
@@ -380,7 +381,7 @@ router.post('/search-by-condition', async (req, res) => {
         return true; // Include all if no distance
       });
     }
-    
+
     // Sort: specialty matches first (by score), then by distance
     filtered.sort((a, b) => {
       // Specialty matches always come first
@@ -392,15 +393,156 @@ router.post('/search-by-condition', async (req, res) => {
       if (a.distance !== null && b.distance !== null) return a.distance - b.distance;
       return a.hospital.name.localeCompare(b.hospital.name);
     });
-    
+
     // Clean up internal fields before sending
     const results = filtered.map(({ matchScore, hasSpecialty, ...rest }) => rest);
-    
+
     console.log(`✅ Returning ${results.length} hospitals (${filtered.filter(f => f.hasSpecialty).length} specialty matches)`);
     res.json(results);
   } catch (err) {
     console.error('❌ Hospital search error:', err.message);
     res.status(500).send('Server Error');
+  }
+});
+
+// Add or link a doctor to the hospital
+router.post('/doctors', auth, async (req, res) => {
+  try {
+    const hospitalId = req.user.id;
+    const { name, email, specialty, qualification, experience, password } = req.body;
+
+    // 1. Check if caller is a hospital
+    const hospital = await User.findById(hospitalId);
+    if (!hospital || hospital.role !== 'HOSPITAL') {
+      return res.status(403).json({ msg: 'Only hospitals can add doctors' });
+    }
+
+    // 2. Validate input
+    if (!name || !email) {
+      return res.status(400).json({ msg: 'Name and email are required' });
+    }
+
+    // 3. Check if doctor already exists
+    let doctorUser = await User.findOne({ email });
+
+    try {
+      if (doctorUser) {
+        // If user exists, update their role and link to hospital
+        doctorUser.role = 'DOCTOR';
+        doctorUser.hospitalId = hospitalId;
+        // Update other fields if provided
+        if (name) doctorUser.name = name;
+        await doctorUser.save();
+      } else {
+        // Create new doctor user
+        const bcrypt = require('bcryptjs');
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password || 'doctor123', salt);
+
+        doctorUser = new User({
+          name,
+          email,
+          password: hashedPassword,
+          role: 'DOCTOR',
+          hospitalId: hospitalId
+        });
+        await doctorUser.save();
+      }
+    } catch (dbErr) {
+      console.error('❌ Error saving doctor user:', dbErr.message);
+      return res.status(400).json({ msg: 'Database error: ' + dbErr.message });
+    }
+
+    // 4. Update or add to the doctors list in the hospital profile
+    const docIdx = hospital.doctors.findIndex(d => d.email === email);
+    if (docIdx !== -1) {
+      // Update existing entry
+      hospital.doctors[docIdx].name = name || hospital.doctors[docIdx].name;
+      hospital.doctors[docIdx].specialty = specialty || hospital.doctors[docIdx].specialty;
+      hospital.doctors[docIdx].qualification = qualification || hospital.doctors[docIdx].qualification;
+      hospital.doctors[docIdx].experience = experience || hospital.doctors[docIdx].experience;
+      hospital.doctors[docIdx].userId = doctorUser._id;
+      hospital.doctors[docIdx].isRegistered = true;
+    } else {
+      // Add new entry
+      hospital.doctors.push({
+        userId: doctorUser._id,
+        name,
+        specialty,
+        qualification,
+        experience,
+        email,
+        isRegistered: true
+      });
+    }
+
+    try {
+      await hospital.save();
+    } catch (hospErr) {
+      console.error('❌ Error updating hospital doctors:', hospErr.message);
+      return res.status(400).json({ msg: 'Hospital update error: ' + hospErr.message });
+    }
+
+    res.json({ msg: 'Doctor registered and linked successfully', doctor: doctorUser });
+  } catch (err) {
+    console.error('❌ General registration error:', err.message);
+    res.status(500).json({ msg: 'Server Error: ' + err.message });
+  }
+});
+
+// Add or link a pharmacy to the hospital
+router.post('/pharmacies', auth, async (req, res) => {
+  try {
+    const hospitalId = req.user.id;
+    const { name, email, password } = req.body;
+
+    const hospital = await User.findById(hospitalId);
+    if (!hospital || hospital.role !== 'HOSPITAL') {
+      return res.status(403).json({ msg: 'Only hospitals can add pharmacies' });
+    }
+
+    let pharmacyUser = await User.findOne({ email });
+
+    if (pharmacyUser) {
+      pharmacyUser.role = 'PHARMACY';
+      pharmacyUser.hospitalId = hospitalId;
+      if (name) pharmacyUser.name = name;
+      await pharmacyUser.save();
+    } else {
+      const bcrypt = require('bcryptjs');
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password || 'pharmacy123', salt);
+
+      pharmacyUser = new User({
+        name,
+        email,
+        password: hashedPassword,
+        role: 'PHARMACY',
+        hospitalId: hospitalId
+      });
+      await pharmacyUser.save();
+    }
+
+    // Update hospital's pharmacies list
+    const pharmIdx = hospital.pharmacies.findIndex(p => p.email === email);
+    if (pharmIdx !== -1) {
+      hospital.pharmacies[pharmIdx].name = name || hospital.pharmacies[pharmIdx].name;
+      hospital.pharmacies[pharmIdx].userId = pharmacyUser._id;
+      hospital.pharmacies[pharmIdx].isRegistered = true;
+    } else {
+      hospital.pharmacies.push({
+        userId: pharmacyUser._id,
+        name,
+        email,
+        isRegistered: true
+      });
+    }
+    await hospital.save();
+
+    res.json({ msg: 'Pharmacy registered and linked successfully', pharmacy: pharmacyUser });
+  } catch (err) {
+    console.error('❌ Pharmacy registration error:', err.message);
+    res.status(500).json({ msg: 'Server Error: ' + err.message });
   }
 });
 

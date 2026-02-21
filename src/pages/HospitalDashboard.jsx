@@ -84,13 +84,12 @@ const PaymentSettingsTab = ({ profile, token, API: apiBase, onSaved }) => {
               value={upiId}
               onChange={(e) => setUpiId(e.target.value)}
               placeholder="e.g., hospital@ybl or 9999999999@paytm"
-              className={`w-full p-3 border rounded-xl focus:ring-2 text-slate-900 ${
-                showError
-                  ? 'border-red-400 bg-red-50 focus:ring-red-400 focus:border-red-400'
-                  : isValidUpi
+              className={`w-full p-3 border rounded-xl focus:ring-2 text-slate-900 ${showError
+                ? 'border-red-400 bg-red-50 focus:ring-red-400 focus:border-red-400'
+                : isValidUpi
                   ? 'border-green-400 bg-green-50 focus:ring-amber-500 focus:border-amber-500'
                   : 'border-slate-200 focus:ring-amber-500 focus:border-amber-500'
-              }`}
+                }`}
             />
             {showError && (
               <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
@@ -189,7 +188,7 @@ const HospitalDashboard = () => {
   const [appointments, setAppointments] = useState([]);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('SCHEDULING'); // SCHEDULING, QUEUE, PROFILE, PENDING, CONFIRMED, COMPLETED
+  const [activeTab, setActiveTab] = useState('SCHEDULING'); // SCHEDULING, QUEUE, PROFILE, PENDING, CONFIRMED, COMPLETED, PHARMACY
   const [notifications, setNotifications] = useState([]);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({});
@@ -354,6 +353,25 @@ const HospitalDashboard = () => {
     setEditData({ ...editData, services: newServices });
   };
 
+  const addPharmacy = () => {
+    if (!editMode) setEditMode(true);
+    setEditData({
+      ...editData,
+      pharmacies: [...(editData.pharmacies || []), { name: '', email: '', password: '', isRegistered: false }]
+    });
+  };
+
+  const removePharmacy = (index) => {
+    const newPharmacies = editData.pharmacies.filter((_, i) => i !== index);
+    setEditData({ ...editData, pharmacies: newPharmacies });
+  };
+
+  const updatePharmacy = (index, field, value) => {
+    const newPharmacies = [...editData.pharmacies];
+    newPharmacies[index][field] = value;
+    setEditData({ ...editData, pharmacies: newPharmacies });
+  };
+
   const detectLocation = () => {
     if (!navigator.geolocation) {
       toast.error('Geolocation not supported by your browser');
@@ -400,20 +418,20 @@ const HospitalDashboard = () => {
   // Geocode address to get coordinates when manually typed
   const geocodeAddress = async (address) => {
     if (!address || address.trim().length < 3) return;
-    
+
     try {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
       );
       const data = await response.json();
-      
+
       if (data && data.length > 0) {
         const { lat, lon } = data[0];
         setEditData(prev => ({
           ...prev,
-          location: { 
-            latitude: parseFloat(lat), 
-            longitude: parseFloat(lon) 
+          location: {
+            latitude: parseFloat(lat),
+            longitude: parseFloat(lon)
           }
         }));
         console.log('✅ Auto-geocoded address:', address, '→', lat, lon);
@@ -662,8 +680,8 @@ const HospitalDashboard = () => {
             <button onClick={() => navigate('/dashboard')} className="bg-slate-100 p-2.5 rounded-full hover:bg-slate-200 transition text-slate-700">
               <ArrowLeft size={20} />
             </button>
-            <button 
-              onClick={() => setSidebarVisible(!sidebarVisible)} 
+            <button
+              onClick={() => setSidebarVisible(!sidebarVisible)}
               className="bg-slate-100 p-2.5 rounded-full hover:bg-slate-200 transition text-slate-700"
               title={sidebarVisible ? "Hide sidebar" : "Show sidebar"}
             >
@@ -704,653 +722,793 @@ const HospitalDashboard = () => {
           <div className="w-72 bg-white border-r border-slate-200 min-h-screen sticky top-[73px] self-start transition-all duration-300 ease-in-out">
             <div className="p-4 space-y-2">
               <button
-              onClick={() => setActiveTab('SCHEDULING')}
-              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
-                activeTab === 'SCHEDULING' 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
+                onClick={() => setActiveTab('SCHEDULING')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'SCHEDULING'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
                   : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Calendar size={20} />
-              <span>Scheduling</span>
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('QUEUE')}
-              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
-                activeTab === 'QUEUE' 
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' 
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Users size={20} />
-              <span>Queue Management</span>
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('PROFILE')}
-              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
-                activeTab === 'PROFILE' 
-                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200' 
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Heart size={20} />
-              <span>Profile</span>
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('RECORDS')}
-              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
-                activeTab === 'RECORDS' 
-                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-200' 
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <FileText size={20} />
-              <span>Patient Records</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('MONITORING')}
-              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
-                activeTab === 'MONITORING' 
-                  ? 'bg-teal-600 text-white shadow-lg shadow-teal-200' 
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Activity size={20} />
-              <span>Patient Monitoring</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('EMERGENCY_RECORDS')}
-              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
-                activeTab === 'EMERGENCY_RECORDS' 
-                  ? 'bg-red-600 text-white shadow-lg shadow-red-200' 
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <AlertTriangle size={20} />
-              <span>Emergency Records</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('CALL_HISTORY')}
-              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
-                activeTab === 'CALL_HISTORY' 
-                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-200' 
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Phone size={20} />
-              <span>Call History</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('BILLING')}
-              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
-                activeTab === 'BILLING' 
-                  ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-200' 
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <Briefcase size={20} />
-              <span>Billing</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('DISCHARGE')}
-              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
-                activeTab === 'DISCHARGE' 
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <FileText size={20} />
-              <span>Discharge</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('PAYMENT_SETTINGS')}
-              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
-                activeTab === 'PAYMENT_SETTINGS' 
-                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-200' 
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <CreditCard size={20} />
-              <span>Payment Settings</span>
-            </button>
-
-            <div className="pt-4 border-t border-slate-200 mt-4 space-y-2">
-              <p className="text-xs font-bold text-slate-400 uppercase px-4 mb-2">Appointments</p>
-              
-              <button
-                onClick={() => setActiveTab('PENDING')}
-                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-between ${
-                  activeTab === 'PENDING' 
-                    ? 'bg-yellow-50 text-yellow-800 border-2 border-yellow-300' 
-                    : 'text-slate-700 hover:bg-slate-50'
-                }`}
+                  }`}
               >
-                <div className="flex items-center gap-3">
-                  <Clock size={20} />
-                  <span>Pending</span>
-                </div>
-                {pendingCount > 0 && (
-                  <span className="bg-yellow-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">
-                    {pendingCount}
-                  </span>
-                )}
+                <Calendar size={20} />
+                <span>Scheduling</span>
               </button>
-              
+
               <button
-                onClick={() => setActiveTab('CONFIRMED')}
-                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-between ${
-                  activeTab === 'CONFIRMED' 
-                    ? 'bg-green-50 text-green-800 border-2 border-green-300' 
-                    : 'text-slate-700 hover:bg-slate-50'
-                }`}
+                onClick={() => setActiveTab('QUEUE')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'QUEUE'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
+                  : 'text-slate-700 hover:bg-slate-50'
+                  }`}
               >
-                <div className="flex items-center gap-3">
-                  <CheckCircle size={20} />
-                  <span>Confirmed</span>
-                </div>
-                {confirmedCount > 0 && (
-                  <span className="bg-green-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">
-                    {confirmedCount}
-                  </span>
-                )}
+                <Users size={20} />
+                <span>Queue Management</span>
               </button>
-              
+
               <button
-                onClick={() => setActiveTab('COMPLETED')}
-                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-between ${
-                  activeTab === 'COMPLETED' 
-                    ? 'bg-blue-50 text-blue-800 border-2 border-blue-300' 
-                    : 'text-slate-700 hover:bg-slate-50'
-                }`}
+                onClick={() => setActiveTab('PROFILE')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'PROFILE'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200'
+                  : 'text-slate-700 hover:bg-slate-50'
+                  }`}
               >
-                <div className="flex items-center gap-3">
-                  <Check size={20} />
-                  <span>Completed</span>
-                </div>
-                {completedCount > 0 && (
-                  <span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">
-                    {completedCount}
-                  </span>
-                )}
+                <Heart size={20} />
+                <span>Profile</span>
               </button>
+
+              <button
+                onClick={() => setActiveTab('RECORDS')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'RECORDS'
+                  ? 'bg-orange-600 text-white shadow-lg shadow-orange-200'
+                  : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+              >
+                <FileText size={20} />
+                <span>Patient Records</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('MONITORING')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'MONITORING'
+                  ? 'bg-teal-600 text-white shadow-lg shadow-teal-200'
+                  : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+              >
+                <Activity size={20} />
+                <span>Patient Monitoring</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('EMERGENCY_RECORDS')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'EMERGENCY_RECORDS'
+                  ? 'bg-red-600 text-white shadow-lg shadow-red-200'
+                  : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+              >
+                <AlertTriangle size={20} />
+                <span>Emergency Records</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('CALL_HISTORY')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'CALL_HISTORY'
+                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-200'
+                  : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+              >
+                <Phone size={20} />
+                <span>Call History</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('BILLING')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'BILLING'
+                  ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-200'
+                  : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+              >
+                <Briefcase size={20} />
+                <span>Billing</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('DISCHARGE')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'DISCHARGE'
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200'
+                  : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+              >
+                <FileText size={20} />
+                <span>Discharge</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('PAYMENT_SETTINGS')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'PAYMENT_SETTINGS'
+                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-200'
+                  : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+              >
+                <CreditCard size={20} />
+                <span>Payment Settings</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('PHARMACY')}
+                className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${activeTab === 'PHARMACY'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-200'
+                  : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+              >
+                <Smartphone size={20} />
+                <span>Pharmacy Management</span>
+              </button>
+
+              <div className="pt-4 border-t border-slate-200 mt-4 space-y-2">
+                <p className="text-xs font-bold text-slate-400 uppercase px-4 mb-2">Appointments</p>
+
+                <button
+                  onClick={() => setActiveTab('PENDING')}
+                  className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-between ${activeTab === 'PENDING'
+                    ? 'bg-yellow-50 text-yellow-800 border-2 border-yellow-300'
+                    : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Clock size={20} />
+                    <span>Pending</span>
+                  </div>
+                  {pendingCount > 0 && (
+                    <span className="bg-yellow-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+                      {pendingCount}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('CONFIRMED')}
+                  className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-between ${activeTab === 'CONFIRMED'
+                    ? 'bg-green-50 text-green-800 border-2 border-green-300'
+                    : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <CheckCircle size={20} />
+                    <span>Confirmed</span>
+                  </div>
+                  {confirmedCount > 0 && (
+                    <span className="bg-green-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+                      {confirmedCount}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('COMPLETED')}
+                  className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center justify-between ${activeTab === 'COMPLETED'
+                    ? 'bg-blue-50 text-blue-800 border-2 border-blue-300'
+                    : 'text-slate-700 hover:bg-slate-50'
+                    }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Check size={20} />
+                    <span>Completed</span>
+                  </div>
+                  {completedCount > 0 && (
+                    <span className="bg-blue-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">
+                      {completedCount}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         )}
 
         {/* Main Content Area */}
         <div className="flex-1 p-6">
           {/* Content */}
-        {activeTab === 'SCHEDULING' && (
-          <DoctorScheduleView
-            appointments={appointments}
-            doctors={profile?.doctors || []}
-            notifications={notifications}
-            onApprove={approve}
-            onReject={reject}
-            onComplete={complete}
-            onSendReminder={sendReminder}
-          />
-        )}
+          {activeTab === 'SCHEDULING' && (
+            <DoctorScheduleView
+              appointments={appointments}
+              doctors={profile?.doctors || []}
+              notifications={notifications}
+              onApprove={approve}
+              onReject={reject}
+              onComplete={complete}
+              onSendReminder={sendReminder}
+            />
+          )}
 
-        {activeTab === 'QUEUE' && (
-          <HospitalQueueManagement />
-        )}
+          {activeTab === 'QUEUE' && (
+            <HospitalQueueManagement />
+          )}
 
-        {activeTab === 'RECORDS' && (
-          <PatientRecordsManager 
-            onCreateRecoveryPlan={(planData) => {
-              setMonitoringInitialData(planData);
-              setActiveTab('MONITORING');
-            }}
-          />
-        )}
+          {activeTab === 'RECORDS' && (
+            <PatientRecordsManager
+              onCreateRecoveryPlan={(planData) => {
+                setMonitoringInitialData(planData);
+                setActiveTab('MONITORING');
+              }}
+            />
+          )}
 
-        {activeTab === 'MONITORING' && (
-          <PatientRecoveryDashboard 
-            initialPlanData={monitoringInitialData}
-            onInitialDataConsumed={() => setMonitoringInitialData(null)}
-          />
-        )}
+          {activeTab === 'MONITORING' && (
+            <PatientRecoveryDashboard
+              initialPlanData={monitoringInitialData}
+              onInitialDataConsumed={() => setMonitoringInitialData(null)}
+            />
+          )}
 
-        {activeTab === 'EMERGENCY_RECORDS' && (
-          <EmergencyPatientRecords />
-        )}
+          {activeTab === 'EMERGENCY_RECORDS' && (
+            <EmergencyPatientRecords />
+          )}
 
-        {activeTab === 'CALL_HISTORY' && (
-          <CallHistory 
-            onCallPatient={({ userId, name }) => {
-              if (!socket) {
-                toast.error('Not connected. Please refresh.');
-                return;
-              }
-              setIncomingCallData(null);
-              setShowIncomingCall(false);
-              // Start an outgoing call to the patient
-              setIncomingCallData({ from: `user_${userId}`, callType: 'audio', name, isOutgoing: true });
-              setShowIncomingCall(true);
-            }}
-          />
-        )}
+          {activeTab === 'CALL_HISTORY' && (
+            <CallHistory
+              onCallPatient={({ userId, name }) => {
+                if (!socket) {
+                  toast.error('Not connected. Please refresh.');
+                  return;
+                }
+                setIncomingCallData(null);
+                setShowIncomingCall(false);
+                // Start an outgoing call to the patient
+                setIncomingCallData({ from: `user_${userId}`, callType: 'audio', name, isOutgoing: true });
+                setShowIncomingCall(true);
+              }}
+            />
+          )}
 
-        {activeTab === 'BILLING' && (
-          <BillingDashboard />
-        )}
+          {activeTab === 'BILLING' && (
+            <BillingDashboard />
+          )}
 
-        {activeTab === 'DISCHARGE' && (
-          <DischargeDashboard />
-        )}
+          {activeTab === 'DISCHARGE' && (
+            <DischargeDashboard />
+          )}
 
-        {activeTab === 'PAYMENT_SETTINGS' && (
-          <PaymentSettingsTab
-            profile={profile}
-            token={token}
-            API={API}
-            onSaved={fetchProfile}
-          />
-        )}
+          {activeTab === 'PAYMENT_SETTINGS' && (
+            <PaymentSettingsTab
+              profile={profile}
+              token={token}
+              API={API}
+              onSaved={fetchProfile}
+            />
+          )}
 
-        {activeTab === 'PROFILE' && profile && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column - Profile Info */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Basic Info Card */}
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-slate-900">Hospital Information</h2>
-                  {!editMode ? (
-                    <button onClick={() => setEditMode(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-emerald-700 transition">
-                      <Edit2 size={16} /> Edit Profile
+          {activeTab === 'PHARMACY' && (
+            <div className="space-y-6">
+              <div className="bg-emerald-600 rounded-[32px] p-8 text-white shadow-xl relative overflow-hidden">
+                <div className="relative z-10">
+                  <h2 className="text-3xl font-black mb-2 flex items-center gap-3">
+                    <Smartphone size={32} /> Pharmacy Management
+                  </h2>
+                  <p className="text-emerald-50 text-lg opacity-90">Link your hospital's pharmacies to receive digital prescriptions instantly.</p>
+                </div>
+                <div className="absolute top-0 right-0 p-8 opacity-10">
+                  <Smartphone size={160} />
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 p-8">
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Registered Pharmacies</h3>
+                    <p className="text-sm text-slate-500">Manage pharmacists who handle your digital prescriptions.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {editMode && (
+                      <button onClick={saveProfile} className="bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-blue-700 transition shadow-lg shadow-blue-100">
+                        <Save size={20} /> Save Changes
+                      </button>
+                    )}
+                    <button onClick={addPharmacy} className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-emerald-700 transition shadow-lg shadow-emerald-100">
+                      <Plus size={20} /> Add New Pharmacy
                     </button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button onClick={saveProfile} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-emerald-700 transition">
-                        <Save size={16} /> Save
-                      </button>
-                      <button onClick={() => { setEditMode(false); setEditData(profile); }} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-bold text-sm">
-                        Cancel
-                      </button>
-                    </div>
-                  )}
+                  </div>
                 </div>
 
-                <div className="space-y-4">
-                  {/* Logo Upload Section - in edit mode */}
-                  {editMode && (
-                    <div className="mb-4 pb-4 border-b border-slate-200">
-                      <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Hospital Logo</label>
-                      <div className="flex items-center gap-4">
-                        <div className="w-32 h-32 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 flex items-center justify-center relative">
-                          {uploadingLogo && (
-                            <div className="absolute inset-0 bg-white/90 flex items-center justify-center z-10">
-                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                            </div>
-                          )}
-                          {logoPreview ? (
-                            <img
-                              key={logoPreview}
-                              src={logoPreview}
-                              alt="Logo"
-                              className="w-full h-full object-contain p-2"
-                              onLoad={() => {
-                                console.log('✅ Logo loaded successfully:', logoPreview);
-                              }}
-                              onError={(e) => {
-                                console.error('❌ Logo failed to load:', logoPreview);
-                                e.target.onerror = null; // Prevent infinite loop
-                              }}
-                            />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {(editMode ? editData.pharmacies : profile?.pharmacies)?.map((pharmacy, i) => (
+                    <div key={i} className="bg-slate-50 p-6 rounded-3xl border border-slate-200 relative group">
+                      {editMode && (
+                        <button onClick={() => removePharmacy(i)} className="absolute top-4 right-4 text-red-500 p-2 hover:bg-red-50 rounded-full transition opacity-0 group-hover:opacity-100">
+                          <CloseIcon size={18} />
+                        </button>
+                      )}
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Pharmacy Name</label>
+                          {editMode ? (
+                            <input value={pharmacy.name} onChange={e => updatePharmacy(i, 'name', e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl" placeholder="e.g. City Hospital Pharmacy" />
                           ) : (
-                            <div className="text-center">
-                              <Building2 size={48} className="text-gray-300 mx-auto mb-2" />
-                              <p className="text-xs text-gray-400">No logo uploaded</p>
-                            </div>
+                            <div className="font-bold text-slate-800">{pharmacy.name || 'Unnamed Pharmacy'}</div>
                           )}
                         </div>
                         <div>
-                          <button
-                            type="button"
-                            onClick={() => logoInputRef.current?.click()}
-                            disabled={uploadingLogo}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
-                          >
-                            {uploadingLogo ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                Uploading...
-                              </>
-                            ) : (
-                              <>
-                                <Upload size={16} />
-                                Upload Logo
-                              </>
-                            )}
-                          </button>
-                          <input
-                            ref={logoInputRef}
-                            type="file"
-                            accept="image/*"
-                            onChange={handleLogoSelect}
-                            className="hidden"
-                          />
-                          <p className="text-xs text-gray-500 mt-2">PNG or SVG recommended • Max 2MB</p>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Login Email</label>
+                          {editMode ? (
+                            <input value={pharmacy.email} onChange={e => updatePharmacy(i, 'email', e.target.value)} className="w-full p-3 bg-white border border-slate-200 rounded-xl" placeholder="pharmacy@hospital.com" />
+                          ) : (
+                            <div className="text-sm text-slate-600 font-medium">{pharmacy.email}</div>
+                          )}
                         </div>
-                      </div>
-                    </div>
-                  )}
 
-                  {/* Logo Display in View Mode */}
-                  {!editMode && logoPreview && (
-                    <div className="mb-4 pb-4 border-b border-slate-200">
-                      <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Hospital Logo</label>
-                      <div className="w-32 h-32 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
-                        <img
-                          key={logoPreview}
-                          src={logoPreview}
-                          alt="Logo"
-                          className="w-full h-full object-contain p-2"
-                          onError={(e) => {
-                            console.error('❌ Logo failed to load in view mode:', logoPreview);
-                            e.target.onerror = null;
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Hospital Name</label>
-                    <div className="bg-slate-50 p-3 rounded-xl font-bold text-slate-900">{profile.name}</div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Address</label>
-                    {editMode ? (
-                      <div className="space-y-2">
-                        <div className="flex gap-2">
-                          <input
-                            value={editData.address || ''}
-                            onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                            onBlur={(e) => geocodeAddress(e.target.value)}
-                            className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl"
-                            placeholder="Enter address or detect location"
-                          />
-                          <button
-                            onClick={detectLocation}
-                            className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-emerald-700 transition whitespace-nowrap"
-                          >
-                            <MapPin size={16} /> Detect Location
-                          </button>
-                        </div>
-                        {editData.location?.latitude && editData.location?.longitude && (
-                          <div className="text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg flex items-center gap-2">
-                            <CheckCircle size={14} />
-                            <span>GPS: {editData.location.latitude.toFixed(6)}, {editData.location.longitude.toFixed(6)}</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.address || 'Not set'}</div>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Phone</label>
-                      {editMode ? (
-                        <input value={editData.phone || ''} onChange={(e) => setEditData({ ...editData, phone: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="+1 234 567 8900" />
-                      ) : (
-                        <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.phone || 'Not set'}</div>
-                      )}
-                    </div>
-                    <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Emergency</label>
-                      {editMode ? (
-                        <input value={editData.emergencyContact || ''} onChange={(e) => setEditData({ ...editData, emergencyContact: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="+1 234 567 8911" />
-                      ) : (
-                        <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.emergencyContact || 'Not set'}</div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Working Hours</label>
-                    {editMode ? (
-                      <input value={editData.workingHours || ''} onChange={(e) => setEditData({ ...editData, workingHours: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="09:00 AM - 09:00 PM" />
-                    ) : (
-                      <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.workingHours}</div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">About</label>
-                    {editMode ? (
-                      <textarea value={editData.about || ''} onChange={(e) => setEditData({ ...editData, about: e.target.value })} rows="3" className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="Brief description about your hospital..." />
-                    ) : (
-                      <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.about || 'No description available'}</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Doctors Card */}
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Users size={20} className="text-emerald-600" /> Medical Staff
-                  </h2>
-                  {editMode && (
-                    <button onClick={addDoctor} className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1">
-                      <Plus size={16} /> Add Doctor
-                    </button>
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  {(editMode ? editData.doctors : profile.doctors)?.length > 0 ? (
-                    (editMode ? editData.doctors : profile.doctors).map((doc, i) => (
-                      <div key={i} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                        {editMode ? (
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-start">
-                              <input value={doc.name} onChange={(e) => updateDoctor(i, 'name', e.target.value)} placeholder="Doctor Name" className="flex-1 p-2 border rounded-lg text-sm font-bold" />
-                              <button onClick={() => removeDoctor(i)} className="ml-2 text-red-600 p-2 hover:bg-red-50 rounded-lg">
-                                <CloseIcon size={16} />
-                              </button>
-                            </div>
-                            <input value={doc.specialty} onChange={(e) => updateDoctor(i, 'specialty', e.target.value)} placeholder="Specialty" className="w-full p-2 border rounded-lg text-sm" />
-                            <input value={doc.qualification} onChange={(e) => updateDoctor(i, 'qualification', e.target.value)} placeholder="Qualification" className="w-full p-2 border rounded-lg text-sm" />
-                            <input value={doc.experience} onChange={(e) => updateDoctor(i, 'experience', e.target.value)} placeholder="Experience" className="w-full p-2 border rounded-lg text-sm" />
-                          </div>
-                        ) : (
+                        {editMode && !pharmacy.isRegistered && (
                           <div>
-                            <div className="font-bold text-slate-900">{doc.name}</div>
-                            <div className="text-sm text-emerald-600 font-medium">{doc.specialty}</div>
-                            <div className="text-xs text-slate-500 mt-1">{doc.qualification}</div>
-                            {doc.experience && <div className="text-xs text-slate-500">{doc.experience} experience</div>}
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Set Password (Min 6 chars)</label>
+                            <input
+                              type="password"
+                              value={pharmacy.password || ''}
+                              onChange={e => updatePharmacy(i, 'password', e.target.value)}
+                              className="w-full p-3 bg-white border border-slate-200 rounded-xl"
+                              placeholder="••••••"
+                            />
+                          </div>
+                        )}
+
+                        {!pharmacy.isRegistered && (
+                          <button
+                            onClick={async () => {
+                              if (!pharmacy.password || pharmacy.password.length < 6) {
+                                toast.error('Please set a password (min 6 characters)');
+                                return;
+                              }
+                              try {
+                                const res = await axios.post(`${API}/api/hospitals/pharmacies`, pharmacy, { headers: { 'x-auth-token': token } });
+                                toast.success('Pharmacy Registered!');
+                                fetchProfile();
+                              } catch (err) {
+                                toast.error(err.response?.data?.msg || 'Failed to register');
+                              }
+                            }}
+                            className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-emerald-100"
+                          >
+                            Register & Link Pharmacy
+                          </button>
+                        )}
+
+                        {pharmacy.isRegistered && (
+                          <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                            <CheckCircle size={18} />
+                            <span className="text-xs font-bold">Account Active & Linked</span>
                           </div>
                         )}
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-8 text-slate-400">
-                      <Users size={32} className="mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No doctors added yet</p>
+                    </div>
+                  ))}
+                  {!(editMode ? editData.pharmacies : profile?.pharmacies)?.length && (
+                    <div className="md:col-span-2 text-center py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-300">
+                      <Smartphone size={48} className="mx-auto text-slate-300 mb-3" />
+                      <p className="text-slate-500 font-medium">No pharmacies linked to this hospital yet.</p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Right Column - Services & Stats */}
-            <div className="space-y-6">
-              {/* Stats Card */}
-              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl shadow-lg p-6 text-white">
-                <h3 className="text-lg font-bold mb-4">Overview</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-emerald-100">Total Appointments</span>
-                    <span className="text-2xl font-bold">{totalAppointments}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-emerald-100">Pending</span>
-                    <span className="text-xl font-bold">{pendingCount}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-emerald-100">Confirmed</span>
-                    <span className="text-xl font-bold">{confirmedCount}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-emerald-100">Completed</span>
-                    <span className="text-xl font-bold">{completedCount}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Services Card */}
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                    <Briefcase size={18} className="text-emerald-600" /> Services
-                  </h3>
-                  {editMode && (
-                    <button onClick={addService} className="text-emerald-600 font-bold text-sm">
-                      <Plus size={18} />
-                    </button>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  {(editMode ? editData.services : profile.services)?.length > 0 ? (
-                    (editMode ? editData.services : profile.services).map((service, i) => (
-                      <div key={i} className="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-lg">
-                        <span className="text-sm text-slate-700">• {service}</span>
-                        {editMode && (
-                          <button onClick={() => removeService(i)} className="text-red-600">
-                            <CloseIcon size={14} />
-                          </button>
-                        )}
+          {activeTab === 'PROFILE' && profile && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column - Profile Info */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Basic Info Card */}
+                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-slate-900">Hospital Information</h2>
+                    {!editMode ? (
+                      <button onClick={() => setEditMode(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-emerald-700 transition">
+                        <Edit2 size={16} /> Edit Profile
+                      </button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button onClick={saveProfile} className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-emerald-700 transition">
+                          <Save size={16} /> Save
+                        </button>
+                        <button onClick={() => { setEditMode(false); setEditData(profile); }} className="bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-bold text-sm">
+                          Cancel
+                        </button>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-6 text-slate-400 text-sm">
-                      No services listed
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Appointments Tab Content */}
-        {!['PROFILE', 'SCHEDULING', 'QUEUE', 'RECORDS', 'MONITORING', 'EMERGENCY_RECORDS', 'CALL_HISTORY', 'BILLING', 'DISCHARGE', 'PAYMENT_SETTINGS'].includes(activeTab) && (
-          loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="animate-spin text-emerald-600" size={32} />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {filteredAppointments.length === 0 && (
-                <div className="text-center py-16 bg-white rounded-3xl border border-slate-100">
-                  <div className="bg-slate-100 w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center">
-                    <CheckCircle size={32} className="text-slate-400" />
+                    )}
                   </div>
-                  <p className="font-bold text-slate-500">No {activeTab.toLowerCase()} appointments</p>
-                </div>
-              )}
-              {filteredAppointments.map(p => (
-                <div key={p._id} className="p-5 bg-white rounded-3xl shadow-sm border border-slate-100">
-                  <div className="flex justify-between items-start mb-4">
+
+                  <div className="space-y-4">
+                    {/* Logo Upload Section - in edit mode */}
+                    {editMode && (
+                      <div className="mb-4 pb-4 border-b border-slate-200">
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Hospital Logo</label>
+                        <div className="flex items-center gap-4">
+                          <div className="w-32 h-32 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 flex items-center justify-center relative">
+                            {uploadingLogo && (
+                              <div className="absolute inset-0 bg-white/90 flex items-center justify-center z-10">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                              </div>
+                            )}
+                            {logoPreview ? (
+                              <img
+                                key={logoPreview}
+                                src={logoPreview}
+                                alt="Logo"
+                                className="w-full h-full object-contain p-2"
+                                onLoad={() => {
+                                  console.log('✅ Logo loaded successfully:', logoPreview);
+                                }}
+                                onError={(e) => {
+                                  console.error('❌ Logo failed to load:', logoPreview);
+                                  e.target.onerror = null; // Prevent infinite loop
+                                }}
+                              />
+                            ) : (
+                              <div className="text-center">
+                                <Building2 size={48} className="text-gray-300 mx-auto mb-2" />
+                                <p className="text-xs text-gray-400">No logo uploaded</p>
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => logoInputRef.current?.click()}
+                              disabled={uploadingLogo}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+                            >
+                              {uploadingLogo ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                  Uploading...
+                                </>
+                              ) : (
+                                <>
+                                  <Upload size={16} />
+                                  Upload Logo
+                                </>
+                              )}
+                            </button>
+                            <input
+                              ref={logoInputRef}
+                              type="file"
+                              accept="image/*"
+                              onChange={handleLogoSelect}
+                              className="hidden"
+                            />
+                            <p className="text-xs text-gray-500 mt-2">PNG or SVG recommended • Max 2MB</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Logo Display in View Mode */}
+                    {!editMode && logoPreview && (
+                      <div className="mb-4 pb-4 border-b border-slate-200">
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Hospital Logo</label>
+                        <div className="w-32 h-32 rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
+                          <img
+                            key={logoPreview}
+                            src={logoPreview}
+                            alt="Logo"
+                            className="w-full h-full object-contain p-2"
+                            onError={(e) => {
+                              console.error('❌ Logo failed to load in view mode:', logoPreview);
+                              e.target.onerror = null;
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <User size={18} className="text-emerald-600" />
-                        <span className="font-bold text-slate-900 text-lg">{p.patientName || p.patientId?.name || 'Patient'}</span>
-                        {p.queueNumber && (
-                          <span className="bg-emerald-600 text-white px-2 py-1 rounded-lg text-xs font-bold ml-2">
-                            Queue #{p.queueNumber}
-                          </span>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Hospital Name</label>
+                      <div className="bg-slate-50 p-3 rounded-xl font-bold text-slate-900">{profile.name}</div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Address</label>
+                      {editMode ? (
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <input
+                              value={editData.address || ''}
+                              onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                              onBlur={(e) => geocodeAddress(e.target.value)}
+                              className="flex-1 bg-slate-50 border border-slate-200 p-3 rounded-xl"
+                              placeholder="Enter address or detect location"
+                            />
+                            <button
+                              onClick={detectLocation}
+                              className="bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-emerald-700 transition whitespace-nowrap"
+                            >
+                              <MapPin size={16} /> Detect Location
+                            </button>
+                          </div>
+                          {editData.location?.latitude && editData.location?.longitude && (
+                            <div className="text-xs text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg flex items-center gap-2">
+                              <CheckCircle size={14} />
+                              <span>GPS: {editData.location.latitude.toFixed(6)}, {editData.location.longitude.toFixed(6)}</span>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.address || 'Not set'}</div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Phone</label>
+                        {editMode ? (
+                          <input value={editData.phone || ''} onChange={(e) => setEditData({ ...editData, phone: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="+1 234 567 8900" />
+                        ) : (
+                          <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.phone || 'Not set'}</div>
                         )}
                       </div>
-                      <div className="text-sm text-slate-500 ml-6">{p.patientId?.email}</div>
-                      {p.reason && <div className="text-sm text-slate-600 mt-2 bg-slate-50 p-2 rounded-lg ml-6">{p.reason}</div>}
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Emergency</label>
+                        {editMode ? (
+                          <input value={editData.emergencyContact || ''} onChange={(e) => setEditData({ ...editData, emergencyContact: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="+1 234 567 8911" />
+                        ) : (
+                          <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.emergencyContact || 'Not set'}</div>
+                        )}
+                      </div>
                     </div>
-                    <span className={`px-3 py-1.5 rounded-full text-xs font-extrabold uppercase ${p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-                      p.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>{p.status}</span>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">Working Hours</label>
+                      {editMode ? (
+                        <input value={editData.workingHours || ''} onChange={(e) => setEditData({ ...editData, workingHours: e.target.value })} className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="09:00 AM - 09:00 PM" />
+                      ) : (
+                        <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.workingHours}</div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase mb-1 block">About</label>
+                      {editMode ? (
+                        <textarea value={editData.about || ''} onChange={(e) => setEditData({ ...editData, about: e.target.value })} rows="3" className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl" placeholder="Brief description about your hospital..." />
+                      ) : (
+                        <div className="bg-slate-50 p-3 rounded-xl text-slate-700">{profile.about || 'No description available'}</div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 p-3 rounded-xl mb-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-blue-500" />
-                      <span className="font-bold">{p.appointmentDate}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Clock size={14} className="text-orange-500" />
-                      <span className="font-bold">{p.appointmentTime}</span>
-                    </div>
+                </div>
+
+                {/* Doctors Card */}
+                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                      <Users size={20} className="text-emerald-600" /> Medical Staff
+                    </h2>
+                    {editMode && (
+                      <button onClick={addDoctor} className="bg-emerald-600 text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-1">
+                        <Plus size={16} /> Add Doctor
+                      </button>
+                    )}
                   </div>
 
-                  {/* Action Buttons Based on Status */}
-                  {p.status === 'PENDING' && (
-                    <div className="flex gap-3">
-                      <button onClick={() => approve(p._id)} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-200 hover:bg-green-700 transition">
-                        <CheckCircle size={18} /> Approve
-                      </button>
-                      <button onClick={() => reject(p._id)} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-200 hover:bg-red-700 transition">
-                        <XCircle size={18} /> Reject
-                      </button>
+                  <div className="space-y-3">
+                    {(editMode ? editData.doctors : profile.doctors)?.length > 0 ? (
+                      (editMode ? editData.doctors : profile.doctors).map((doc, i) => (
+                        <div key={i} className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                          {editMode ? (
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-start">
+                                <input value={doc.name} onChange={(e) => updateDoctor(i, 'name', e.target.value)} placeholder="Doctor Name" className="flex-1 p-2 border rounded-lg text-sm font-bold" />
+                                <button onClick={() => removeDoctor(i)} className="ml-2 text-red-600 p-2 hover:bg-red-50 rounded-lg">
+                                  <CloseIcon size={16} />
+                                </button>
+                              </div>
+                              <input value={doc.specialty} onChange={(e) => updateDoctor(i, 'specialty', e.target.value)} placeholder="Specialty" className="w-full p-2 border rounded-lg text-sm" />
+                              <input value={doc.email} onChange={(e) => updateDoctor(i, 'email', e.target.value)} placeholder="Doctor Email (Login ID)" className="w-full p-2 border rounded-lg text-sm" />
+                              {!doc.userId && !doc.isRegistered && (
+                                <input type="password" value={doc.password || ''} onChange={(e) => updateDoctor(i, 'password', e.target.value)} placeholder="Set Password" className="w-full p-2 border rounded-lg text-sm" />
+                              )}
+                              <div className="flex gap-2">
+                                <input value={doc.qualification} onChange={(e) => updateDoctor(i, 'qualification', e.target.value)} placeholder="Qualification" className="flex-1 p-2 border rounded-lg text-sm" />
+                                <input value={doc.experience} onChange={(e) => updateDoctor(i, 'experience', e.target.value)} placeholder="Exp" className="w-32 p-2 border rounded-lg text-sm" />
+                              </div>
+
+                              {!doc.isRegistered && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const res = await axios.post(`${API}/api/hospitals/doctors`, doc, { headers: { 'x-auth-token': token } });
+                                      toast.success('Doctor Registered!');
+                                      fetchProfile(); // Refresh to get the generated _id and isRegistered status
+                                    } catch (err) {
+                                      toast.error(err.response?.data?.msg || 'Registration failed');
+                                    }
+                                  }}
+                                  className="w-full bg-emerald-100 text-emerald-700 py-2 rounded-lg font-bold text-xs"
+                                >
+                                  Register Doctor Account
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="font-bold text-slate-900">{doc.name}</div>
+                                <div className="text-sm text-emerald-600 font-medium">{doc.specialty}</div>
+                                <div className="text-[10px] text-slate-400 mt-1">{doc.email}</div>
+                                <div className="text-xs text-slate-500">{doc.qualification} {doc.experience && `• ${doc.experience} Exp`}</div>
+                              </div>
+                              {doc.email && (
+                                <div className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg border border-emerald-100">
+                                  <CheckCircle size={14} />
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8 text-slate-400">
+                        <Users size={32} className="mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No doctors added yet</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Services & Stats */}
+              <div className="space-y-6">
+                {/* Stats Card */}
+                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl shadow-lg p-6 text-white">
+                  <h3 className="text-lg font-bold mb-4">Overview</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-emerald-100">Total Appointments</span>
+                      <span className="text-2xl font-bold">{totalAppointments}</span>
                     </div>
-                  )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-emerald-100">Pending</span>
+                      <span className="text-xl font-bold">{pendingCount}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-emerald-100">Confirmed</span>
+                      <span className="text-xl font-bold">{confirmedCount}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-emerald-100">Completed</span>
+                      <span className="text-xl font-bold">{completedCount}</span>
+                    </div>
+                  </div>
+                </div>
 
-                  {(p.status === 'CONFIRMED' || p.status === 'CHECKED_IN') && (
-                    <button onClick={() => complete(p._id)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:bg-blue-700 transition">
-                      <Check size={18} /> Complete Visit
-                    </button>
-                  )}
+                {/* Services Card */}
+                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <Briefcase size={18} className="text-emerald-600" /> Services
+                    </h3>
+                    {editMode && (
+                      <button onClick={addService} className="text-emerald-600 font-bold text-sm">
+                        <Plus size={18} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {(editMode ? editData.services : profile.services)?.length > 0 ? (
+                      (editMode ? editData.services : profile.services).map((service, i) => (
+                        <div key={i} className="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-lg">
+                          <span className="text-sm text-slate-700">• {service}</span>
+                          {editMode && (
+                            <button onClick={() => removeService(i)} className="text-red-600">
+                              <CloseIcon size={14} />
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-6 text-slate-400 text-sm">
+                        No services listed
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-                  {p.status === 'COMPLETED' && (
-                    <div className="space-y-2">
+          {/* Appointments Tab Content */}
+          {!['PROFILE', 'SCHEDULING', 'QUEUE', 'RECORDS', 'MONITORING', 'EMERGENCY_RECORDS', 'CALL_HISTORY', 'BILLING', 'DISCHARGE', 'PAYMENT_SETTINGS'].includes(activeTab) && (
+            loading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="animate-spin text-emerald-600" size={32} />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredAppointments.length === 0 && (
+                  <div className="text-center py-16 bg-white rounded-3xl border border-slate-100">
+                    <div className="bg-slate-100 w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center">
+                      <CheckCircle size={32} className="text-slate-400" />
+                    </div>
+                    <p className="font-bold text-slate-500">No {activeTab.toLowerCase()} appointments</p>
+                  </div>
+                )}
+                {filteredAppointments.map(p => (
+                  <div key={p._id} className="p-5 bg-white rounded-3xl shadow-sm border border-slate-100">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <User size={18} className="text-emerald-600" />
+                          <span className="font-bold text-slate-900 text-lg">{p.patientName || p.patientId?.name || 'Patient'}</span>
+                          {p.queueNumber && (
+                            <span className="bg-emerald-600 text-white px-2 py-1 rounded-lg text-xs font-bold ml-2">
+                              Queue #{p.queueNumber}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-slate-500 ml-6">{p.patientId?.email}</div>
+                        {p.reason && <div className="text-sm text-slate-600 mt-2 bg-slate-50 p-2 rounded-lg ml-6">{p.reason}</div>}
+                      </div>
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-extrabold uppercase ${p.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        p.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>{p.status}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 p-3 rounded-xl mb-4">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={14} className="text-blue-500" />
+                        <span className="font-bold">{p.appointmentDate}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} className="text-orange-500" />
+                        <span className="font-bold">{p.appointmentTime}</span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons Based on Status */}
+                    {p.status === 'PENDING' && (
                       <div className="flex gap-3">
-                        <button onClick={() => openReportModal(p)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition">
-                          <Upload size={18} /> Send Test Report
+                        <button onClick={() => approve(p._id)} className="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-green-200 hover:bg-green-700 transition">
+                          <CheckCircle size={18} /> Approve
                         </button>
-                        <button onClick={() => deleteAppointment(p._id)} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-200 hover:bg-red-700 transition">
-                          <Trash2 size={18} /> Delete
+                        <button onClick={() => reject(p._id)} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-200 hover:bg-red-700 transition">
+                          <XCircle size={18} /> Reject
                         </button>
                       </div>
-                      <button 
-                        onClick={() => { 
-                          setMonitoringInitialData({
-                            patientId: p.patientId?._id || p.patientId,
-                            patientName: p.patientName || p.patientId?.name || '',
-                            patientEmail: p.patientId?.email || '',
-                            patientPhone: p.patientId?.phone || p.phone || '',
-                            appointmentId: p._id,
-                            doctorName: p.doctor || '',
-                            reason: p.reason || ''
-                          });
-                          setActiveTab('MONITORING'); 
-                        }}
-                        className="w-full bg-teal-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-teal-200 hover:bg-teal-700 transition"
-                      >
-                        <Activity size={18} /> Create Recovery Plan
+                    )}
+
+                    {(p.status === 'CONFIRMED' || p.status === 'CHECKED_IN') && (
+                      <button onClick={() => complete(p._id)} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:bg-blue-700 transition">
+                        <Check size={18} /> Complete Visit
                       </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )
-        )}
+                    )}
+
+                    {p.status === 'COMPLETED' && (
+                      <div className="space-y-2">
+                        <div className="flex gap-3">
+                          <button onClick={() => openReportModal(p)} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition">
+                            <Upload size={18} /> Send Test Report
+                          </button>
+                          <button onClick={() => deleteAppointment(p._id)} className="flex-1 bg-red-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-red-200 hover:bg-red-700 transition">
+                            <Trash2 size={18} /> Delete
+                          </button>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setMonitoringInitialData({
+                              patientId: p.patientId?._id || p.patientId,
+                              patientName: p.patientName || p.patientId?.name || '',
+                              patientEmail: p.patientId?.email || '',
+                              patientPhone: p.patientId?.phone || p.phone || '',
+                              appointmentId: p._id,
+                              doctorName: p.doctor || '',
+                              reason: p.reason || ''
+                            });
+                            setActiveTab('MONITORING');
+                          }}
+                          className="w-full bg-teal-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-teal-200 hover:bg-teal-700 transition"
+                        >
+                          <Activity size={18} /> Create Recovery Plan
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          )}
         </div>
       </div>
 

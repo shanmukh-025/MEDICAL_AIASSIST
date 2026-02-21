@@ -59,20 +59,20 @@ const parseTimeToHour = (timeStr) => {
 };
 
 const DoctorScheduleView = ({ appointments, doctors, notifications, onApprove, onReject, onComplete, onSendReminder }) => {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [viewMode, setViewMode] = useState('grid'); // grid | list
   const [showNotifications, setShowNotifications] = useState(true);
 
   // Navigate dates
   const changeDate = (offset) => {
-    const d = new Date(selectedDate);
+    const d = new Date(selectedDate + 'T00:00:00');
     d.setDate(d.getDate() + offset);
-    setSelectedDate(d.toISOString().split('T')[0]);
+    setSelectedDate(d.toLocaleDateString('en-CA'));
   };
 
-  const goToToday = () => setSelectedDate(new Date().toISOString().split('T')[0]);
+  const goToToday = () => setSelectedDate(new Date().toLocaleDateString('en-CA'));
 
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  const isToday = selectedDate === new Date().toLocaleDateString('en-CA');
 
   // Format date for display
   const formattedDate = useMemo(() => {
@@ -491,16 +491,15 @@ const DoctorScheduleView = ({ appointments, doctors, notifications, onApprove, o
                   return (
                     <div key={n._id || i} className={`p-4 hover:bg-slate-50 transition ${!n.read ? 'bg-blue-50/30' : ''}`}>
                       <div className="flex items-start gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
-                          isCancelled ? 'bg-red-100 text-red-500' :
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${isCancelled ? 'bg-red-100 text-red-500' :
                           isNewAppt ? 'bg-blue-100 text-blue-500' :
-                          isAccepted ? 'bg-green-100 text-green-500' :
-                          'bg-slate-100 text-slate-500'
-                        }`}>
+                            isAccepted ? 'bg-green-100 text-green-500' :
+                              'bg-slate-100 text-slate-500'
+                          }`}>
                           {isCancelled ? <XCircle size={14} /> :
-                           isNewAppt ? <Calendar size={14} /> :
-                           isAccepted ? <CheckCircle size={14} /> :
-                           <Bell size={14} />}
+                            isNewAppt ? <Calendar size={14} /> :
+                              isAccepted ? <CheckCircle size={14} /> :
+                                <Bell size={14} />}
                         </div>
                         <div className="min-w-0 flex-1">
                           {isNewAppt && (
