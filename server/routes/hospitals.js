@@ -579,28 +579,52 @@ router.delete('/doctors/:id', auth, async (req, res) => {
 router.delete('/pharmacies/:id', auth, async (req, res) => {
   try {
     const hospitalId = req.user.id;
+    const { id: pharmacyEntryId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(pharmacyEntryId)) {
+      return res.status(400).json({ msg: 'Invalid Pharmacy Entry ID' });
+    }
+
     const hospital = await User.findById(hospitalId);
     if (!hospital || hospital.role !== 'HOSPITAL') {
       return res.status(403).json({ msg: 'Only hospitals can manage pharmacies' });
     }
 
-    const pharmEntry = hospital.pharmacies.id(req.params.id);
+    const pharmEntry = hospital.pharmacies.id(pharmacyEntryId);
     if (pharmEntry) {
-      if (pharmEntry.userId) {
-        await User.findByIdAndDelete(pharmEntry.userId);
-        console.log(`🗑️ Deleted User record for pharmacy: ${pharmEntry.email}`);
+      const userToDeleteEmail = pharmEntry.email;
+      const userToDeleteId = pharmEntry.userId;
+
+      console.log(`🗑️ Attempting to delete pharmacy entry: ${userToDeleteEmail} (ID: ${pharmacyEntryId})`);
+
+      // SAFETY: Don't delete the hospital user record itself
+      if (userToDeleteEmail === hospital.email) {
+        console.log(`🛑 Safety: Not deleting user record for ${userToDeleteEmail} as it matches hospital email.`);
+      } else {
+        // Try deleting the actual user account
+        if (userToDeleteId) {
+          await User.findByIdAndDelete(userToDeleteId);
+          console.log(`🗑️ Deleted User record by ID: ${userToDeleteId}`);
+        } else if (userToDeleteEmail) {
+          // Fallback: delete by email if it's a pharmacy role
+          const deleted = await User.findOneAndDelete({ email: userToDeleteEmail, role: 'PHARMACY' });
+          if (deleted) console.log(`🗑️ Deleted Pharmacy User record by Email: ${userToDeleteEmail}`);
+        }
       }
-      hospital.pharmacies.pull(req.params.id);
+
+      // Always remove from the hospital's internal list
+      hospital.pharmacies.pull(pharmacyEntryId);
       await hospital.save();
-      console.log(`✅ Removed pharmacy entry from hospital: ${hospital.name}`);
+      console.log(`✅ Removed pharmacy entry from hospital list.`);
     } else {
+      console.log(`⚠️ Pharmacy entry ${pharmacyEntryId} not found in hospital ${hospitalId}`);
       return res.status(404).json({ msg: 'Pharmacy entry not found in your list' });
     }
 
-    res.json({ msg: 'Pharmacy removed from hospital list and database' });
+    res.json({ msg: 'Pharmacy removed successfully' });
   } catch (err) {
-    console.error('❌ Error deleting pharmacy:', err.message);
-    res.status(500).json({ msg: 'Server Error', error: err.message });
+    console.error('❌ Error deleting pharmacy:', err);
+    res.status(500).json({ msg: 'Server Failure', error: err.message });
   }
 });
 
