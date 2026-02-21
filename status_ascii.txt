@@ -1,0 +1,18 @@
+ M server/middleware/roles.js
+M  server/models/TreatmentPlan.js
+ M server/package.json
+M  server/routes/appointments.js
+M  server/routes/patientMonitoring.js
+ M server/server.js
+ M src/App.jsx
+A  src/components/EmergencyPatientRecords.jsx
+UU src/components/Navbar.jsx
+M  src/components/PatientRecoveryDashboard.jsx
+M  src/pages/HospitalDashboard.jsx
+M  src/pages/Scan.jsx
+M  src/pages/SymptomAnalysis.jsx
+A  src/utils/medicineValidator.js
+?? server/routes/admin.js
+?? src/pages/AdminDashboard.jsx
+?? status.txt
+?? status_ascii.txt

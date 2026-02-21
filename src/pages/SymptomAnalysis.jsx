@@ -13,6 +13,7 @@ import 'jspdf-autotable';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
+import { validateSymptomInput } from '../utils/medicineValidator';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
@@ -290,6 +291,13 @@ const SymptomAnalysis = () => {
     const trimmedSymptom = customSymptom.trim();
     if (!trimmedSymptom) return;
     
+    // Validate if the symptom is medicine-related before adding
+    const validation = validateSymptomInput(trimmedSymptom);
+    if (!validation.isValid) {
+      toast.error(lang === 'te' ? '医薬有关されていません' : 'Not relevant to medicine. Please enter medicine-related symptoms.');
+      return;
+    }
+    
     if (!symptoms.includes(trimmedSymptom)) {
       setSymptoms([...symptoms, trimmedSymptom]);
       
@@ -325,6 +333,15 @@ const SymptomAnalysis = () => {
   const analyzeSymptoms = async () => {
     if (symptoms.length === 0) {
       toast.error(t.noSymptoms);
+      return;
+    }
+    
+    // Validate if symptoms are medicine-related
+    const symptomText = symptoms.join(' ');
+    const validation = validateSymptomInput(symptomText);
+    
+    if (!validation.isValid) {
+      toast.error(lang === 'te' ? '医薬有关されていません' : 'Not relevant to medicine. Please enter medicine-related symptoms.');
       return;
     }
     

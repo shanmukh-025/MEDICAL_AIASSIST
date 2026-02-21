@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Heart, Menu, X, LogOut, FileText, Activity, MessageCircle, User } from 'lucide-react';
+import { Heart, Menu, X, LogOut, FileText, Activity, MessageCircle, User, AlertTriangle } from 'lucide-react';
 import NotificationBell from './NotificationBell';
 import { useBranding } from '../context/BrandingContext';
 
@@ -12,12 +12,14 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [userPhoto, setUserPhoto] = useState(null);
   const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
     // Load user data
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     setUserPhoto(user.photo);
     setUserName(user.name || 'User');
+    setUserRole(user.role || '');
     
     // Refresh branding on mount
     if (refreshBranding) {
@@ -50,8 +52,26 @@ const Navbar = () => {
       : "text-slate-500 hover:text-emerald-600 hover:bg-slate-50"
     }`;
 
+  const CREATOR_EMAILS = ['shanmukhasai250@gmail.com', 'varunmeruga@gmail.com'];
+  // Always parse user from localStorage at render time to avoid stale closure
+  const getCurrentUser = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      console.log('[DEBUG] Navbar user:', user);
+      return user;
+    } catch {
+      return {};
+    }
+  };
+  const isCreator = () => {
+    const user = getCurrentUser();
+    const isCreatorEmail = user && user.email && CREATOR_EMAILS.includes(user.email.toLowerCase());
+    console.log('[DEBUG] isCreator check:', user?.email, '=>', isCreatorEmail);
+    return isCreatorEmail;
+  };
+
   return (
-    <nav className="bg-white border-b border-slate-100 sticky top-0 z-50">
+    <nav className="bg-red-200 border-b border-slate-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex justify-between h-16 items-center">
           <Link to={token ? "/dashboard" : "/"} className="flex items-center gap-2">
@@ -73,11 +93,21 @@ const Navbar = () => {
 
           <div className="hidden md:flex items-center gap-2">
             <Link to={token ? "/dashboard" : "/"} className={navClass(token ? '/dashboard' : '/')}>Home</Link>
+            {(userRole === 'ADMIN' || isCreator()) && (
+              <Link to="/admin-dashboard" className={navClass('/admin-dashboard')}>Admin Dashboard</Link>
+            )}
             {token && (
               <>
                 <Link to="/wellness" className={navClass('/wellness')}><Activity size={16}/> Wellness</Link>
                 <Link to="/first-aid" className={navClass('/first-aid')}><MessageCircle size={16}/> Chatbot</Link>
                 <Link to="/records" className={navClass('/records')}><FileText size={16}/> Records</Link>
+                {/* Emergency Patient Records - Only for Hospital users */}
+                {userRole === 'HOSPITAL' && (
+                  <>
+                    <Link to="/hospital-dashboard?tab=MONITORING" className={navClass('/hospital-dashboard')}><Activity size={16}/> Monitoring</Link>
+                    <Link to="/hospital-dashboard?tab=EMERGENCY_RECORDS" className={navClass('/hospital-dashboard')}><AlertTriangle size={16}/> Emergency Records</Link>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -102,8 +132,15 @@ const Navbar = () => {
       {isOpen && (
         <div className="md:hidden bg-white border-t p-4 space-y-2">
             <Link to={token ? "/dashboard" : "/"} className="block py-2">Home</Link>
+            {(userRole === 'ADMIN' || isCreator()) && <Link to="/admin-dashboard" className="block py-2">Admin Dashboard</Link>}
             {token && <Link to="/wellness" className="block py-2">Wellness</Link>}
             {token && <Link to="/records" className="block py-2">Records</Link>}
+            {token && userRole === 'HOSPITAL' && (
+              <>
+                <Link to="/hospital-dashboard?tab=MONITORING" className="block py-2">📊 Monitoring</Link>
+                <Link to="/hospital-dashboard?tab=EMERGENCY_RECORDS" className="block py-2 text-red-600 font-bold">🚨 Emergency Records</Link>
+              </>
+            )}
             {token && <button onClick={handleLogout} className="block py-2 text-red-500">Logout</button>}
         </div>
       )}

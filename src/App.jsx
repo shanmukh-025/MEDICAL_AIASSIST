@@ -39,6 +39,7 @@ import SymptomAnalysis from './pages/SymptomAnalysis'; // AI Symptom Analysis
 import FamilyHealthAnalysis from './pages/FamilyHealthAnalysis'; // Family Genetic Analysis
 import PatientRecoveryTracker from './pages/PatientRecoveryTracker'; // Patient Recovery Monitoring
 import PatientBilling from './pages/PatientBilling'; // Patient Billing & Discharge View
+import AdminDashboard from './pages/AdminDashboard';
 
 // Conditional Voice Assistant - only show when authenticated
 const ConditionalVoiceAssistant = () => {
@@ -52,6 +53,12 @@ const ConditionalVoiceAssistant = () => {
   }
 
   return <VoiceAssistant />;
+};
+
+const CREATOR_EMAILS = ['shanmukhasai250@gmail.com', 'varunmeruga@gmail.com']; // Change to your actual email
+const isCreator = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return user && user.email && CREATOR_EMAILS.includes(user.email.toLowerCase());
 };
 
 function App() {
@@ -85,6 +92,13 @@ function App() {
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
+
+                  {/* Admin Dashboard Route */}
+                  <Route path="/admin-dashboard" element={
+                    (isCreator() || (JSON.parse(localStorage.getItem('user') || '{}').role === 'ADMIN'))
+                      ? <AdminDashboard />
+                      : <Navigate to="/login" />
+                  } />
 
                   {/* Protected Dashboard Route */}
                   <Route path="/dashboard" element={<PrivateRoute><Home /></PrivateRoute>} />

@@ -92,6 +92,7 @@ app.use('/api/call-logs', require('./routes/callLogs'));
 app.use('/api/patient-monitoring', require('./routes/patientMonitoring'));
 app.use('/api/billing', require('./routes/billing'));          // Billing & Payments
 app.use('/api/discharge', require('./routes/discharge'));      // Discharge Summaries
+app.use('/api/admin', require('./routes/admin'));
 
 // 6. Test Route
 app.get('/', (req, res) => res.send('API is Running...'));
@@ -287,7 +288,7 @@ io.on('connection', (socket) => {
     const room = findRoomByCallerTarget(to);
     if (room) {
       const callData = activeCalls.get(room);
-      if (callData && callData.callLogId) {
+      if (callData && callLogId) {
         try {
           await CallLog.findByIdAndUpdate(callData.callLogId, {
             status: 'REJECTED',

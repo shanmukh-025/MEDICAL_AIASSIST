@@ -4,7 +4,7 @@ const TreatmentPlanSchema = new mongoose.Schema({
   appointmentId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Appointment',
-    required: true
+    required: false // Optional for emergency patients without appointment
   },
   patientId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -19,13 +19,16 @@ const TreatmentPlanSchema = new mongoose.Schema({
   doctorName: { type: String, required: true },
   diagnosis: { type: String, required: true },
   
+  // Flag for emergency patients (no appointment)
+  isEmergency: { type: Boolean, default: false },
+  
   // Prescribed medicines 
   medicines: [{
     name: { type: String, required: true },
     dosage: { type: String, required: true },       // e.g., "500mg"
     frequency: { 
       type: String, 
-      enum: ['once', 'twice', 'thrice', 'four-times'],
+      enum: ['once', 'twice', 'thrice', 'four-times', 'weekly_once', 'as_needed'],
       required: true 
     },
     timings: [{ type: String }],                     // e.g., ["08:00", "14:00", "20:00"]
@@ -58,6 +61,9 @@ const TreatmentPlanSchema = new mongoose.Schema({
 
   // Doctor's special instructions
   specialInstructions: { type: String },
+  
+  // Doctor's private notes (internal)
+  doctorNotes: { type: String },
   
   // Severity at time of prescription (baseline)
   initialSeverity: { type: Number, min: 1, max: 10, default: 5 },

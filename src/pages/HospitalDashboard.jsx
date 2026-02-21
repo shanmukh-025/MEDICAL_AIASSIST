@@ -13,6 +13,7 @@ import PatientRecoveryDashboard from '../components/PatientRecoveryDashboard';
 import CallHistory from '../components/CallHistory';
 import BillingDashboard from '../components/BillingDashboard';
 import DischargeDashboard from '../components/DischargeDashboard';
+import EmergencyPatientRecords from '../components/EmergencyPatientRecords';
 import webrtcService from '../services/webrtc';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
@@ -763,6 +764,18 @@ const HospitalDashboard = () => {
             </button>
 
             <button
+              onClick={() => setActiveTab('EMERGENCY_RECORDS')}
+              className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
+                activeTab === 'EMERGENCY_RECORDS' 
+                  ? 'bg-red-600 text-white shadow-lg shadow-red-200' 
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <AlertTriangle size={20} />
+              <span>Emergency Records</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('CALL_HISTORY')}
               className={`w-full px-4 py-3 rounded-xl font-semibold text-sm transition flex items-center gap-3 ${
                 activeTab === 'CALL_HISTORY' 
@@ -907,6 +920,10 @@ const HospitalDashboard = () => {
             initialPlanData={monitoringInitialData}
             onInitialDataConsumed={() => setMonitoringInitialData(null)}
           />
+        )}
+
+        {activeTab === 'EMERGENCY_RECORDS' && (
+          <EmergencyPatientRecords />
         )}
 
         {activeTab === 'CALL_HISTORY' && (
@@ -1235,7 +1252,7 @@ const HospitalDashboard = () => {
         )}
 
         {/* Appointments Tab Content */}
-        {!['PROFILE', 'SCHEDULING', 'QUEUE', 'RECORDS', 'CALL_HISTORY', 'BILLING', 'DISCHARGE', 'PAYMENT_SETTINGS'].includes(activeTab) && (
+        {!['PROFILE', 'SCHEDULING', 'QUEUE', 'RECORDS', 'MONITORING', 'EMERGENCY_RECORDS', 'CALL_HISTORY', 'BILLING', 'DISCHARGE', 'PAYMENT_SETTINGS'].includes(activeTab) && (
           loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="animate-spin text-emerald-600" size={32} />
