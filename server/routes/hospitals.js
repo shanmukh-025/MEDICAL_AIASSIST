@@ -555,13 +555,23 @@ router.delete('/doctors/:id', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Only hospitals can manage staff' });
     }
 
-    hospital.doctors = hospital.doctors.filter(d => d._id.toString() !== req.params.id);
-    await hospital.save();
+    const docEntry = hospital.doctors.id(req.params.id);
+    if (docEntry) {
+      if (docEntry.userId) {
+        await User.findByIdAndDelete(docEntry.userId);
+        console.log(`🗑️ Deleted User record for doctor: ${docEntry.email}`);
+      }
+      hospital.doctors.pull(req.params.id);
+      await hospital.save();
+      console.log(`✅ Removed doctor entry from hospital: ${hospital.name}`);
+    } else {
+      return res.status(404).json({ msg: 'Doctor entry not found in your list' });
+    }
 
-    res.json({ msg: 'Doctor removed from hospital list', doctors: hospital.doctors });
+    res.json({ msg: 'Doctor removed from hospital list and database' });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('❌ Error deleting doctor:', err.message);
+    res.status(500).json({ msg: 'Server Error', error: err.message });
   }
 });
 
@@ -574,13 +584,23 @@ router.delete('/pharmacies/:id', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Only hospitals can manage pharmacies' });
     }
 
-    hospital.pharmacies = hospital.pharmacies.filter(p => p._id.toString() !== req.params.id);
-    await hospital.save();
+    const pharmEntry = hospital.pharmacies.id(req.params.id);
+    if (pharmEntry) {
+      if (pharmEntry.userId) {
+        await User.findByIdAndDelete(pharmEntry.userId);
+        console.log(`🗑️ Deleted User record for pharmacy: ${pharmEntry.email}`);
+      }
+      hospital.pharmacies.pull(req.params.id);
+      await hospital.save();
+      console.log(`✅ Removed pharmacy entry from hospital: ${hospital.name}`);
+    } else {
+      return res.status(404).json({ msg: 'Pharmacy entry not found in your list' });
+    }
 
-    res.json({ msg: 'Pharmacy removed from hospital list', pharmacies: hospital.pharmacies });
+    res.json({ msg: 'Pharmacy removed from hospital list and database' });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server Error');
+    console.error('❌ Error deleting pharmacy:', err.message);
+    res.status(500).json({ msg: 'Server Error', error: err.message });
   }
 });
 

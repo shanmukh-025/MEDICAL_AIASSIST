@@ -373,24 +373,26 @@ const HospitalDashboard = () => {
   };
 
   const unlinkDoctor = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to remove Dr. ${name}? This will only unlink them from the hospital list.`)) return;
+    if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE Dr. ${name} and their account from the database? This action cannot be undone.`)) return;
     try {
       await axios.delete(`${API}/api/hospitals/doctors/${id}`, { headers: { 'x-auth-token': token } });
-      toast.success('Doctor unlinked');
+      toast.success('Doctor permanently deleted');
       fetchProfile();
     } catch (err) {
-      toast.error('Failed to unlink doctor');
+      console.error(err);
+      toast.error(err.response?.data?.msg || 'Failed to delete doctor');
     }
   };
 
   const unlinkPharmacy = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to remove ${name}? This will only unlink it from the hospital list.`)) return;
+    if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE ${name} and their account from the database? This action cannot be undone.`)) return;
     try {
       await axios.delete(`${API}/api/hospitals/pharmacies/${id}`, { headers: { 'x-auth-token': token } });
-      toast.success('Pharmacy unlinked');
+      toast.success('Pharmacy permanently deleted');
       fetchProfile();
     } catch (err) {
-      toast.error('Failed to unlink pharmacy');
+      console.error(err);
+      toast.error(err.response?.data?.msg || 'Failed to delete pharmacy');
     }
   };
 
