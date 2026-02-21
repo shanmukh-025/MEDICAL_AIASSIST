@@ -29,7 +29,7 @@ const QueueDashboard = () => {
   const [cancellingId, setCancellingId] = useState(null);
 
   const token = localStorage.getItem('token');
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
 
   // --- Translations ---
   const t = {
@@ -106,8 +106,8 @@ const QueueDashboard = () => {
   const hasAppointmentAtHospital = (hospitalId) => {
     if (!hospitalId || !appointments || appointments.length === 0) return false;
     const today = new Date().toISOString().split('T')[0];
-    return appointments.some(appt => 
-      appt.hospitalId && 
+    return appointments.some(appt =>
+      appt.hospitalId &&
       appt.hospitalId.toString() === hospitalId.toString() &&
       appt.appointmentDate === today &&
       !['COMPLETED', 'REJECTED', 'NO_SHOW'].includes(appt.status)
@@ -124,7 +124,7 @@ const QueueDashboard = () => {
 
     // Build a Set of all appointment IDs that need live data
     const apptIds = new Set(todayAppts.map(a => a._id));
-    
+
     // Also include appointment IDs from reminders (for walk-in patients who have no "my" appointments)
     if (reminders && reminders.length > 0) {
       reminders.forEach(r => { if (r.apptId) apptIds.add(r.apptId); });
@@ -184,7 +184,7 @@ const QueueDashboard = () => {
         });
 
         // Optimistically update appointment status to hide the queue card immediately
-        setAppointments(prev => prev.map(a => 
+        setAppointments(prev => prev.map(a =>
           a._id === data.apptId ? { ...a, status: 'COMPLETED' } : a
         ));
       }
@@ -192,7 +192,7 @@ const QueueDashboard = () => {
       // Small delay to let state settle, then force queue data refresh
       setTimeout(() => fetchQueueData(), 300);
     };
-    
+
     // Also listen for notification events (completion notifications)
     const notifHandler = async (data) => {
       if (data && data.status === 'COMPLETED' && data.apptId) {
@@ -204,14 +204,14 @@ const QueueDashboard = () => {
         });
 
         // Optimistically update appointment status to hide the queue card immediately
-        setAppointments(prev => prev.map(a => 
+        setAppointments(prev => prev.map(a =>
           a._id === data.apptId ? { ...a, status: 'COMPLETED' } : a
         ));
       }
       await fetchAppointments();
       setTimeout(() => fetchQueueData(), 300);
     };
-    
+
     socket.on('queueUpdated', handler);
     socket.on('reminder', handler);
     socket.on('notification', notifHandler);
@@ -222,21 +222,6 @@ const QueueDashboard = () => {
     };
   }, [socket, fetchAppointments, fetchQueueData]);
 
-  // Redirect if all appointments are completed
-  useEffect(() => {
-    if (loading) return; // Wait for initial load
-    
-    // Check if user has any active appointments today
-    const hasActiveAppointments = appointments.some(a => 
-      a.appointmentDate === today && 
-      !['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(a.status)
-    );
-    
-    // If no active appointments and no reminders, redirect to home
-    if (!hasActiveAppointments && (!reminders || reminders.length === 0)) {
-      navigate('/', { replace: true });
-    }
-  }, [appointments, reminders, loading, today, navigate]);
 
   // Break countdown
   useEffect(() => {
@@ -440,8 +425,8 @@ const QueueDashboard = () => {
                 </div>
                 <div className="flex-1">
                   <h3 className="font-bold text-base">
-                    {lang === 'en' 
-                      ? `Doctor on ${doctorBreak.breakDurationMinutes}-minute Break` 
+                    {lang === 'en'
+                      ? `Doctor on ${doctorBreak.breakDurationMinutes}-minute Break`
                       : `డాక్టర్ ${doctorBreak.breakDurationMinutes} నిమిషాల బ్రేక్‌లో`}
                   </h3>
                   <p className="text-purple-200 text-xs mt-0.5">
@@ -562,13 +547,12 @@ const QueueDashboard = () => {
                           Queue #{appt.queueNumber}
                         </span>
                       )}
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                        appt.status === 'CHECKED_IN' ? 'bg-emerald-100 text-emerald-700' :
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${appt.status === 'CHECKED_IN' ? 'bg-emerald-100 text-emerald-700' :
                         appt.status === 'CONFIRMED' ? 'bg-blue-100 text-blue-700' :
-                        appt.status === 'IN_PROGRESS' ? 'bg-purple-100 text-purple-700' :
-                        appt.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                        'bg-yellow-100 text-yellow-700'
-                      }`}>
+                          appt.status === 'IN_PROGRESS' ? 'bg-purple-100 text-purple-700' :
+                            appt.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                              'bg-yellow-100 text-yellow-700'
+                        }`}>
                         {appt.status}
                       </span>
                     </div>
@@ -626,7 +610,7 @@ const QueueDashboard = () => {
               {reminders.map((reminder) => {
                 // Try live data for this reminder's appointment, then fall back to the active appointment's live data
                 const live = (reminder.apptId ? liveQueueData[reminder.apptId] : null) || activeQueueInfo;
-                
+
                 // Double-check: If the appointment associated with this reminder is completed, hide it immediately
                 if (live && (live.status === 'COMPLETED' || live.type === 'CONSULTATION_ENDED')) return null;
 
@@ -711,8 +695,8 @@ const QueueDashboard = () => {
         {/* Footer info */}
         <div className="text-center py-4">
           <p className="text-[10px] text-slate-400 font-bold">
-            {lang === 'en' 
-              ? 'Queue position updates in real-time via live connection' 
+            {lang === 'en'
+              ? 'Queue position updates in real-time via live connection'
               : 'క్యూ స్థానం లైవ్ కనెక్షన్ ద్వారా నిజ-సమయంలో నవీకరించబడుతుంది'}
           </p>
         </div>

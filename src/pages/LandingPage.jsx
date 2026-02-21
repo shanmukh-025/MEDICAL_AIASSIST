@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Activity, Calendar, Users, Heart, Phone, Brain, Stethoscope, 
-  Clock, MapPin, Shield, Zap, Globe, Bell, QrCode, 
+  Activity, Calendar, Users, Heart, Phone, Brain, Stethoscope,
+  Clock, MapPin, Shield, Zap, Globe, Bell, QrCode,
   ChevronRight, Check, Star, TrendingUp, MessageSquare,
   Pill, FileText, Camera, Mic, Video, Receipt, UserPlus,
   Sparkles, ArrowRight, Menu, X
@@ -20,6 +20,14 @@ const LandingPage = () => {
     }, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
 
   const features = [
     {
@@ -179,13 +187,13 @@ const LandingPage = () => {
               <a href="#features" className="text-slate-600 hover:text-blue-600 transition-colors font-medium">Features</a>
               <a href="#how-it-works" className="text-slate-600 hover:text-blue-600 transition-colors font-medium">How It Works</a>
               <a href="#benefits" className="text-slate-600 hover:text-blue-600 transition-colors font-medium">Benefits</a>
-              <button 
+              <button
                 onClick={() => navigate('/login')}
                 className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
               >
                 Sign In
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/register')}
                 className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-xl hover:shadow-lg transform hover:scale-105 transition-all font-medium"
               >
@@ -194,7 +202,7 @@ const LandingPage = () => {
             </div>
 
             {/* Mobile Menu Button */}
-            <button 
+            <button
               className="md:hidden p-2"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
@@ -209,13 +217,13 @@ const LandingPage = () => {
                 <a href="#features" className="text-slate-600 hover:text-blue-600 transition-colors">Features</a>
                 <a href="#how-it-works" className="text-slate-600 hover:text-blue-600 transition-colors">How It Works</a>
                 <a href="#benefits" className="text-slate-600 hover:text-blue-600 transition-colors">Benefits</a>
-                <button 
+                <button
                   onClick={() => navigate('/login')}
                   className="text-blue-600 hover:text-blue-700 text-left"
                 >
                   Sign In
                 </button>
-                <button 
+                <button
                   onClick={() => navigate('/register')}
                   className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-xl font-medium"
                 >
@@ -236,26 +244,26 @@ const LandingPage = () => {
               <Sparkles className="w-4 h-4" />
               <span>AI-Powered Medical Assistant for Everyone</span>
             </div>
-            
+
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-slate-900 mb-6 leading-tight">
               Your Health,
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"> Simplified</span>
             </h1>
-            
+
             <p className="text-xl text-slate-600 mb-8 max-w-3xl mx-auto leading-relaxed">
               Manage appointments, track health records, and access AI-powered medical guidance—your all-in-one platform for modern healthcare.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <button 
+              <button
                 onClick={() => navigate('/register')}
                 className="group bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-2xl transform hover:scale-105 transition-all flex items-center space-x-2"
               >
                 <span>Start For Free</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </button>
-              
-              <button 
+
+              <button
                 onClick={() => navigate('/login')}
                 className="bg-white text-slate-700 px-8 py-4 rounded-xl text-lg font-semibold border-2 border-slate-200 hover:border-blue-600 hover:text-blue-600 transition-all"
               >
@@ -270,7 +278,7 @@ const LandingPage = () => {
                 { icon: Brain, text: 'AI Health Assistant', gradient: 'from-purple-500 to-purple-600' },
                 { icon: Activity, text: 'Health Tracking', gradient: 'from-red-500 to-red-600' }
               ].map((item, idx) => (
-                <div 
+                <div
                   key={idx}
                   className={`bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1 ${activeFeature === idx ? 'ring-2 ring-blue-500' : ''}`}
                 >
@@ -315,7 +323,7 @@ const LandingPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, idx) => (
-              <div 
+              <div
                 key={idx}
                 className="group bg-white p-6 rounded-2xl shadow-sm hover:shadow-xl transition-all transform hover:-translate-y-2 border border-slate-100"
               >
@@ -345,7 +353,7 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
             {/* Connection Lines */}
             <div className="hidden lg:block absolute top-24 left-0 right-0 h-1 bg-gradient-to-r from-blue-200 via-purple-200 to-green-200"></div>
-            
+
             {howItWorksSteps.map((step, idx) => (
               <div key={idx} className="relative">
                 <div className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-lg transition-all text-center relative z-10">
@@ -374,7 +382,7 @@ const LandingPage = () => {
               <p className="text-lg text-slate-600 mb-8">
                 We're revolutionizing healthcare with technology that's powerful yet simple to use
               </p>
-              
+
               <div className="space-y-4">
                 {benefits.map((benefit, idx) => (
                   <div key={idx} className="flex items-center space-x-4 bg-white p-4 rounded-xl shadow-sm hover:shadow-md transition-all">
@@ -390,7 +398,7 @@ const LandingPage = () => {
             <div className="relative">
               <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl p-8 text-white shadow-2xl">
                 <h3 className="text-2xl font-bold mb-6">Ready to Transform Your Healthcare Experience?</h3>
-                
+
                 <div className="space-y-4 mb-8">
                   <div className="flex items-start space-x-3">
                     <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -412,7 +420,7 @@ const LandingPage = () => {
                   </div>
                 </div>
 
-                <button 
+                <button
                   onClick={() => navigate('/register')}
                   className="w-full bg-white text-blue-600 px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all"
                 >
@@ -494,13 +502,13 @@ const LandingPage = () => {
               Join thousands of users who are already experiencing better healthcare
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button 
+              <button
                 onClick={() => navigate('/register')}
                 className="bg-white text-blue-600 px-8 py-4 rounded-xl text-lg font-semibold hover:shadow-xl transform hover:scale-105 transition-all"
               >
                 Sign Up Now
               </button>
-              <button 
+              <button
                 onClick={() => navigate('/login')}
                 className="bg-blue-700 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-blue-800 transition-all border-2 border-white/20"
               >

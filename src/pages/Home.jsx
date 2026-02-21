@@ -217,9 +217,7 @@ const Home = () => {
     // AI Features
     aiFeatures: lang === 'en' ? 'AI Health Analysis' : 'AI ఆరోగ్య విశ్లేషణ',
     symptomAnalysis: lang === 'en' ? 'Symptom Analysis' : 'లక్షణ విశ్లేషణ',
-    symptomAnalysisSub: lang === 'en' ? 'AI Disease Prediction' : 'AI వ్యాధి అంచనా',
-    familyGenetic: lang === 'en' ? 'Family Genetics' : 'కుటుంబ జన్యువులు',
-    familyGeneticSub: lang === 'en' ? 'Hereditary Patterns' : 'వంశపారంపర్య నమూనాలు'
+    symptomAnalysisSub: lang === 'en' ? 'AI Disease Prediction' : 'AI వ్యాధి అంచనా'
   };
 
   return (
@@ -449,23 +447,6 @@ const Home = () => {
           <ChevronRight size={16} className="text-slate-300" />
         </div>
 
-        {/* AI HEALTH ANALYSIS SECTION */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <BrainCircuit size={14} className="text-blue-500" />
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.aiFeatures}</h3>
-          </div>
-
-          <button onClick={() => navigate('/family-health-analysis')} className="bg-gradient-to-br from-purple-500 to-pink-600 p-5 rounded-3xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-start text-left gap-3 group border border-white/20 w-full">
-            <div className="w-14 h-14 rounded-2xl bg-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-lg backdrop-blur-sm">
-              <Users size={28} />
-            </div>
-            <div>
-              <h3 className="font-bold text-white text-lg">{t.familyGenetic}</h3>
-              <p className="text-xs text-purple-100 font-medium mt-1">{t.familyGeneticSub}</p>
-            </div>
-          </button>
-        </div>
 
         {/* QUEUE DASHBOARD - Direct Access */}
         <div onClick={() => navigate('/queue-dashboard')} className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 rounded-3xl shadow-lg border border-blue-500 flex items-center justify-between hover:shadow-xl transition cursor-pointer">
