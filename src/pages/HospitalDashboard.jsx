@@ -372,6 +372,28 @@ const HospitalDashboard = () => {
     setEditData({ ...editData, pharmacies: newPharmacies });
   };
 
+  const unlinkDoctor = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to remove Dr. ${name}? This will only unlink them from the hospital list.`)) return;
+    try {
+      await axios.delete(`${API}/api/hospitals/doctors/${id}`, { headers: { 'x-auth-token': token } });
+      toast.success('Doctor unlinked');
+      fetchProfile();
+    } catch (err) {
+      toast.error('Failed to unlink doctor');
+    }
+  };
+
+  const unlinkPharmacy = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to remove ${name}? This will only unlink it from the hospital list.`)) return;
+    try {
+      await axios.delete(`${API}/api/hospitals/pharmacies/${id}`, { headers: { 'x-auth-token': token } });
+      toast.success('Pharmacy unlinked');
+      fetchProfile();
+    } catch (err) {
+      toast.error('Failed to unlink pharmacy');
+    }
+  };
+
   const detectLocation = () => {
     if (!navigator.geolocation) {
       toast.error('Geolocation not supported by your browser');
@@ -1068,9 +1090,18 @@ const HospitalDashboard = () => {
                         )}
 
                         {pharmacy.isRegistered && (
-                          <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                            <CheckCircle size={18} />
-                            <span className="text-xs font-bold">Account Active & Linked</span>
+                          <div className="flex items-center justify-between gap-2 text-emerald-600 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle size={18} />
+                              <span className="text-xs font-bold">Account Active & Linked</span>
+                            </div>
+                            <button
+                              onClick={() => unlinkPharmacy(pharmacy._id, pharmacy.name)}
+                              className="text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded-lg transition"
+                              title="Delete/Unlink Pharmacy"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </div>
                         )}
                       </div>
@@ -1331,8 +1362,17 @@ const HospitalDashboard = () => {
                                 <div className="text-xs text-slate-500">{doc.qualification} {doc.experience && `• ${doc.experience} Exp`}</div>
                               </div>
                               {doc.email && (
-                                <div className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg border border-emerald-100">
-                                  <CheckCircle size={14} />
+                                <div className="flex flex-col items-end gap-2">
+                                  <div className="bg-emerald-50 text-emerald-600 px-2 py-1 rounded-lg border border-emerald-100">
+                                    <CheckCircle size={14} />
+                                  </div>
+                                  <button
+                                    onClick={() => unlinkDoctor(doc._id, doc.name)}
+                                    className="text-red-500 hover:text-red-700 p-1.5 hover:bg-red-50 rounded-lg transition mt-1"
+                                    title="Unlink Doctor"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
                                 </div>
                               )}
                             </div>
@@ -1513,124 +1553,128 @@ const HospitalDashboard = () => {
       </div>
 
       {/* Test Report Upload Modal */}
-      {showReportModal && selectedAppointment && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <FileText className="text-emerald-600" size={24} />
-                Send Test Report
-              </h2>
-              <button
-                onClick={() => setShowReportModal(false)}
-                className="p-2 hover:bg-slate-100 rounded-full transition"
-              >
-                <CloseIcon size={20} />
-              </button>
-            </div>
-
-            <div className="mb-4 p-3 bg-slate-50 rounded-xl">
-              <div className="text-sm text-slate-500">Patient</div>
-              <div className="font-bold text-slate-900">{selectedAppointment.patientName || selectedAppointment.patientId?.name}</div>
-              <div className="text-xs text-slate-500">{selectedAppointment.patientId?.email}</div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-bold text-slate-700 mb-2 block">Report Title *</label>
-                <input
-                  type="text"
-                  value={reportForm.title}
-                  onChange={(e) => setReportForm({ ...reportForm, title: e.target.value })}
-                  placeholder="e.g., Blood Test Results"
-                  className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-bold text-slate-700 mb-2 block">Doctor Name</label>
-                <input
-                  type="text"
-                  value={reportForm.doctor}
-                  onChange={(e) => setReportForm({ ...reportForm, doctor: e.target.value })}
-                  placeholder="Doctor name"
-                  className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-bold text-slate-700 mb-2 block">Report Type</label>
-                <select
-                  value={reportForm.type}
-                  onChange={(e) => setReportForm({ ...reportForm, type: e.target.value })}
-                  className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+      {
+        showReportModal && selectedAppointment && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <FileText className="text-emerald-600" size={24} />
+                  Send Test Report
+                </h2>
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className="p-2 hover:bg-slate-100 rounded-full transition"
                 >
-                  <option value="Lab Report">Lab Report</option>
-                  <option value="X-Ray">X-Ray</option>
-                  <option value="Blood Test">Blood Test</option>
-                  <option value="Prescription">Prescription</option>
-                  <option value="Other">Other</option>
-                </select>
+                  <CloseIcon size={20} />
+                </button>
               </div>
 
-              <div>
-                <label className="text-sm font-bold text-slate-700 mb-2 block">Upload Report Image/PDF *</label>
-                <input
-                  type="file"
-                  accept="image/*,application/pdf"
-                  onChange={handleReportFile}
-                  className="w-full p-3 border border-slate-200 rounded-xl file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
-                />
-                {reportForm.image && (
-                  <div className="mt-2 text-sm text-green-600 flex items-center gap-2">
-                    <CheckCircle size={16} /> File uploaded successfully
-                  </div>
-                )}
+              <div className="mb-4 p-3 bg-slate-50 rounded-xl">
+                <div className="text-sm text-slate-500">Patient</div>
+                <div className="font-bold text-slate-900">{selectedAppointment.patientName || selectedAppointment.patientId?.name}</div>
+                <div className="text-xs text-slate-500">{selectedAppointment.patientId?.email}</div>
               </div>
-            </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={sendTestReport}
-                disabled={uploadingReport || !reportForm.title || !reportForm.image}
-                className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition disabled:bg-slate-300 disabled:cursor-not-allowed"
-              >
-                {uploadingReport ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin" /> Sending...
-                  </>
-                ) : (
-                  <>
-                    <Upload size={18} /> Send Report
-                  </>
-                )}
-              </button>
-              <button
-                onClick={() => setShowReportModal(false)}
-                disabled={uploadingReport}
-                className="flex-1 bg-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-300 transition disabled:opacity-50"
-              >
-                Cancel
-              </button>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-bold text-slate-700 mb-2 block">Report Title *</label>
+                  <input
+                    type="text"
+                    value={reportForm.title}
+                    onChange={(e) => setReportForm({ ...reportForm, title: e.target.value })}
+                    placeholder="e.g., Blood Test Results"
+                    className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-slate-700 mb-2 block">Doctor Name</label>
+                  <input
+                    type="text"
+                    value={reportForm.doctor}
+                    onChange={(e) => setReportForm({ ...reportForm, doctor: e.target.value })}
+                    placeholder="Doctor name"
+                    className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-slate-700 mb-2 block">Report Type</label>
+                  <select
+                    value={reportForm.type}
+                    onChange={(e) => setReportForm({ ...reportForm, type: e.target.value })}
+                    className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  >
+                    <option value="Lab Report">Lab Report</option>
+                    <option value="X-Ray">X-Ray</option>
+                    <option value="Blood Test">Blood Test</option>
+                    <option value="Prescription">Prescription</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-slate-700 mb-2 block">Upload Report Image/PDF *</label>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={handleReportFile}
+                    className="w-full p-3 border border-slate-200 rounded-xl file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100"
+                  />
+                  {reportForm.image && (
+                    <div className="mt-2 text-sm text-green-600 flex items-center gap-2">
+                      <CheckCircle size={16} /> File uploaded successfully
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={sendTestReport}
+                  disabled={uploadingReport || !reportForm.title || !reportForm.image}
+                  className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-emerald-700 transition disabled:bg-slate-300 disabled:cursor-not-allowed"
+                >
+                  {uploadingReport ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" /> Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={18} /> Send Report
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  disabled={uploadingReport}
+                  className="flex-1 bg-slate-200 text-slate-700 py-3 rounded-xl font-bold hover:bg-slate-300 transition disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Incoming/Outgoing Call */}
-      {showIncomingCall && incomingCallData && (
-        <AudioCall
-          recipientId={incomingCallData.from}
-          recipientName={incomingCallData.name}
-          isIncoming={!incomingCallData.isOutgoing}
-          socket={socket}
-          onClose={() => {
-            setShowIncomingCall(false);
-            setIncomingCallData(null);
-          }}
-        />
-      )}
-    </div>
+      {
+        showIncomingCall && incomingCallData && (
+          <AudioCall
+            recipientId={incomingCallData.from}
+            recipientName={incomingCallData.name}
+            isIncoming={!incomingCallData.isOutgoing}
+            socket={socket}
+            onClose={() => {
+              setShowIncomingCall(false);
+              setIncomingCallData(null);
+            }}
+          />
+        )
+      }
+    </div >
   );
 };
 

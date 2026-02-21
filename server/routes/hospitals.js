@@ -546,4 +546,42 @@ router.post('/pharmacies', auth, async (req, res) => {
   }
 });
 
+// Remove/Unlink a doctor
+router.delete('/doctors/:id', auth, async (req, res) => {
+  try {
+    const hospitalId = req.user.id;
+    const hospital = await User.findById(hospitalId);
+    if (!hospital || hospital.role !== 'HOSPITAL') {
+      return res.status(403).json({ msg: 'Only hospitals can manage staff' });
+    }
+
+    hospital.doctors = hospital.doctors.filter(d => d._id.toString() !== req.params.id);
+    await hospital.save();
+
+    res.json({ msg: 'Doctor removed from hospital list', doctors: hospital.doctors });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// Remove/Unlink a pharmacy
+router.delete('/pharmacies/:id', auth, async (req, res) => {
+  try {
+    const hospitalId = req.user.id;
+    const hospital = await User.findById(hospitalId);
+    if (!hospital || hospital.role !== 'HOSPITAL') {
+      return res.status(403).json({ msg: 'Only hospitals can manage pharmacies' });
+    }
+
+    hospital.pharmacies = hospital.pharmacies.filter(p => p._id.toString() !== req.params.id);
+    await hospital.save();
+
+    res.json({ msg: 'Pharmacy removed from hospital list', pharmacies: hospital.pharmacies });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
 module.exports = router;
