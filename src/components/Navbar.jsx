@@ -92,10 +92,14 @@ const Navbar = () => {
           </Link>
 
           <div className="hidden md:flex items-center gap-2">
+<<<<<<< HEAD
             <Link to={token ? "/dashboard" : "/"} className={navClass(token ? '/dashboard' : '/')}>Home</Link>
             {(userRole === 'ADMIN' || isCreator()) && (
               <Link to="/admin-dashboard" className={navClass('/admin-dashboard')}>Admin Dashboard</Link>
             )}
+=======
+            <Link to="/" className={navClass('/')}>Home</Link>
+>>>>>>> 8fd09868f9333dba19814a632052854d71f1723f
             {token && (
               <>
                 <Link to="/wellness" className={navClass('/wellness')}><Activity size={16}/> Wellness</Link>
@@ -131,8 +135,12 @@ const Navbar = () => {
       
       {isOpen && (
         <div className="md:hidden bg-white border-t p-4 space-y-2">
+<<<<<<< HEAD
             <Link to={token ? "/dashboard" : "/"} className="block py-2">Home</Link>
             {(userRole === 'ADMIN' || isCreator()) && <Link to="/admin-dashboard" className="block py-2">Admin Dashboard</Link>}
+=======
+            <Link to="/" className="block py-2">Home</Link>
+>>>>>>> 8fd09868f9333dba19814a632052854d71f1723f
             {token && <Link to="/wellness" className="block py-2">Wellness</Link>}
             {token && <Link to="/records" className="block py-2">Records</Link>}
             {token && userRole === 'HOSPITAL' && (
