@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const Hospital = require('../models/Hospital');
 const HospitalNotification = require('../models/HospitalNotification');
 const User = require('../models/User');
@@ -550,18 +551,24 @@ router.post('/pharmacies', auth, async (req, res) => {
 router.delete('/doctors/:id', auth, async (req, res) => {
   try {
     const hospitalId = req.user.id;
+    const { id: docEntryId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(docEntryId)) {
+      return res.status(400).json({ msg: 'Invalid Doctor Entry ID' });
+    }
+
     const hospital = await User.findById(hospitalId);
     if (!hospital || hospital.role !== 'HOSPITAL') {
       return res.status(403).json({ msg: 'Only hospitals can manage staff' });
     }
 
-    const docEntry = hospital.doctors.id(req.params.id);
+    const docEntry = hospital.doctors.id(docEntryId);
     if (docEntry) {
       if (docEntry.userId) {
         await User.findByIdAndDelete(docEntry.userId);
         console.log(`🗑️ Deleted User record for doctor: ${docEntry.email}`);
       }
-      hospital.doctors.pull(req.params.id);
+      hospital.doctors.pull(docEntryId);
       await hospital.save();
       console.log(`✅ Removed doctor entry from hospital: ${hospital.name}`);
     } else {
