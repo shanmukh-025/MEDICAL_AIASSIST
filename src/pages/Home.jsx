@@ -204,22 +204,21 @@ const Home = () => {
     recovery: lang === 'en' ? 'Recovery' : 'రికవరీ',
     appointments: lang === 'en' ? 'My Appointments' : 'నా అపాయింట్‌మెంట్లు',
     viewBookings: lang === 'en' ? 'View Bookings' : 'బుకింగ్‌లను చూడండి',
-    
+
     // AI Features
     aiFeatures: lang === 'en' ? 'AI Health Analysis' : 'AI ఆరోగ్య విశ్లేషణ',
     symptomAnalysis: lang === 'en' ? 'Symptom Analysis' : 'లక్షణ విశ్లేషణ',
     symptomAnalysisSub: lang === 'en' ? 'AI Disease Prediction' : 'AI వ్యాధి అంచనా',
-    familyGenetic: lang === 'en' ? 'Family Genetics' : 'కుటుంబ జన్యువులు',
-    familyGeneticSub: lang === 'en' ? 'Hereditary Patterns' : 'వంశపారంపర్య నమూనాలు'
+    familyGenetic: lang === 'en' ? 'Family Genetics' : 'కుటుంబ జన్యువులు'
   };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20">
 
       {/* HEADER SECTION */}
-      <div className="bg-emerald-600 relative overflow-hidden pb-24 pt-8 px-6 text-white shadow-xl rounded-b-[40px]">
+      < div className="bg-emerald-600 relative overflow-hidden pb-24 pt-8 px-6 text-white shadow-xl rounded-b-[40px]" >
         {/* Background Effects */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl"></div>
+        < div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" ></div>
         <div className="absolute bottom-0 left-0 w-40 h-40 bg-emerald-400 opacity-20 rounded-full translate-y-1/3 -translate-x-1/4 blur-2xl"></div>
 
         <div className="max-w-7xl mx-auto relative z-10">
@@ -248,96 +247,98 @@ const Home = () => {
             {t.subtitle}
           </p>
         </div>
-      </div>
+      </div >
 
       {/* BODY CONTENT */}
-      <div className="max-w-7xl mx-auto px-6 -mt-16 relative z-20 space-y-6">
+      < div className="max-w-7xl mx-auto px-6 -mt-16 relative z-20 space-y-6" >
 
         {/* Queue Status Summary Card — links to dedicated Queue Dashboard */}
-        {((doctorBreak && breakSeconds > 0 && hasAppointmentAtHospital(doctorBreak.hospitalId)) || (doctorDelay && delaySeconds > 0 && hasAppointmentAtHospital(doctorDelay.hospitalId)) || (emergencyAlert && emergencySeconds > 0 && hasAppointmentAtHospital(emergencyAlert.hospitalId)) || (reminders && reminders.length > 0)) && (
-          <div
-            onClick={() => navigate('/queue-dashboard')}
-            className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-md transition group"
-          >
-            {/* Break mini-banner - only show if user has appointment at this hospital */}
-            {doctorBreak && breakSeconds > 0 && hasAppointmentAtHospital(doctorBreak.hospitalId) && (
-              <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-3 text-white flex items-center gap-3">
-                <Coffee size={18} className="animate-pulse" />
-                <div className="flex-1">
-                  <span className="font-bold text-sm">Doctor on {doctorBreak.breakDurationMinutes}-min Break</span>
-                  <span className="text-purple-200 text-xs ml-2">
-                    ends at {new Date(doctorBreak.breakEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        {
+          ((doctorBreak && breakSeconds > 0 && hasAppointmentAtHospital(doctorBreak.hospitalId)) || (doctorDelay && delaySeconds > 0 && hasAppointmentAtHospital(doctorDelay.hospitalId)) || (emergencyAlert && emergencySeconds > 0 && hasAppointmentAtHospital(emergencyAlert.hospitalId)) || (reminders && reminders.length > 0)) && (
+            <div
+              onClick={() => navigate('/queue-dashboard')}
+              className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden cursor-pointer hover:shadow-md transition group"
+            >
+              {/* Break mini-banner - only show if user has appointment at this hospital */}
+              {doctorBreak && breakSeconds > 0 && hasAppointmentAtHospital(doctorBreak.hospitalId) && (
+                <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-3 text-white flex items-center gap-3">
+                  <Coffee size={18} className="animate-pulse" />
+                  <div className="flex-1">
+                    <span className="font-bold text-sm">Doctor on {doctorBreak.breakDurationMinutes}-min Break</span>
+                    <span className="text-purple-200 text-xs ml-2">
+                      ends at {new Date(doctorBreak.breakEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <span className="font-mono font-bold text-lg tabular-nums bg-white/15 px-3 py-1 rounded-xl">
+                    {String(Math.floor(breakSeconds / 60)).padStart(2, '0')}:{String(breakSeconds % 60).padStart(2, '0')}
                   </span>
                 </div>
-                <span className="font-mono font-bold text-lg tabular-nums bg-white/15 px-3 py-1 rounded-xl">
-                  {String(Math.floor(breakSeconds / 60)).padStart(2, '0')}:{String(breakSeconds % 60).padStart(2, '0')}
-                </span>
-              </div>
-            )}
+              )}
 
-            {/* Emergency mini-banner - only show if user has appointment at this hospital */}
-            {emergencyAlert && emergencySeconds > 0 && hasAppointmentAtHospital(emergencyAlert.hospitalId) && (
-              <div className="bg-gradient-to-r from-red-600 to-red-700 px-5 py-3 text-white flex items-center gap-3">
-                <Activity size={18} className="animate-pulse" />
-                <div className="flex-1">
-                  <span className="font-bold text-sm">🚨 Emergency Case — Queue Paused</span>
-                  <span className="text-red-200 text-xs ml-2">
-                    est. ~{emergencyAlert.estimatedDuration} min
+              {/* Emergency mini-banner - only show if user has appointment at this hospital */}
+              {emergencyAlert && emergencySeconds > 0 && hasAppointmentAtHospital(emergencyAlert.hospitalId) && (
+                <div className="bg-gradient-to-r from-red-600 to-red-700 px-5 py-3 text-white flex items-center gap-3">
+                  <Activity size={18} className="animate-pulse" />
+                  <div className="flex-1">
+                    <span className="font-bold text-sm">🚨 Emergency Case — Queue Paused</span>
+                    <span className="text-red-200 text-xs ml-2">
+                      est. ~{emergencyAlert.estimatedDuration} min
+                    </span>
+                  </div>
+                  <span className="font-mono font-bold text-lg tabular-nums bg-white/15 px-3 py-1 rounded-xl">
+                    {String(Math.floor(emergencySeconds / 60)).padStart(2, '0')}:{String(emergencySeconds % 60).padStart(2, '0')}
                   </span>
                 </div>
-                <span className="font-mono font-bold text-lg tabular-nums bg-white/15 px-3 py-1 rounded-xl">
-                  {String(Math.floor(emergencySeconds / 60)).padStart(2, '0')}:{String(emergencySeconds % 60).padStart(2, '0')}
-                </span>
-              </div>
-            )}
+              )}
 
-            {/* Delay mini-banner - only show if user has appointment at this hospital */}
-            {doctorDelay && delaySeconds > 0 && hasAppointmentAtHospital(doctorDelay.hospitalId) && (
-              <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-3 text-white flex items-center gap-3">
-                <Clock size={18} className="animate-pulse" />
-                <div className="flex-1">
-                  <span className="font-bold text-sm">Doctor Delayed by {doctorDelay.delayMinutes} min</span>
-                  {doctorDelay.delayReason && (
-                    <span className="text-orange-100 text-xs ml-2">({doctorDelay.delayReason})</span>
-                  )}
-                  <span className="text-orange-100 text-xs ml-2">
-                    resumes at {new Date(doctorDelay.delayEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {/* Delay mini-banner - only show if user has appointment at this hospital */}
+              {doctorDelay && delaySeconds > 0 && hasAppointmentAtHospital(doctorDelay.hospitalId) && (
+                <div className="bg-gradient-to-r from-orange-500 to-amber-500 px-5 py-3 text-white flex items-center gap-3">
+                  <Clock size={18} className="animate-pulse" />
+                  <div className="flex-1">
+                    <span className="font-bold text-sm">Doctor Delayed by {doctorDelay.delayMinutes} min</span>
+                    {doctorDelay.delayReason && (
+                      <span className="text-orange-100 text-xs ml-2">({doctorDelay.delayReason})</span>
+                    )}
+                    <span className="text-orange-100 text-xs ml-2">
+                      resumes at {new Date(doctorDelay.delayEndTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <span className="font-mono font-bold text-lg tabular-nums bg-white/15 px-3 py-1 rounded-xl">
+                    {String(Math.floor(delaySeconds / 60)).padStart(2, '0')}:{String(delaySeconds % 60).padStart(2, '0')}
                   </span>
                 </div>
-                <span className="font-mono font-bold text-lg tabular-nums bg-white/15 px-3 py-1 rounded-xl">
-                  {String(Math.floor(delaySeconds / 60)).padStart(2, '0')}:{String(delaySeconds % 60).padStart(2, '0')}
+              )}
+
+              {/* Reminders summary */}
+              {reminders && reminders.length > 0 && (
+                <div className="px-5 py-4 flex items-center gap-3">
+                  <div className="bg-orange-100 p-2.5 rounded-full">
+                    <Bell size={18} className="text-orange-600" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-sm text-slate-900">
+                      {lang === 'en' ? 'Your Turn Approaching!' : 'మీ వంతు సమీపిస్తోంది!'}
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {reminders.length} active {reminders.length === 1 ? 'reminder' : 'reminders'} — tap to view details
+                    </p>
+                  </div>
+                  <ChevronRight size={20} className="text-slate-300 group-hover:text-slate-500 transition" />
+                </div>
+              )}
+
+              {/* CTA footer */}
+              <div className="bg-indigo-50 px-5 py-2.5 flex items-center justify-center gap-2 group-hover:bg-indigo-100 transition">
+                <Activity size={14} className="text-indigo-500" />
+                <span className="text-xs font-bold text-indigo-600">
+                  {lang === 'en' ? 'Open Queue Dashboard' : 'క్యూ డాష్‌బోర్డ్ తెరవండి'}
                 </span>
+                <ChevronRight size={14} className="text-indigo-400" />
               </div>
-            )}
-
-            {/* Reminders summary */}
-            {reminders && reminders.length > 0 && (
-              <div className="px-5 py-4 flex items-center gap-3">
-                <div className="bg-orange-100 p-2.5 rounded-full">
-                  <Bell size={18} className="text-orange-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-bold text-sm text-slate-900">
-                    {lang === 'en' ? 'Your Turn Approaching!' : 'మీ వంతు సమీపిస్తోంది!'}
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {reminders.length} active {reminders.length === 1 ? 'reminder' : 'reminders'} — tap to view details
-                  </p>
-                </div>
-                <ChevronRight size={20} className="text-slate-300 group-hover:text-slate-500 transition" />
-              </div>
-            )}
-
-            {/* CTA footer */}
-            <div className="bg-indigo-50 px-5 py-2.5 flex items-center justify-center gap-2 group-hover:bg-indigo-100 transition">
-              <Activity size={14} className="text-indigo-500" />
-              <span className="text-xs font-bold text-indigo-600">
-                {lang === 'en' ? 'Open Queue Dashboard' : 'క్యూ డాష్‌బోర్డ్ తెరవండి'}
-              </span>
-              <ChevronRight size={14} className="text-indigo-400" />
             </div>
-          </div>
-        )}
+          )
+        }
 
         {/* Notice Bar */}
         <div className="bg-emerald-900/90 backdrop-blur text-emerald-100 px-4 py-3 rounded-2xl text-xs font-medium flex items-center gap-3 shadow-lg border border-white/10">
@@ -427,23 +428,7 @@ const Home = () => {
           <ChevronRight size={16} className="text-slate-300" />
         </div>
 
-        {/* AI HEALTH ANALYSIS SECTION */}
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <BrainCircuit size={14} className="text-blue-500" />
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.aiFeatures}</h3>
-          </div>
 
-          <button onClick={() => navigate('/family-health-analysis')} className="bg-gradient-to-br from-purple-500 to-pink-600 p-5 rounded-3xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-start text-left gap-3 group border border-white/20 w-full">
-            <div className="w-14 h-14 rounded-2xl bg-white/20 text-white flex items-center justify-center group-hover:scale-110 transition-all duration-300 shadow-lg backdrop-blur-sm">
-              <Users size={28} />
-            </div>
-            <div>
-              <h3 className="font-bold text-white text-lg">{t.familyGenetic}</h3>
-              <p className="text-xs text-purple-100 font-medium mt-1">{t.familyGeneticSub}</p>
-            </div>
-          </button>
-        </div>
 
         {/* QUEUE DASHBOARD - Direct Access */}
         <div onClick={() => navigate('/queue-dashboard')} className="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 rounded-3xl shadow-lg border border-blue-500 flex items-center justify-between hover:shadow-xl transition cursor-pointer">
@@ -461,8 +446,8 @@ const Home = () => {
           <ChevronRight size={16} className="text-white/60" />
         </div>
 
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 
