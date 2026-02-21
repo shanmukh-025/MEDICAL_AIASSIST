@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import Navbar from '../components/Navbar';
 
 const API_URL = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
@@ -458,8 +459,8 @@ const PatientRecoveryTracker = () => {
 
     return (
       <div className={`rounded-2xl border-2 p-4 mb-4 ${allTaken
-        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
-        : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300'
+          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
+          : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-300'
         }`}>
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
@@ -518,21 +519,21 @@ const PatientRecoveryTracker = () => {
               <div
                 key={`${med.reminderId}-${med.scheduledTime}-${idx}`}
                 className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${med.taken
-                  ? 'bg-green-50 border-green-200'
-                  : timingStatus === 'due'
-                    ? 'bg-amber-50 border-amber-300 shadow-sm ring-1 ring-amber-200'
-                    : timingStatus === 'past'
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-white border-slate-200'
+                    ? 'bg-green-50 border-green-200'
+                    : timingStatus === 'due'
+                      ? 'bg-amber-50 border-amber-300 shadow-sm ring-1 ring-amber-200'
+                      : timingStatus === 'past'
+                        ? 'bg-red-50 border-red-200'
+                        : 'bg-white border-slate-200'
                   }`}
               >
                 {/* Time */}
                 <div className="flex flex-col items-center min-w-[52px]">
                   {getTimeIcon(med.scheduledTime)}
                   <span className={`text-xs font-bold mt-0.5 ${med.taken ? 'text-green-600' :
-                    timingStatus === 'due' ? 'text-amber-700' :
-                      timingStatus === 'past' ? 'text-red-600' :
-                        'text-slate-600'
+                      timingStatus === 'due' ? 'text-amber-700' :
+                        timingStatus === 'past' ? 'text-red-600' :
+                          'text-slate-600'
                     }`}>
                     {getTimeLabel(med.scheduledTime)}
                   </span>
@@ -563,10 +564,10 @@ const PatientRecoveryTracker = () => {
                     onClick={() => markMedicineTaken(med.reminderId, med.scheduledTime)}
                     disabled={isMarking}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${timingStatus === 'due'
-                      ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm animate-pulse'
-                      : timingStatus === 'past'
-                        ? 'bg-red-500 text-white hover:bg-red-600'
-                        : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                        ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-sm animate-pulse'
+                        : timingStatus === 'past'
+                          ? 'bg-red-500 text-white hover:bg-red-600'
+                          : 'bg-indigo-500 text-white hover:bg-indigo-600'
                       }`}
                   >
                     {isMarking ? (
@@ -646,14 +647,14 @@ const PatientRecoveryTracker = () => {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className={`w-2.5 h-2.5 rounded-full ${plan.status === 'ACTIVE' ? 'bg-green-500' :
-                    plan.status === 'FOLLOW_UP_NEEDED' ? 'bg-amber-500' :
-                      'bg-slate-400'
+                      plan.status === 'FOLLOW_UP_NEEDED' ? 'bg-amber-500' :
+                        'bg-slate-400'
                     }`} />
                   <h4 className="font-bold text-slate-800">{plan.diagnosis}</h4>
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${plan.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
-                  plan.status === 'FOLLOW_UP_NEEDED' ? 'bg-amber-100 text-amber-700' :
-                    'bg-slate-100 text-slate-600'
+                    plan.status === 'FOLLOW_UP_NEEDED' ? 'bg-amber-100 text-amber-700' :
+                      'bg-slate-100 text-slate-600'
                   }`}>
                   {plan.status === 'FOLLOW_UP_NEEDED' ? 'Follow-up Needed' : plan.status}
                 </span>
@@ -680,8 +681,8 @@ const PatientRecoveryTracker = () => {
               <div className="w-full bg-slate-100 rounded-full h-2.5">
                 <div
                   className={`h-2.5 rounded-full transition-all ${plan.completionPercentage >= 100 ? 'bg-green-500' :
-                    plan.completionPercentage >= 60 ? 'bg-blue-500' :
-                      'bg-indigo-500'
+                      plan.completionPercentage >= 60 ? 'bg-blue-500' :
+                        'bg-indigo-500'
                     }`}
                   style={{ width: `${plan.completionPercentage}%` }}
                 />
@@ -840,9 +841,9 @@ const PatientRecoveryTracker = () => {
                     <span className="text-[10px] text-slate-500">{point.severity}</span>
                     <div
                       className={`w-full rounded-t-sm transition-all ${point.severity <= 3 ? 'bg-green-400' :
-                        point.severity <= 5 ? 'bg-yellow-400' :
-                          point.severity <= 7 ? 'bg-orange-400' :
-                            'bg-red-400'
+                          point.severity <= 5 ? 'bg-yellow-400' :
+                            point.severity <= 7 ? 'bg-orange-400' :
+                              'bg-red-400'
                         }`}
                       style={{ height: `${(point.severity / 10) * 100}%` }}
                     />
@@ -910,8 +911,8 @@ const PatientRecoveryTracker = () => {
                 key={opt.value}
                 onClick={() => setLogForm(f => ({ ...f, overallFeeling: opt.value }))}
                 className={`flex flex-col items-center p-2.5 rounded-xl border-2 transition text-center ${logForm.overallFeeling === opt.value
-                  ? 'border-indigo-500 bg-indigo-50'
-                  : 'border-slate-200 hover:border-slate-300'
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-slate-200 hover:border-slate-300'
                   }`}
               >
                 <span className="text-2xl">{opt.emoji}</span>
@@ -1159,23 +1160,22 @@ const PatientRecoveryTracker = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Sticky Header */}
-      <div className="bg-white sticky top-0 z-30 shadow-sm border-b border-slate-100 px-4 py-4 mb-6">
-        <div className="max-w-2xl mx-auto flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100 transition">
+      <Navbar />
+      <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          <button onClick={() => navigate(-1)} className="p-2 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 transition">
             <ArrowLeft size={20} className="text-slate-600" />
           </button>
           <div>
             <h1 className="text-xl font-bold text-slate-900">Recovery Tracker</h1>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Live Monitoring</p>
+            <p className="text-sm text-slate-500">Track your daily health & recovery</p>
           </div>
-          <button onClick={() => { fetchPlans(); fetchPendingCheckins(); }} className="ml-auto p-2 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100 transition">
-            <RefreshCw size={18} className={`text-slate-500 ${loading ? 'animate-spin' : ''}`} />
+          <button onClick={() => { fetchPlans(); fetchPendingCheckins(); }} className="ml-auto p-2 bg-white rounded-xl border border-slate-200 hover:bg-slate-50 transition">
+            <RefreshCw size={18} className="text-slate-500" />
           </button>
         </div>
-      </div>
 
-      <div className="max-w-2xl mx-auto px-4 pb-24">
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 size={32} className="animate-spin text-indigo-500" />
