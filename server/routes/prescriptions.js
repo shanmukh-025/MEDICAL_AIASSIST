@@ -30,7 +30,13 @@ router.post('/', auth, async (req, res) => {
             validAppointmentId = appointmentId;
         }
 
+        // Generate a unique prescription number (e.g., RX-20260221-XXXX)
+        const dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const prescriptionNumber = `RX-${dateStr}-${randomStr}`;
+
         const prescription = new Prescription({
+            prescriptionNumber,
             patientId: new mongoose.Types.ObjectId(patientId),
             appointmentId: validAppointmentId,
             doctorId: caller._id,

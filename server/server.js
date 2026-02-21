@@ -38,6 +38,15 @@ mongoose.connection.once('open', async () => {
       await collection.dropIndex('clerkId_1');
       console.log("✅ SUCCESS: Bad database rule (clerkId) deleted. Registration will work now!");
     }
+
+    // Fix for prescriptions duplicate key error (prescriptionNumber)
+    const prescriptionCollection = mongoose.connection.db.collection('prescriptions');
+    const pIndexes = await prescriptionCollection.indexes();
+    const pIndexExists = pIndexes.some(index => index.name === 'prescriptionNumber_1');
+    if (pIndexExists) {
+      await prescriptionCollection.dropIndex('prescriptionNumber_1');
+      console.log("✅ SUCCESS: Old prescriptionNumber index deleted.");
+    }
   } catch (e) {
     // If index doesn't exist, that's good! Ignore the error.
     console.log("Database index is clean (No fix needed).");
