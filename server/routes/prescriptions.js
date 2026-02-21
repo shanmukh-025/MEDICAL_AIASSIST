@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const Prescription = require('../models/Prescription');
 const User = require('../models/User');
@@ -10,7 +11,7 @@ const Notification = require('../models/Notification');
 router.post('/', auth, async (req, res) => {
     try {
         console.log('📝 Creating prescription:', req.body);
-        const caller = await User.findById(req.user.id);
+        const caller = await User.findById(req.user.id).populate('hospitalId', 'name');
         if (!caller || caller.role !== 'DOCTOR') {
             return res.status(403).json({ msg: 'Only doctors can write prescriptions' });
         }
@@ -19,25 +20,32 @@ router.post('/', auth, async (req, res) => {
             patientId, appointmentId, diagnosis, medicines, specialInstructions, symptoms
         } = req.body;
 
-        if (!patientId) {
-            return res.status(400).json({ msg: 'Patient ID is required' });
+        if (!patientId || !mongoose.Types.ObjectId.isValid(patientId)) {
+            return res.status(400).json({ msg: 'Valid Patient ID is required' });
+        }
+
+        // Validate appointmentId if provided
+        let validAppointmentId = null;
+        if (appointmentId && mongoose.Types.ObjectId.isValid(appointmentId)) {
+            validAppointmentId = appointmentId;
         }
 
         const prescription = new Prescription({
-            patientId,
-            appointmentId,
+            patientId: new mongoose.Types.ObjectId(patientId),
+            appointmentId: validAppointmentId,
             doctorId: caller._id,
             doctorName: caller.name,
-            hospitalId: caller.hospitalId,
-            diagnosis,
+            hospitalId: caller.hospitalId?._id || caller.hospitalId,
+            hospitalName: caller.hospitalId?.name || '',
+            diagnosis: diagnosis || 'Not specified',
             medicines,
-            specialInstructions,
-            symptoms,
+            specialInstructions: specialInstructions || '',
+            symptoms: symptoms || [],
             status: 'PENDING'
         });
 
         await prescription.save();
-        console.log('✅ Prescription saved:', prescription._id);
+        console.log('✅ Prescription saved successfully:', prescription._id);
 
         // Notify Patient (Non-blocking)
         if (patientId) {
@@ -84,8 +92,11 @@ router.post('/', auth, async (req, res) => {
 
         res.json(prescription);
     } catch (err) {
-        console.error('❌ Prescription Error:', err);
-        res.status(500).json({ msg: 'Server Error', error: err.message });
+        console.error('❌ Prescription Error DETAILS:', err);
+        res.status(500).json({
+            msg: `Server Error: ${err.message}`,
+            error: err.message
+        });
     }
 });
 

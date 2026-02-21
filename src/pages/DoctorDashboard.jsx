@@ -156,9 +156,8 @@ const DoctorDashboard = () => {
             setShowPrescriptionModal(false);
             resetPrescriptionForm();
         } catch (err) {
-            console.error('❌ Prescription Submission Error:', err);
-            const errMsg = err.response?.data?.msg || 'Failed to send prescription';
-            toast.error(errMsg);
+            const errMsg = err.response?.data?.msg || err.message || 'Failed to send prescription';
+            toast.error(errMsg, { duration: 6000 });
         }
     };
 
