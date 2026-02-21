@@ -20,13 +20,13 @@ const Navbar = () => {
     setUserPhoto(user.photo);
     setUserName(user.name || 'User');
     setUserRole(user.role || '');
-    
+
     // Refresh branding on mount
     if (refreshBranding) {
       refreshBranding();
     }
   }, []);
-  
+
   // Listen for branding updates
   useEffect(() => {
     const handleBrandingUpdate = () => {
@@ -34,7 +34,7 @@ const Navbar = () => {
         refreshBranding();
       }
     };
-    
+
     window.addEventListener('storage', handleBrandingUpdate);
     return () => window.removeEventListener('storage', handleBrandingUpdate);
   }, [refreshBranding]);
@@ -45,10 +45,9 @@ const Navbar = () => {
     setIsOpen(false);
   };
 
-  const navClass = (path) => 
-    `flex items-center gap-2 px-4 py-2 rounded-xl transition font-bold text-sm ${
-      location.pathname === path 
-      ? "bg-emerald-50 text-emerald-600" 
+  const navClass = (path) =>
+    `flex items-center gap-2 px-4 py-2 rounded-xl transition font-bold text-sm ${location.pathname === path
+      ? "bg-emerald-50 text-emerald-600"
       : "text-slate-500 hover:text-emerald-600 hover:bg-slate-50"
     }`;
 
@@ -76,8 +75,8 @@ const Navbar = () => {
         <div className="flex justify-between h-16 items-center">
           <Link to={token ? "/dashboard" : "/"} className="flex items-center gap-2">
             {branding.logo ? (
-              <img 
-                src={branding.logo} 
+              <img
+                src={branding.logo}
                 alt={branding.hospitalName || branding.appName}
                 className="h-10 w-auto object-contain"
               />
@@ -92,24 +91,20 @@ const Navbar = () => {
           </Link>
 
           <div className="hidden md:flex items-center gap-2">
-<<<<<<< HEAD
             <Link to={token ? "/dashboard" : "/"} className={navClass(token ? '/dashboard' : '/')}>Home</Link>
             {(userRole === 'ADMIN' || isCreator()) && (
               <Link to="/admin-dashboard" className={navClass('/admin-dashboard')}>Admin Dashboard</Link>
             )}
-=======
-            <Link to="/" className={navClass('/')}>Home</Link>
->>>>>>> 8fd09868f9333dba19814a632052854d71f1723f
             {token && (
               <>
-                <Link to="/wellness" className={navClass('/wellness')}><Activity size={16}/> Wellness</Link>
-                <Link to="/first-aid" className={navClass('/first-aid')}><MessageCircle size={16}/> Chatbot</Link>
-                <Link to="/records" className={navClass('/records')}><FileText size={16}/> Records</Link>
+                <Link to="/wellness" className={navClass('/wellness')}><Activity size={16} /> Wellness</Link>
+                <Link to="/first-aid" className={navClass('/first-aid')}><MessageCircle size={16} /> Chatbot</Link>
+                <Link to="/records" className={navClass('/records')}><FileText size={16} /> Records</Link>
                 {/* Emergency Patient Records - Only for Hospital users */}
                 {userRole === 'HOSPITAL' && (
                   <>
-                    <Link to="/hospital-dashboard?tab=MONITORING" className={navClass('/hospital-dashboard')}><Activity size={16}/> Monitoring</Link>
-                    <Link to="/hospital-dashboard?tab=EMERGENCY_RECORDS" className={navClass('/hospital-dashboard')}><AlertTriangle size={16}/> Emergency Records</Link>
+                    <Link to="/hospital-dashboard?tab=MONITORING" className={navClass('/hospital-dashboard')}><Activity size={16} /> Monitoring</Link>
+                    <Link to="/hospital-dashboard?tab=EMERGENCY_RECORDS" className={navClass('/hospital-dashboard')}><AlertTriangle size={16} /> Emergency Records</Link>
                   </>
                 )}
               </>
@@ -128,28 +123,24 @@ const Navbar = () => {
               <Link to="/login" className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm">Login</Link>
             )}
           </div>
-          
-          <button onClick={() => setIsOpen(!isOpen)} className="md:hidden text-slate-600"><Menu/></button>
+
+          <button onClick={() => setIsOpen(!isOpen)} className="md:hidden text-slate-600"><Menu /></button>
         </div>
       </div>
-      
+
       {isOpen && (
         <div className="md:hidden bg-white border-t p-4 space-y-2">
-<<<<<<< HEAD
-            <Link to={token ? "/dashboard" : "/"} className="block py-2">Home</Link>
-            {(userRole === 'ADMIN' || isCreator()) && <Link to="/admin-dashboard" className="block py-2">Admin Dashboard</Link>}
-=======
-            <Link to="/" className="block py-2">Home</Link>
->>>>>>> 8fd09868f9333dba19814a632052854d71f1723f
-            {token && <Link to="/wellness" className="block py-2">Wellness</Link>}
-            {token && <Link to="/records" className="block py-2">Records</Link>}
-            {token && userRole === 'HOSPITAL' && (
-              <>
-                <Link to="/hospital-dashboard?tab=MONITORING" className="block py-2">📊 Monitoring</Link>
-                <Link to="/hospital-dashboard?tab=EMERGENCY_RECORDS" className="block py-2 text-red-600 font-bold">🚨 Emergency Records</Link>
-              </>
-            )}
-            {token && <button onClick={handleLogout} className="block py-2 text-red-500">Logout</button>}
+          <Link to={token ? "/dashboard" : "/"} className="block py-2">Home</Link>
+          {(userRole === 'ADMIN' || isCreator()) && <Link to="/admin-dashboard" className="block py-2">Admin Dashboard</Link>}
+          {token && <Link to="/wellness" className="block py-2">Wellness</Link>}
+          {token && <Link to="/records" className="block py-2">Records</Link>}
+          {token && userRole === 'HOSPITAL' && (
+            <>
+              <Link to="/hospital-dashboard?tab=MONITORING" className="block py-2">📊 Monitoring</Link>
+              <Link to="/hospital-dashboard?tab=EMERGENCY_RECORDS" className="block py-2 text-red-600 font-bold">🚨 Emergency Records</Link>
+            </>
+          )}
+          {token && <button onClick={handleLogout} className="block py-2 text-red-500">Logout</button>}
         </div>
       )}
     </nav>
