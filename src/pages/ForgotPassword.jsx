@@ -7,7 +7,7 @@ import { API_URL } from '../config';
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
-    const [submitted, setSubmitted] = useState(false);
+    const [submitted, setSubmitted] = useState(null);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -22,8 +22,8 @@ const ForgotPassword = () => {
             const data = await res.json();
 
             if (res.ok) {
-                setSubmitted(true);
-                toast.success("Reset link sent!");
+                setSubmitted(data.message || "Reset link sent!");
+                toast.success("Done!");
             } else {
                 toast.error(data.message || "Something went wrong");
             }
@@ -86,10 +86,12 @@ const ForgotPassword = () => {
                                 <CheckCircle size={40} className="text-emerald-600" />
                             </div>
                             <div className="space-y-2">
-                                <h3 className="text-xl font-bold text-slate-800">Email Sent!</h3>
+                                <h3 className="text-xl font-bold text-slate-800">Request Received</h3>
                                 <p className="text-slate-500">
-                                    We've sent a password reset link to <span className="font-bold text-slate-700">{email}</span>.
-                                    Please check your inbox (and spam folder).
+                                    {submitted}
+                                </p>
+                                <p className="text-xs text-slate-400 mt-2">
+                                    Sent to: <span className="font-bold">{email}</span>
                                 </p>
                             </div>
                             <div className="pt-4">
