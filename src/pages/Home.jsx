@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils,
-  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, Pill, Clock, Coffee, Stethoscope, Receipt
   ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee, Stethoscope, Receipt, ShieldCheck
 } from 'lucide-react';
 import axios from 'axios';
