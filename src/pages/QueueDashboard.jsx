@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
-  ArrowLeft, Users, Clock, Coffee, RefreshCw,
+  ArrowLeft, Clock, Coffee, RefreshCw,
   Activity, Bell, Navigation2,
   Zap, Timer, Shield, Phone, User, XCircle
 } from 'lucide-react';
@@ -38,7 +38,6 @@ const QueueDashboard = () => {
     doctorBreak: lang === 'en' ? 'Doctor Break' : 'డాక్టర్ బ్రేక్',
     upcomingAppts: lang === 'en' ? 'Today\'s Appointments' : 'ఈరోజు అపాయింట్‌మెంట్లు',
     reminders: lang === 'en' ? 'Active Reminders' : 'రిమైండర్‌లు',
-    noAppts: lang === 'en' ? 'No appointments today' : 'ఈరోజు అపాయింట్‌మెంట్లు లేవు',
     ahead: lang === 'en' ? 'Ahead' : 'ముందు',
     estWait: lang === 'en' ? 'Est. Wait' : 'అంచనా వేచి',
     yourQueue: lang === 'en' ? 'Your Queue' : 'మీ క్యూ',
@@ -46,7 +45,6 @@ const QueueDashboard = () => {
     breakEndsAt: lang === 'en' ? 'Break ends at' : 'బ్రేక్ ముగుస్తుంది',
     remaining: lang === 'en' ? 'remaining' : 'మిగిలింది',
     refreshing: lang === 'en' ? 'Auto-refreshing every 15s' : 'ప్రతి 15 సెకన్లకు రిఫ్రెష్',
-    bookAppt: lang === 'en' ? 'Book Appointment' : 'అపాయింట్‌మెంట్ బుక్ చేయండి',
     viewAll: lang === 'en' ? 'View All Appointments' : 'అన్ని అపాయింట్‌మెంట్లు చూడండి',
     cancelAppt: lang === 'en' ? 'Cancel' : 'రద్దు',
     cancelConfirm: lang === 'en' ? 'Cancel this appointment?' : 'ఈ అపాయింట్‌మెంట్ రద్దు చేయాలా?',
@@ -340,15 +338,6 @@ const QueueDashboard = () => {
             </div>
           )}
 
-          {!activeAppt && !loading && (
-            <div className="text-center py-4">
-              <Users size={40} className="mx-auto mb-2 text-blue-300" />
-              <p className="text-blue-200 text-sm">{t.noAppts}</p>
-              <button onClick={() => navigate('/patient-appointments')} className="mt-3 bg-white/20 hover:bg-white/30 px-5 py-2 rounded-xl text-sm font-bold transition">
-                {t.bookAppt}
-              </button>
-            </div>
-          )}
         </div>
       </div>
 

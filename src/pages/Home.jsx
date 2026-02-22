@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils,
   ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, Pill, Clock, Coffee, Stethoscope, Receipt
+  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee, Stethoscope, Receipt, ShieldCheck
 } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
@@ -10,6 +11,8 @@ import { useSocket } from '../context/SocketContext';
 
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+
+const CREATOR_EMAILS = ['shanmukhasai250@gmail.com', 'varunmeruga@gmail.com'];
 
 const Home = () => {
   const navigate = useNavigate();
@@ -21,6 +24,49 @@ const Home = () => {
   const [breakSeconds, setBreakSeconds] = useState(0);
   const [delaySeconds, setDelaySeconds] = useState(0);
   const [emergencySeconds, setEmergencySeconds] = useState(0);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  useEffect(() => {
+    // Redirect hospitals to their dashboard
+    const userRole = localStorage.getItem('userRole');
+    if (userRole === 'HOSPITAL') {
+      navigate('/hospital-dashboard');
+      return;
+    }
+    if (userRole === 'DOCTOR') {
+      navigate('/doctor-dashboard');
+      return;
+    }
+    if (userRole === 'PHARMACY') {
+      navigate('/pharmacy-dashboard');
+      return;
+    }
+
+    // Check if user is a creator for admin dashboard access
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isOwner = user && user.email && CREATOR_EMAILS.includes(user.email.toLowerCase());
+    const isAdmin = userRole === 'ADMIN';
+    setShowAdminPanel(isOwner || isAdmin);
+
+    const savedName = localStorage.getItem('userName');
+    if (savedName) setUserName(savedName);
+
+    // Fetch user appointments to verify hospital matches
+    fetchUserAppointments();
+
+    // Clean up old reminders (older than 24 hours)
+    if (reminders && reminders.length > 0) {
+      const now = Date.now();
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const filtered = reminders.filter(r => {
+        const reminderTime = new Date(r.timestamp).getTime();
+        return (now - reminderTime) < oneDayMs;
+      });
+      if (filtered.length !== reminders.length) {
+        setReminders(filtered);
+      }
+    }
+  }, []);
 
   // Fetch user's appointments to check hospital matches
   const fetchUserAppointments = async () => {

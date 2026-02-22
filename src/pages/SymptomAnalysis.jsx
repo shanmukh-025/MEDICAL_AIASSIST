@@ -297,7 +297,7 @@ const SymptomAnalysis = () => {
     // Validate if the symptom is medicine-related before adding
     const validation = validateSymptomInput(trimmedSymptom);
     if (!validation.isValid) {
-      toast.error(lang === 'te' ? '医薬有关されていません' : 'Not relevant to medicine. Please enter medicine-related symptoms.');
+      toast.error(lang === 'te' ? 'మందులకు సంబంధించినది కాదు. దయచేసి మందులకు సంబంధించిన లక్షణాలను నమోదు చేయండి.' : 'Not relevant to medicine. Please enter medicine-related symptoms.');
       return;
     }
 
@@ -344,7 +344,7 @@ const SymptomAnalysis = () => {
     const validation = validateSymptomInput(symptomText);
 
     if (!validation.isValid) {
-      toast.error(lang === 'te' ? '医薬有关されていません' : 'Not relevant to medicine. Please enter medicine-related symptoms.');
+      toast.error(lang === 'te' ? 'మందులకు సంబంధించినది కాదు. దయచేసి మందులకు సంబంధించిన లక్షణాలను నమోదు చేయండి.' : 'Not relevant to medicine. Please enter medicine-related symptoms.');
       return;
     }
 

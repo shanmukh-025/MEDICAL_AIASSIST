@@ -35,26 +35,26 @@ function getApiKeys() {
   if (process.env.GEMINI_API_KEY) keys.push(process.env.GEMINI_API_KEY);
   if (process.env.GEMINI_API_KEY_2) keys.push(process.env.GEMINI_API_KEY_2);
   if (process.env.GEMINI_API_KEY_3) keys.push(process.env.GEMINI_API_KEY_3);
-  
+
   return keys;
 }
 
 function getNextApiKey() {
   const keys = getApiKeys();
   if (keys.length === 0) throw new Error("No API Key found");
-  
+
   // Try to find a key that hasn't failed recently
   for (let i = 0; i < keys.length; i++) {
     const key = keys[currentKeyIndex];
     const failures = apiKeyFailureCount.get(key) || 0;
-    
+
     if (failures < 3) { // Allow up to 3 failures before skipping
       return key;
     }
-    
+
     currentKeyIndex = (currentKeyIndex + 1) % keys.length;
   }
-  
+
   // All keys have failures, reset and use first one
   apiKeyFailureCount.clear();
   currentKeyIndex = 0;
@@ -64,11 +64,11 @@ function getNextApiKey() {
 function markKeyAsFailed(apiKey) {
   const failures = (apiKeyFailureCount.get(apiKey) || 0) + 1;
   apiKeyFailureCount.set(apiKey, failures);
-  
+
   // Rotate to next key
   const keys = getApiKeys();
   currentKeyIndex = (currentKeyIndex + 1) % keys.length;
-  
+
   console.log(`⚠️ API key ${currentKeyIndex} quota exceeded, rotating to next key...`);
 }
 
@@ -84,7 +84,7 @@ async function getWorkingModel(apiKey) {
     if (!data.models) return null;
 
     // Find the first model that supports text generation
-    const validModel = data.models.find(m => 
+    const validModel = data.models.find(m =>
       m.supportedGenerationMethods?.includes("generateContent")
     );
 
@@ -104,10 +104,10 @@ async function getWorkingModel(apiKey) {
 // --- 2. API CALLER WITH RETRY LOGIC ---
 async function callGemini(prompt, retryCount = 0) {
   const apiKey = getNextApiKey();
-  
+
   // A. Find a working model
   let modelName = await getWorkingModel(apiKey);
-  
+
   // B. Fallback if detection fails (Safe default)
   if (!modelName) modelName = "gemini-1.5-flash";
 
@@ -125,11 +125,11 @@ async function callGemini(prompt, retryCount = 0) {
 
     if (!response.ok) {
       const msg = data.error?.message || response.statusText;
-      
+
       // Check if it's a quota error
       if (msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') || response.status === 429) {
         markKeyAsFailed(apiKey);
-        
+
         // Retry with next API key if available
         const keys = getApiKeys();
         if (keys.length > 1 && retryCount < keys.length) {
@@ -138,7 +138,7 @@ async function callGemini(prompt, retryCount = 0) {
           return callGemini(prompt, retryCount + 1);
         }
       }
-      
+
       throw new Error(msg);
     }
 
@@ -162,9 +162,9 @@ async function callGemini(prompt, retryCount = 0) {
 router.post('/chat', auth, async (req, res) => {
   try {
     const { message, language } = req.body; // Receive language from frontend
-    
+
     console.log('🔍 Chat request received:', { message, language });
-    
+
     // NSFW Content Filter
     const inappropriatePatterns = [
       /\bsex\b/i,
@@ -219,16 +219,16 @@ router.post('/chat', auth, async (req, res) => {
     // Block if inappropriate and NOT a legitimate medical query
     if (hasInappropriateContent && !hasLegitimateMedicalContext) {
       console.log('🚫 BLOCKED: Inappropriate content detected');
-      const rejectionMessage = language === 'te' 
+      const rejectionMessage = language === 'te'
         ? 'క్షమించండి, నేను అనుచితమైన లేదా పరిణతి చెందిన కంటెంట్‌కు సమాధానం ఇవ్వలేను. నేను ఒక వైద్య సహాయకుడిని మాత్రమే. దయచేసి ఆరోగ్య సంబంధిత ప్రశ్నలు మాత్రమే అడగండి.'
         : 'I\'m sorry, I cannot respond to inappropriate or adult content. I am a medical assistant designed to help with health-related questions only. Please ask about symptoms, treatments, or general health concerns.';
-      
+
       return res.json({ reply: rejectionMessage });
     }
-    
+
     let instruction = "";
     if (language === 'te') {
-        instruction = `
+      instruction = `
             You are MediBot, a helpful Medical Assistant.
             The user has selected TELUGU language.
             
@@ -241,7 +241,7 @@ router.post('/chat', auth, async (req, res) => {
             6. You must NOT answer inappropriate or adult content questions. Only professional medical queries are allowed.
         `;
     } else {
-        instruction = `
+      instruction = `
             You are MediBot, a helpful Medical Assistant.
             Rules:
             1. You ONLY answer medical and health-related questions.
@@ -269,11 +269,11 @@ router.post('/chat', auth, async (req, res) => {
 router.post('/generate-diet', auth, async (req, res) => {
   try {
     const { bmi, conditions, preference, language } = req.body;
-    
+
     // Language specific instruction for the content INSIDE the JSON
-    const langNote = language === 'te' 
-        ? "IMPORTANT: Provide all values (Meal Names, Reasons, Title, Description) in TELUGU language. However, keep the JSON KEYS (like 'time', 'type', 'item') in English."
-        : "Provide all text in English.";
+    const langNote = language === 'te'
+      ? "IMPORTANT: Provide all values (Meal Names, Reasons, Title, Description) in TELUGU language. However, keep the JSON KEYS (like 'time', 'type', 'item') in English."
+      : "Provide all text in English.";
 
     const prompt = `
       Act as a nutritionist. Create a 1-day meal plan for:
@@ -295,7 +295,7 @@ router.post('/generate-diet', auth, async (req, res) => {
         "bad": ["Avoid 1", "Avoid 2"]
       }
     `;
-    
+
     const text = await callGemini(prompt);
     const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
     res.json(JSON.parse(cleanJson));
@@ -304,15 +304,15 @@ router.post('/generate-diet', auth, async (req, res) => {
     console.error("Diet Error:", err.message);
     // Fallback
     res.json({
-        title: "Standard Plan (Offline)",
-        desc: "AI Unavailable - Using Backup Plan",
-        color: "bg-blue-50",
-        meals: [
-            { time: "8:00 AM", type: "Breakfast", "item": "Oatmeal", reason: "Energy" },
-            { time: "1:00 PM", type: "Lunch", "item": "Rice & Lentils", reason: "Protein" },
-            { time: "8:00 PM", type: "Dinner", "item": "Vegetables", reason: "Digestion" }
-        ],
-        good: ["Water"], bad: ["Sugar"]
+      title: "Standard Plan (Offline)",
+      desc: "AI Unavailable - Using Backup Plan",
+      color: "bg-blue-50",
+      meals: [
+        { time: "8:00 AM", type: "Breakfast", "item": "Oatmeal", reason: "Energy" },
+        { time: "1:00 PM", type: "Lunch", "item": "Rice & Lentils", reason: "Protein" },
+        { time: "8:00 PM", type: "Dinner", "item": "Vegetables", reason: "Digestion" }
+      ],
+      good: ["Water"], bad: ["Sugar"]
     });
   }
 });
@@ -321,10 +321,10 @@ router.post('/generate-diet', auth, async (req, res) => {
 router.post('/swap-food', auth, async (req, res) => {
   try {
     const { originalFood, reason, language } = req.body;
-    
-    const langPrompt = language === 'te' 
-        ? `Suggest 1 alternative food in TELUGU language for "${originalFood}". Return ONLY the name.`
-        : `Suggest 1 alternative food for "${originalFood}". Return ONLY the name.`;
+
+    const langPrompt = language === 'te'
+      ? `Suggest 1 alternative food in TELUGU language for "${originalFood}". Return ONLY the name.`
+      : `Suggest 1 alternative food for "${originalFood}". Return ONLY the name.`;
 
     const text = await callGemini(langPrompt);
     res.json({ alternative: text.trim() });
@@ -337,7 +337,7 @@ router.post('/swap-food', auth, async (req, res) => {
 router.post('/medicine-info', auth, async (req, res) => {
   try {
     const { medicineName, language } = req.body;
-    
+
     // Strict JSON Prompt
     const prompt = `
       You are a medical expert. 
@@ -354,18 +354,18 @@ router.post('/medicine-info', auth, async (req, res) => {
     `;
 
     const text = await callGemini(prompt);
-    
+
     // Clean JSON (remove markdown ticks)
     const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
     res.json(JSON.parse(cleanJson));
 
   } catch (err) {
     console.error("Medicine Info Error:", err);
-    res.json({ 
-        uses: "Could not fetch details.", 
-        dosage: "Consult Doctor",
-        sideEffects: "Unknown", 
-        warnings: "Please consult a doctor." 
+    res.json({
+      uses: "Could not fetch details.",
+      dosage: "Consult Doctor",
+      sideEffects: "Unknown",
+      warnings: "Please consult a doctor."
     });
   }
 });
@@ -374,18 +374,18 @@ router.post('/medicine-info', auth, async (req, res) => {
 router.post('/analyze-symptoms', auth, async (req, res) => {
   try {
     const { symptoms, duration, severity, age, gender, language, existingConditions } = req.body;
-    
+
     console.log('🔬 Symptom analysis request received:', {
       userId: req.user.id,
       symptoms: symptoms.join(', '),
       duration,
       severity
     });
-    
+
     // Check cache first
     const cacheKey = getCacheKey(req.user.id, symptoms, duration, severity);
     const cached = analysisCache.get(cacheKey);
-    
+
     if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
       console.log('✅ Returning cached analysis (preventing duplicate AI call)');
       console.log('📊 Cache stats:', {
@@ -395,11 +395,11 @@ router.post('/analyze-symptoms', auth, async (req, res) => {
       });
       return res.json(cached.data);
     }
-    
+
     console.log('🔍 No valid cache found, calling AI...');
-    
-    const langNote = language === 'te' 
-      ? 'Provide all analysis in TELUGU (తెలుగు script). Keep JSON keys in English.' 
+
+    const langNote = language === 'te'
+      ? 'Provide all analysis in TELUGU (తెలుగు script). Keep JSON keys in English.'
       : 'Provide all analysis in English.';
 
     const prompt = `
@@ -448,34 +448,34 @@ router.post('/analyze-symptoms', auth, async (req, res) => {
     const text = await callGemini(prompt);
     const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
     const analysis = JSON.parse(cleanJson);
-    
+
     console.log('✅ AI analysis complete:', {
       diagnosis: analysis.primaryDiagnosis,
       urgency: analysis.urgencyLevel,
       specialties: analysis.relatedSpecialties
     });
-    
+
     // Verify relatedSpecialties exists and is an array
     if (!analysis.relatedSpecialties || !Array.isArray(analysis.relatedSpecialties)) {
       console.warn('⚠️ AI did not return relatedSpecialties, adding default');
       analysis.relatedSpecialties = ["General Physician"];
     }
-    
+
     // Store in cache
     analysisCache.set(cacheKey, {
       data: analysis,
       timestamp: Date.now()
     });
-    
+
     console.log('📦 Analysis cached. Cache size:', analysisCache.size);
     res.json(analysis);
 
   } catch (err) {
     console.error("❌ Symptom Analysis Error:", err);
     const isQuotaError = err.message?.includes('quota') || err.message?.includes('rate limit');
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Analysis failed",
-      message: isQuotaError 
+      message: isQuotaError
         ? "API quota exceeded. Please wait a minute and try again, or contact support."
         : "Please consult a healthcare professional for accurate diagnosis."
     });
@@ -486,9 +486,9 @@ router.post('/analyze-symptoms', auth, async (req, res) => {
 router.post('/analyze-family-health', auth, async (req, res) => {
   try {
     const { familyMembers, language } = req.body;
-    
-    const langNote = language === 'te' 
-      ? 'Provide analysis in TELUGU (తెలుగు script). Keep JSON keys in English.' 
+
+    const langNote = language === 'te'
+      ? 'Provide analysis in TELUGU (తెలుగు script). Keep JSON keys in English.'
       : 'Provide analysis in English.';
 
     // Format family health data
@@ -543,12 +543,12 @@ router.post('/analyze-family-health', auth, async (req, res) => {
     const text = await callGemini(prompt);
     const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
     const analysis = JSON.parse(cleanJson);
-    
+
     res.json(analysis);
 
   } catch (err) {
     console.error("Family Analysis Error:", err);
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Analysis failed",
       message: "Unable to analyze family health data."
     });
@@ -563,7 +563,7 @@ router.post('/analyze-family-health', auth, async (req, res) => {
 // @desc    Analyze symptom patterns over time
 router.post('/analyze-symptom-trends', auth, async (req, res) => {
   const { symptomHistory, personName } = req.body;
-  
+
   try {
     // Validate input
     if (!symptomHistory || !Array.isArray(symptomHistory) || symptomHistory.length === 0) {
@@ -571,16 +571,16 @@ router.post('/analyze-symptom-trends', auth, async (req, res) => {
     }
 
     // Sort by date (oldest first) for chronological analysis
-    const sortedHistory = symptomHistory.sort((a, b) => 
+    const sortedHistory = symptomHistory.sort((a, b) =>
       new Date(a.loggedAt) - new Date(b.loggedAt)
     );
 
     // Format symptom history for AI - include conditionName for grouping
     const historyText = sortedHistory.map((log, index) => {
-      const date = new Date(log.loggedAt).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric', 
-        year: 'numeric' 
+      const date = new Date(log.loggedAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
       });
       return `Entry ${index + 1} (${date}):
 - Condition/Episode: ${log.conditionName || 'Not specified'}
@@ -592,7 +592,7 @@ ${log.notes ? `- Notes: ${log.notes}` : ''}`;
 
     // Detect distinct conditions in the data
     const distinctConditions = [...new Set(sortedHistory.map(l => l.conditionName || 'Unspecified').filter(Boolean))];
-    const conditionNote = distinctConditions.length > 1 
+    const conditionNote = distinctConditions.length > 1
       ? `\n\nIMPORTANT: These logs contain MULTIPLE different conditions/episodes: ${distinctConditions.join(', ')}. 
 If these are unrelated conditions (e.g., fever vs knee pain), analyze them SEPARATELY in your summary and clearly state they are distinct issues. 
 Do NOT try to link unrelated symptoms together. Your diagnosis should focus on the most recent/active condition.`
@@ -687,26 +687,26 @@ Return ONLY the JSON object, no other text.`;
     const text = await callGemini(prompt);
     const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
     const analysis = JSON.parse(cleanJson);
-    
+
     // Ensure relatedSpecialties exists
     if (!analysis.relatedSpecialties || !Array.isArray(analysis.relatedSpecialties) || analysis.relatedSpecialties.length === 0) {
       analysis.relatedSpecialties = ['General Physician'];
     }
-    
+
     console.log('✅ Trend analysis complete:', {
       trend: analysis.trend,
       diagnosis: analysis.currentDiagnosis,
       specialties: analysis.relatedSpecialties
     });
-    
+
     res.json(analysis);
 
   } catch (err) {
     console.error("Symptom Trend Analysis Error:", err);
     const isQuotaError = err.message?.includes('quota') || err.message?.includes('rate limit');
-    res.status(500).json({ 
+    res.status(500).json({
       error: "Analysis failed",
-      message: isQuotaError 
+      message: isQuotaError
         ? "API quota exceeded. Please wait a minute and try again."
         : "Unable to analyze symptom trends."
     });
@@ -868,6 +868,94 @@ IMPORTANT:
       found: false,
       phone: null,
       note: 'Could not search for contact info. Please try Google Maps.'
+    });
+  }
+});
+
+// --- EXTRACT MEDICINE NAME FROM IMAGE (Vision) ---
+router.post('/extract-medicine-vision', auth, async (req, res) => {
+  try {
+    const { image } = req.body;
+
+    if (!image) {
+      return res.status(400).json({ error: 'No image provided' });
+    }
+
+    // Extract base64 data and mime type
+    const matches = image.match(/^data:(.+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({ error: 'Invalid image format' });
+    }
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+
+    const apiKey = getNextApiKey();
+    let modelName = await getWorkingModel(apiKey);
+    if (!modelName) modelName = "gemini-1.5-flash";
+
+    const prompt = `You are a medical pharmacist. Extract the main medicine name and strength from this image.
+    
+    Return ONLY a valid JSON object in this format:
+    {
+      "medicineName": "Full name of the medicine (e.g. Dolo 650, Calpol 500mg)",
+      "isMedicine": true/false (true if this looks like a medicine or prescription, false if it is random text),
+      "confidence": "high/medium/low",
+      "detectedText": "Brief snippet of key text detected"
+    }
+
+    If you see "Dolo-650" or "Paracetamol", ensure it is extracted correctly.
+    If multiple medicines are present, extract the most prominent one.
+    If the image is not a medicine pack, set isMedicine to false.
+    ONLY return valid JSON, no other text.`;
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: mimeType,
+                data: base64Data
+              }
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const msg = data.error?.message || response.statusText;
+      if (msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED') || response.status === 429) {
+        markKeyAsFailed(apiKey);
+      }
+      throw new Error(msg);
+    }
+
+    if (!data.candidates || !data.candidates[0]?.content) {
+      throw new Error('No text extracted');
+    }
+
+    const text = data.candidates[0].content.parts[0].text;
+    const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleanJson);
+
+    console.log('✅ AI Vision Extraction:', { medicine: result.medicineName, isMedicine: result.isMedicine });
+    res.json(result);
+
+  } catch (err) {
+    console.error('Vision Extraction Error:', err.message);
+    res.status(500).json({
+      error: 'Extraction failed',
+      medicineName: null,
+      isMedicine: false
     });
   }
 });

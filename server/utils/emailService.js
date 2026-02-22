@@ -7,21 +7,25 @@ const nodemailer = require('nodemailer');
  * @param {string} userName - The name of the user
  */
 const sendResetEmail = async (to, resetUrl, userName) => {
-    // Create a transporter using environment variables
-    // For production, use a service like SendGrid, Amazon SES, or a Gmail App Password
-    const transporter = nodemailer.createTransport({
-        service: process.env.EMAIL_SERVICE || 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS, // Use an "App Password" if using Gmail
-        },
-    });
+  // Create a transporter using environment variables
+  // For production, use a service like SendGrid, Amazon SES, or a Gmail App Password
+  // Create a transporter using environment variables
+  // For Gmail, we use the official SMTP settings for better reliability
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // use SSL
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/\s/g, '') : '', // Clean spaces from App Password
+    },
+  });
 
-    const mailOptions = {
-        from: `"MediAssist AI" <${process.env.EMAIL_USER}>`,
-        to: to,
-        subject: 'Password Reset Request - MediAssist AI',
-        html: `
+  const mailOptions = {
+    from: `"MediAssist AI" <${process.env.EMAIL_USER}>`,
+    to: to,
+    subject: 'Password Reset Request - MediAssist AI',
+    html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded-lg: 12px;">
         <div style="text-align: center; margin-bottom: 20px;">
           <h1 style="color: #059669; margin: 0;">MediAssist AI</h1>
@@ -58,16 +62,16 @@ const sendResetEmail = async (to, resetUrl, userName) => {
         </div>
       </div>
     `,
-    };
+  };
 
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('✅ Email sent successfully:', info.messageId);
-        return true;
-    } catch (error) {
-        console.error('❌ Error sending email:', error);
-        throw new Error('Failed to send reset email');
-    }
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('✅ Email sent successfully:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending email:', error);
+    throw new Error('Failed to send reset email');
+  }
 };
 
 module.exports = { sendResetEmail };

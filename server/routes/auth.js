@@ -186,21 +186,28 @@ router.post('/forgot-password', async (req, res) => {
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
       try {
         await sendResetEmail(user.email, resetUrl, user.name);
-        return res.json({ message: 'Password reset link has been sent to your email.' });
+        return res.json({
+          message: 'Password reset link has been sent to your email.',
+          emailSent: true
+        });
       } catch (mailError) {
         console.error('❌ Mail Service Error:', mailError.message);
         // Fallback to console log in dev if mail fails
         console.log(`🔑 FALLBACK RESET LINK: ${resetUrl}`);
-        return res.status(200).json({
-          message: 'Mail service unavailable, but link generated.',
-          devLink: process.env.NODE_ENV === 'development' ? resetUrl : undefined
+        return res.status(500).json({
+          message: 'Failed to send reset email. Please try again later.',
+          error: mailError.message
         });
       }
     }
 
     // Default development behavior: log to console
     console.log(`🔑 [DEV-MODE] PASSWORD RESET LINK: ${resetUrl}`);
-    res.json({ message: 'Password reset link generated. Check server logs (Dev Mode).' });
+    res.json({
+      message: 'Password reset link generated. (Dev Mode: Check server logs)',
+      emailSent: false,
+      devLink: resetUrl
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

@@ -60,7 +60,22 @@ const medicalKeywords = [
   'contagious', 'infectious', 'communicable', 'non-communicable',
   'pathology', 'radiology', 'cardiology', 'neurology', 'orthopedics', 'pediatrics',
   'gynecology', 'urology', 'nephrology', 'hepatology', 'gastroenterology', 'pulmonology',
-  'dermatology', 'ophthalmology', 'ENT', 'oncology', 'psychiatry', 'endocrinology'
+  'dermatology', 'ophthalmology', 'ENT', 'oncology', 'psychiatry', 'endocrinology',
+  // Active Ingredients & Brands (Common in India)
+  'paracetamol', 'dolo', 'crocin', 'calpol', 'ibuprofen', 'aspirin', 'acetaminophen',
+  'nimesulide', 'cetirizine', 'amoxicillin', 'azithromycin', 'metformin', 'amlodipine',
+  'pantoprazole', 'ranitidine', 'omeprazole', 'diclofenac', 'aceclofenac', 'cetirizine',
+  'levocetirizine', 'montelukast', 'amoxiclav', 'azithral', 'limcee', 'zinc', 'vitamin c',
+  // Packaging Terms & Standards
+  'batch', 'mfg', 'exp', 'expiry', 'mg', 'mcg', 'ml', 'tablet ip', 'capsule ip',
+  'manufactured by', 'mkt by', 'marketed by', 'lic no', 'regd', 'pharmacopoeia',
+  'ip', 'bp', 'usp', 'compendium', 'dosage', 'strength', 'dosage',
+  // Strengths
+  '12.5', '25', '50', '100', '125', '250', '500', '650', '1000',
+  // OCR Variants
+  'd0lo', '0olo', 'g50', '6s0', 's00', 'paracet', 'acetamin',
+  // Packaging
+  'strip', 'blister', 'pack', 'bottle', 'vial', 'ampoule'
 ];
 
 // Non-medical keywords that should be rejected
@@ -77,13 +92,13 @@ const nonMedicalKeywords = [
   // Religion
   'god', 'lord', 'jesus', 'allah', 'ram', 'krishna', 'shiva', 'vishnu', 'buddha',
   'temple', 'church', 'mosque', 'mosjid', 'prayer', 'worship', 'spiritual',
-  // Technology/Computers
-  'computer', 'laptop', 'mobile', 'phone', 'software', 'app', 'application', 'website',
-  'internet', 'wifi', 'email', 'google', 'facebook', 'instagram', 'twitter', 'whatsapp',
-  'instagram', 'tiktok', 'snapchat', 'linkedin', 'youtube', 'streaming',
-  // Shopping/Ecommerce
-  'amazon', 'flipkart', 'shopping', 'buy', 'sell', 'price', 'discount', 'sale', 'offer',
-  'product', 'item', 'order', 'delivery', 'cart',
+  // Technology/Computers (Removed phone/mobile as they appear on medicine packs)
+  'computer', 'laptop', 'software', 'application',
+  'internet', 'wifi', 'google', 'facebook', 'instagram', 'twitter', 'whatsapp',
+  'tiktok', 'snapchat', 'linkedin', 'youtube', 'streaming',
+  // Shopping/Ecommerce (Removed price/product/item/order as they appear on medicine packs)
+  'amazon', 'flipkart', 'shopping', 'discount', 'sale', 'offer',
+  'delivery', 'cart',
   // Finance/Stocks
   'stock', 'share', 'market', 'sensex', 'nifty', 'trading', 'investment', 'mutual fund',
   'bank', 'loan', 'credit', 'debit', 'card', 'account', 'balance', 'transaction',
@@ -93,7 +108,7 @@ const nonMedicalKeywords = [
   'food delivery', 'zomato', 'swiggy', 'dining',
   // Travel
   'flight', 'train', 'bus', 'taxi', 'uber', 'ola', 'airport', 'railway', 'station',
-  'hotel', 'booking', 'reservation', 'travel', 'trip', 'vacation', 'holiday',
+  'hotel', 'booking', 'reservation', 'travel', 'vacation', 'holiday',
   // Education (non-medical)
   'school', 'college', 'university', 'student', 'teacher', 'exam', 'result', 'class',
   'homework', 'assignment', 'course', 'degree', 'certificate',
@@ -132,28 +147,49 @@ export function validateMedicalContent(text) {
   }
 
   const normalizedText = text.toLowerCase();
-  
-  // Check for non-medical content first (higher priority for rejection)
-  const foundNonMedical = nonMedicalKeywords.filter(keyword => 
+  // Remove all non-alphanumeric for a secondary "tight" check
+  const tightText = normalizedText.replace(/[^a-z0-9]/g, '');
+
+  // Check for medical keywords
+  const foundMedical = medicalKeywords.filter(keyword => {
+    const kw = keyword.toLowerCase();
+    const tightKw = kw.replace(/[^a-z0-9]/g, '');
+
+    // Check for original match, space-separated match, or tight match
+    return normalizedText.includes(kw) ||
+      (tightKw.length > 3 && tightText.includes(tightKw));
+  });
+
+  // Check for non-medical content
+  const foundNonMedical = nonMedicalKeywords.filter(keyword =>
     normalizedText.includes(keyword.toLowerCase())
   );
 
-  // If significant non-medical content is found, reject it
-  if (foundNonMedical.length >= 2) {
+  console.log("🩺 Non-Medical Keywords Found:", foundNonMedical);
+
+  // SUPER KEYWORDS: If we find these, we bypass the non-medical check
+  const superKeywords = [
+    'paracetamol', 'dolo', 'crocin', 'calpol', 'prescription', 'rx',
+    'antibiotic', 'physician', 'hospital', 'tablet ip', 'capsule ip',
+    'ip', '650', '500', 'd0lo', '0olo', 'g50', '6s0'
+  ];
+
+  const foundSuper = superKeywords.some(sk =>
+    normalizedText.includes(sk) || tightText.includes(sk.replace(/[^a-z0-9]/g, ''))
+  );
+
+  console.log("🩺 Super Keyword Match:", foundSuper);
+
+  if (foundSuper) {
     return {
-      isValid: false,
-      reason: 'non_medical',
-      matchedKeywords: foundNonMedical,
-      message: 'This content does not appear to be related to medicine or health. Please enter medicine-related text or symptoms.'
+      isValid: true,
+      reason: 'super_valid',
+      matchedKeywords: foundMedical,
+      message: ''
     };
   }
 
-  // Check for medical keywords
-  const foundMedical = medicalKeywords.filter(keyword => 
-    normalizedText.includes(keyword.toLowerCase())
-  );
-
-  // If no medical keywords found, it might not be medicine-related
+  // If no medical keywords found at all, it's definitely not medical
   if (foundMedical.length === 0) {
     return {
       isValid: false,
@@ -163,7 +199,20 @@ export function validateMedicalContent(text) {
     };
   }
 
-  // If we found some medical keywords, it's likely medicine-related
+  // If significant non-medical content is found, but we have medical keywords, 
+  // we use a much higher threshold as medical packs contain lots of meta-data
+  const nonMedicalThreshold = Math.max(10, foundMedical.length * 4);
+
+  if (foundNonMedical.length >= nonMedicalThreshold) {
+    return {
+      isValid: false,
+      reason: 'non_medical',
+      matchedKeywords: foundNonMedical,
+      message: 'This content contains too much non-medical information. Please scan only the medicine pack or prescription.'
+    };
+  }
+
+  // If we found medical keywords and not too many non-medical ones, it's valid
   return {
     isValid: true,
     reason: 'valid',
@@ -187,7 +236,7 @@ export function validateScannedText(scannedText) {
   }
 
   const result = validateMedicalContent(scannedText);
-  
+
   return {
     isValid: result.isValid,
     isMedicineRelated: result.isValid,
@@ -210,7 +259,7 @@ export function validateSymptomInput(symptomInput) {
   }
 
   const result = validateMedicalContent(symptomInput);
-  
+
   return {
     isValid: result.isValid,
     message: result.message || 'Valid symptom input'
@@ -233,11 +282,11 @@ export function getErrorMessage(lang = 'en', type = 'non_medical') {
       not_medicine_related: 'Not relevant to medicine. Please scan or enter medicine-related content like medicine names, prescriptions, or medical reports.'
     },
     te: {
-      empty: 'Please enter some text to analyze',
-      non_medical: 'This content is not related to medicine or health',
-      no_medical_keywords: 'This does not appear to be related to medicine',
-      invalid_text: 'The scanned text is not clear',
-      not_medicine_related: 'Not relevant to medicine'
+      empty: 'విశ్లేషించడానికి దయచేసి కొంత టెక్స్ట్‌ని నమోదు చేయండి',
+      non_medical: 'ఈ విషయం మందులు లేదా ఆరోగ్యానికి సంబంధించినది కాదు. దయచేసి మందులకు సంబంధించిన టెక్స్ట్ లేదా లక్షణాలను నమోదు చేయండి.',
+      no_medical_keywords: 'ఇది మందులకు సంబంధించినదిగా కనిపించడం లేదు. దయచేసి మందులకు సంబంధించిన టెక్స్ట్, లక్షణాలు లేదా ఆరోగ్య సమాచారాన్ని నమోదు చేయండి.',
+      invalid_text: 'స్కాన్ చేసిన టెక్స్ట్ తగినంత స్పష్టంగా లేదు. దయచేసి మళ్లీ ప్రయత్నించండి.',
+      not_medicine_related: 'మందులకు సంబంధించినది కాదు. దయచేసి మందుల పేర్లు, ప్రిస్క్రిప్షన్లు లేదా రిపోర్టుల వంటి విషయాలను స్కాన్ చేయండి.'
     }
   };
 
