@@ -7,6 +7,85 @@ const Notification = require('../models/Notification');
 const BillingService = require('../services/BillingService');
 const { notifyQueueAssigned, notifyQueueCalledIn, notifyQueueApproaching, notifyAppointmentUpdate } = require('../services/pushNotificationService');
 
+// =====================================================
+// HELPER FUNCTION: Parse Hospital Working Hours
+// =====================================================
+const parseWorkingHours = (workingHours) => {
+  // Default working hours if not set: 09:00 AM - 09:00 PM
+  const defaultHours = { open: '09:00', close: '21:00' };
+  
+  if (!workingHours) return defaultHours;
+  
+  try {
+    // Format expected: "09:00 AM - 09:00 PM" or "09:00 - 21:00"
+    const parts = workingHours.split('-').map(s => s.trim());
+    if (parts.length !== 2) return defaultHours;
+    
+    let openTime, closeTime;
+    
+    // Check if format includes AM/PM
+    if (parts[0].toLowerCase().includes('am') || parts[0].toLowerCase().includes('pm')) {
+      // Format: "09:00 AM - 09:00 PM"
+      const openDate = new Date(`2000-01-01 ${parts[0]}`);
+      const closeDate = new Date(`2000-01-01 ${parts[1]}`);
+      openTime = openDate.toTimeString().substring(0, 5);
+      closeTime = closeDate.toTimeString().substring(0, 5);
+    } else {
+      // Format: "09:00 - 21:00"
+      openTime = parts[0].substring(0, 5);
+      closeTime = parts[1].substring(0, 5);
+    }
+    
+    return { open: openTime, close: closeTime };
+  } catch (err) {
+    console.error('Error parsing working hours:', err);
+    return defaultHours;
+  }
+};
+
+// =====================================================
+// HELPER FUNCTION: Check if time is within working hours
+// =====================================================
+const isWithinWorkingHours = (appointmentTime, workingHours) => {
+  const { open, close } = parseWorkingHours(workingHours);
+  
+  // Convert times to minutes for comparison
+  const timeToMinutes = (time) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+  
+  const appointmentMinutes = timeToMinutes(appointmentTime);
+  const openMinutes = timeToMinutes(open);
+  const closeMinutes = timeToMinutes(close);
+  
+  return appointmentMinutes >= openMinutes && appointmentMinutes <= closeMinutes;
+};
+
+// =====================================================
+// HELPER FUNCTION: Get Today's Available Time Slots
+// =====================================================
+const getAvailableTimeSlots = (workingHours, intervalMinutes = 30) => {
+  const { open, close } = parseWorkingHours(workingHours);
+  const slots = [];
+  
+  const [openHour, openMin] = open.split(':').map(Number);
+  const [closeHour, closeMin] = close.split(':').map(Number);
+  
+  let currentMinutes = openHour * 60 + openMin;
+  const closeMinutes = closeHour * 60 + closeMin;
+  
+  while (currentMinutes <= closeMinutes - intervalMinutes) {
+    const hours = Math.floor(currentMinutes / 60);
+    const mins = currentMinutes % 60;
+    const timeString = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    slots.push(timeString);
+    currentMinutes += intervalMinutes;
+  }
+  
+  return slots;
+};
+
 // GET /api/appointments -> Generic endpoint for both patients and hospitals
 router.get('/', auth, async (req, res) => {
   try {
@@ -47,12 +126,48 @@ router.post('/', auth, async (req, res) => {
 
     // Find hospital user
     let hospitalId = reqHospitalId;
+    let hospitalUser = null;
+    let hospitalWorkingHours = '09:00 AM - 09:00 PM'; // Default working hours
+
     if (!hospitalId && hospitalName) {
-      const hospitalUser = await User.findOne({
+      hospitalUser = await User.findOne({
         name: { $regex: new RegExp(`^${hospitalName}$`, 'i') },
         role: 'HOSPITAL'
       });
-      if (hospitalUser) hospitalId = hospitalUser._id;
+      if (hospitalUser) {
+        hospitalId = hospitalUser._id;
+        // Get hospital's working hours
+        hospitalWorkingHours = hospitalUser.workingHours || '09:00 AM - 09:00 PM';
+      }
+    }
+
+    // =====================================================
+    // VALIDATE: Check if appointment time is within hospital hours
+    // =====================================================
+    if (appointmentTime) {
+      const workingHoursInfo = parseWorkingHours(hospitalWorkingHours);
+      if (!isWithinWorkingHours(appointmentTime, hospitalWorkingHours)) {
+        return res.status(400).json({ 
+          msg: `Hospital is closed at ${appointmentTime}. Please book between ${workingHoursInfo.open} and ${workingHoursInfo.close}.`,
+          hospitalClosed: true,
+          workingHours: hospitalWorkingHours,
+          availableSlots: getAvailableTimeSlots(hospitalWorkingHours)
+        });
+      }
+    }
+
+    // =====================================================
+    // VALIDATE: Check if booking is for today and within today's hours
+    // =====================================================
+    const today = new Date().toISOString().split('T')[0];
+    if (appointmentDate === today && appointmentTime) {
+      const currentTime = new Date().toTimeString().substring(0, 5);
+      if (appointmentTime < currentTime) {
+        return res.status(400).json({ 
+          msg: 'Cannot book appointments for past times today.',
+          hospitalClosed: false
+        });
+      }
     }
 
     // Resolve doctorId if email is provided

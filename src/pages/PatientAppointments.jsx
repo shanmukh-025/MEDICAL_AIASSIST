@@ -11,6 +11,92 @@ import { useSocket } from '../context/SocketContext';
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
+// =====================================================
+// HELPER FUNCTION: Parse Hospital Working Hours (Client-side)
+// =====================================================
+const parseWorkingHours = (workingHours) => {
+  // Default working hours if not set: 09:00 AM - 09:00 PM
+  const defaultHours = { open: '09:00', close: '21:00', open12: '9:00 AM', close12: '9:00 PM' };
+  
+  if (!workingHours) return defaultHours;
+  
+  try {
+    // Format expected: "09:00 AM - 09:00 PM" or "09:00 - 21:00"
+    const parts = workingHours.split('-').map(s => s.trim());
+    if (parts.length !== 2) return defaultHours;
+    
+    let openTime, closeTime, open12, close12;
+    
+    // Check if format includes AM/PM
+    if (parts[0].toLowerCase().includes('am') || parts[0].toLowerCase().includes('pm')) {
+      // Format: "09:00 AM - 09:00 PM"
+      open12 = parts[0];
+      close12 = parts[1];
+      const openDate = new Date(`2000-01-01 ${parts[0]}`);
+      const closeDate = new Date(`2000-01-01 ${parts[1]}`);
+      openTime = openDate.toTimeString().substring(0, 5);
+      closeTime = closeDate.toTimeString().substring(0, 5);
+    } else {
+      // Format: "09:00 - 21:00"
+      openTime = parts[0].substring(0, 5);
+      closeTime = parts[1].substring(0, 5);
+      // Convert to 12-hour format
+      const openHour = parseInt(openTime.split(':')[0]);
+      const closeHour = parseInt(closeTime.split(':')[0]);
+      open12 = `${openHour > 12 ? openHour - 12 : openHour}:${openTime.split(':')[1]} ${openHour >= 12 ? 'PM' : 'AM'}`;
+      close12 = `${closeHour > 12 ? closeHour - 12 : closeHour}:${closeTime.split(':')[1]} ${closeHour >= 12 ? 'PM' : 'AM'}`;
+    }
+    
+    return { open: openTime, close: closeTime, open12, close12 };
+  } catch (err) {
+    console.error('Error parsing working hours:', err);
+    return defaultHours;
+  }
+};
+
+// =====================================================
+// HELPER FUNCTION: Check if time is within working hours
+// =====================================================
+const isWithinWorkingHours = (appointmentTime, workingHours) => {
+  const { open, close } = parseWorkingHours(workingHours);
+  
+  // Convert times to minutes for comparison
+  const timeToMinutes = (time) => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+  
+  const appointmentMinutes = timeToMinutes(appointmentTime);
+  const openMinutes = timeToMinutes(open);
+  const closeMinutes = timeToMinutes(close);
+  
+  return appointmentMinutes >= openMinutes && appointmentMinutes <= closeMinutes;
+};
+
+// =====================================================
+// HELPER FUNCTION: Get Today's Available Time Slots
+// =====================================================
+const getAvailableTimeSlots = (workingHours, intervalMinutes = 30) => {
+  const { open, close } = parseWorkingHours(workingHours);
+  const slots = [];
+  
+  const [openHour, openMin] = open.split(':').map(Number);
+  const [closeHour, closeMin] = close.split(':').map(Number);
+  
+  let currentMinutes = openHour * 60 + openMin;
+  const closeMinutes = closeHour * 60 + closeMin;
+  
+  while (currentMinutes <= closeMinutes - intervalMinutes) {
+    const hours = Math.floor(currentMinutes / 60);
+    const mins = currentMinutes % 60;
+    const timeString = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+    slots.push(timeString);
+    currentMinutes += intervalMinutes;
+  }
+  
+  return slots;
+};
+
 const PatientAppointments = () => {
   const navigate = useNavigate();
   const locationState = useLocation();
@@ -29,6 +115,8 @@ const PatientAppointments = () => {
   const [breakSeconds, setBreakSeconds] = useState(0);
   const [delaySeconds, setDelaySeconds] = useState(0);
   const [callModalData, setCallModalData] = useState(null);
+  const [hospitalHours, setHospitalHours] = useState('09:00 AM - 09:00 PM');
+  const [hospitalClosedError, setHospitalClosedError] = useState(null);
 
   const token = localStorage.getItem('token');
 
@@ -302,6 +390,32 @@ const PatientAppointments = () => {
       return;
     }
 
+    // =====================================================
+    // VALIDATION: Check if appointment time is within hospital hours
+    // =====================================================
+    if (form.appointmentTime && form.appointmentDate) {
+      const workingHoursInfo = parseWorkingHours(hospitalHours);
+      
+      // Check if time is within working hours
+      if (!isWithinWorkingHours(form.appointmentTime, hospitalHours)) {
+        toast.error(
+          `🏥 Hospital is closed at ${form.appointmentTime}. Please book between ${workingHoursInfo.open12} and ${workingHoursInfo.close12}.`,
+          { duration: 5000 }
+        );
+        return;
+      }
+
+      // Check if booking for today and time has passed
+      const today = new Date().toISOString().split('T')[0];
+      if (form.appointmentDate === today) {
+        const currentTime = new Date().toTimeString().substring(0, 5);
+        if (form.appointmentTime < currentTime) {
+          toast.error('Cannot book appointments for past times today.', { duration: 5000 });
+          return;
+        }
+      }
+    }
+
     // Check if emergency is active and appointment time is during emergency period
     if (isAppointmentDuringEmergency() && !showEmergencyConfirm) {
       setPendingSubmitEvent(e);
@@ -369,6 +483,16 @@ const PatientAppointments = () => {
 
     } catch (err) {
       console.error(err);
+      
+      // Handle Hospital Closed Error (from our backend validation)
+      if (err.response?.data?.hospitalClosed) {
+        toast.error(
+          `🏥 ${err.response.data.msg}`,
+          { duration: 5000 }
+        );
+        return;
+      }
+      
       if (err.response?.status === 429) {
         toast.error('🔥 Peak hour! Please choose another time slot.', { duration: 5000 });
         setPeakHourWarning(err.response.data);
