@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Calendar, Clock, User, FileText, Send, Loader2, WifiOff, AlertTriangle, Users, MapPin, Bell, ShieldAlert, Zap, Phone, Video } from 'lucide-react';
@@ -13,6 +13,7 @@ const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
 const PatientAppointments = () => {
   const navigate = useNavigate();
+  const locationState = useLocation();
   const { socket, emergencyAlert, doctorBreak, doctorDelay } = useSocket();
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +35,20 @@ const PatientAppointments = () => {
   useEffect(() => {
     fetchList();
     getUserLocation();
+
+    // Handle Book Again prefill from navigation state
+    if (locationState.state?.prefill) {
+      const p = locationState.state.prefill;
+      setForm({
+        hospitalName: p.hospitalName || '',
+        doctor: p.doctor || 'DR001',
+        appointmentDate: new Date().toISOString().split('T')[0],
+        appointmentTime: '',
+        reason: p.reason || '',
+        type: p.type || 'REGULAR'
+      });
+      toast.success('Form pre-filled for re-booking');
+    }
   }, []);
 
   // Emergency countdown timer
