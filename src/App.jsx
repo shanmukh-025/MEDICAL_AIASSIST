@@ -43,6 +43,8 @@ import PatientBilling from './pages/PatientBilling'; // Patient Billing & Discha
 import AdminDashboard from './pages/AdminDashboard';
 import PharmacyDashboard from './pages/PharmacyDashboard';
 import PrescriptionList from './pages/PrescriptionList';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // Conditional Voice Assistant - only show when authenticated
 const ConditionalVoiceAssistant = () => {
@@ -50,8 +52,8 @@ const ConditionalVoiceAssistant = () => {
   const location = useLocation();
 
   // Don't show on login/register/landing pages
-  const publicPaths = ['/', '/login', '/register'];
-  if (publicPaths.includes(location.pathname) || !user) {
+  const publicPaths = ['/', '/login', '/register', '/forgot-password', '/reset-password'];
+  if (publicPaths.some(path => location.pathname.startsWith(path)) || !user) {
     return null;
   }
 
@@ -95,6 +97,8 @@ function App() {
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
+                  <Route path="/forgot-password" element={<ForgotPassword />} />
+                  <Route path="/reset-password/:token" element={<ResetPassword />} />
 
                   {/* Admin Dashboard Route */}
                   <Route path="/admin-dashboard" element={

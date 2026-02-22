@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Activity, Lock, Mail, ArrowRight, Loader2, ArrowLeft, Heart } from 'lucide-react';
+import { Activity, Lock, Mail, ArrowRight, Loader2, ArrowLeft, Heart, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { GoogleLogin } from '@react-oauth/google';
 
@@ -12,6 +12,7 @@ const Login = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
@@ -142,21 +143,33 @@ const Login = () => {
               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Password</label>
               <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 p-3.5 rounded-xl focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 transition-all">
                 <Lock className="text-slate-400" size={20} />
-                <input required type="password" className="flex-1 bg-transparent outline-none text-slate-700 font-bold placeholder-slate-400" placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+                <input required type={showPassword ? "text" : "password"} className="flex-1 bg-transparent outline-none text-slate-700 font-bold placeholder-slate-400" placeholder="••••••••" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-slate-400 hover:text-emerald-600 transition-colors focus:outline-none"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="rememberMe"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
-              />
-              <label htmlFor="rememberMe" className="text-sm text-slate-600 font-medium cursor-pointer">
-                Remember me & auto-login
-              </label>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+                />
+                <label htmlFor="rememberMe" className="text-sm text-slate-600 font-medium cursor-pointer">
+                  Remember me
+                </label>
+              </div>
+              <Link to="/forgot-password" size="sm" className="text-sm font-bold text-emerald-600 hover:text-emerald-700 transition-colors">
+                Forgot Password?
+              </Link>
             </div>
 
             <button disabled={loading} className="w-full bg-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg active:scale-95 transition-all hover:bg-emerald-700 flex items-center justify-center gap-2">

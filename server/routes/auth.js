@@ -2,7 +2,9 @@ const router = require('express').Router();
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
+const { sendResetEmail } = require('../utils/emailService');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -156,6 +158,80 @@ router.get('/verify', async (req, res) => {
     res.json({ user });
   } catch (err) {
     res.status(401).json({ message: 'Invalid token' });
+  }
+});
+
+// FORGOT PASSWORD
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User with this email does not exist' });
+    }
+
+    // Create a reset token
+    const token = crypto.randomBytes(20).toString('hex');
+
+    // Set token and expiry on user model
+    user.resetPasswordToken = token;
+    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
+
+    await user.save();
+
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password/${token}`;
+
+    // Attempt to send real email if credentials exist
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      try {
+        await sendResetEmail(user.email, resetUrl, user.name);
+        return res.json({ message: 'Password reset link has been sent to your email.' });
+      } catch (mailError) {
+        console.error('❌ Mail Service Error:', mailError.message);
+        // Fallback to console log in dev if mail fails
+        console.log(`🔑 FALLBACK RESET LINK: ${resetUrl}`);
+        return res.status(200).json({
+          message: 'Mail service unavailable, but link generated.',
+          devLink: process.env.NODE_ENV === 'development' ? resetUrl : undefined
+        });
+      }
+    }
+
+    // Default development behavior: log to console
+    console.log(`🔑 [DEV-MODE] PASSWORD RESET LINK: ${resetUrl}`);
+    res.json({ message: 'Password reset link generated. Check server logs (Dev Mode).' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// RESET PASSWORD
+router.post('/reset-password/:token', async (req, res) => {
+  try {
+    const { password } = req.body;
+    const user = await User.findOne({
+      resetPasswordToken: req.params.token,
+      resetPasswordExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Password reset token is invalid or has expired' });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(password, salt);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+
+    res.json({ message: 'Password has been reset successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

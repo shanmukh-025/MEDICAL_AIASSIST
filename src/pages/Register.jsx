@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Lock, ArrowRight, Loader2, Heart, MapPin, Building2, Crosshair } from 'lucide-react';
+import { User, Mail, Lock, ArrowRight, Loader2, Heart, MapPin, Building2, Crosshair, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { API_URL } from '../config'; // Import the Central Config
 import { GoogleLogin } from '@react-oauth/google';
@@ -10,6 +10,7 @@ const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [gettingLocation, setGettingLocation] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -207,15 +208,22 @@ const Register = () => {
           <div className="relative">
             <Lock className="absolute left-4 top-3.5 text-slate-400" size={20} />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               name="password"
               value={password}
               onChange={onChange}
               placeholder="Password"
-              className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+              className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-12 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
               required
               minLength="6"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-3.5 text-slate-400 hover:text-emerald-600 transition-colors"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
           </div>
 
           {/* Hospital-Specific Fields */}
