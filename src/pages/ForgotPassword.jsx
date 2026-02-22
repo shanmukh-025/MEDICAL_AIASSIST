@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, ArrowRight, Loader2, ArrowLeft, Heart, CheckCircle, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API_URL } from '../config';
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ const ForgotPassword = () => {
         setLoading(true);
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/auth/forgot-password`, {
+            const res = await fetch(`${API_URL}/api/auth/forgot-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })

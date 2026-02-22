@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Lock, ArrowRight, Loader2, ArrowLeft, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { API_URL } from '../config';
 
 const ResetPassword = () => {
     const { token } = useParams();
@@ -24,7 +25,7 @@ const ResetPassword = () => {
         setLoading(true);
 
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/auth/reset-password/${token}`, {
+            const res = await fetch(`${API_URL}/api/auth/reset-password/${token}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ password })
