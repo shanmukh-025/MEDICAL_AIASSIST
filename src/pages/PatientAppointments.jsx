@@ -246,6 +246,19 @@ const PatientAppointments = () => {
     } finally { setLoading(false); }
   };
 
+  const handleBookAgain = (appt) => {
+    setForm({
+      hospitalName: appt.hospitalName || '',
+      doctor: appt.doctor || 'DR001',
+      appointmentDate: new Date().toISOString().split('T')[0],
+      appointmentTime: '',
+      reason: appt.reason || '',
+      type: appt.type || 'REGULAR'
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast.success('Form filled with previous details');
+  };
+
   // Feature 11: Peak Hour Detection
   const checkPeakHour = async (dateTime) => {
     try {
@@ -601,8 +614,8 @@ const PatientAppointments = () => {
                 type="button"
                 onClick={() => setForm({ ...form, type: 'REGULAR' })}
                 className={`p-3 rounded-lg font-bold text-sm transition ${form.type === 'REGULAR'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-white text-blue-700 border border-blue-300 hover:bg-blue-100'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-white text-blue-700 border border-blue-300 hover:bg-blue-100'
                   }`}
               >
                 <div>Regular Visit</div>
@@ -612,8 +625,8 @@ const PatientAppointments = () => {
                 type="button"
                 onClick={() => setForm({ ...form, type: 'FOLLOW_UP' })}
                 className={`p-3 rounded-lg font-bold text-sm transition ${form.type === 'FOLLOW_UP'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-100'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-100'
                   }`}
               >
                 <div>Follow-up</div>
@@ -680,10 +693,10 @@ const PatientAppointments = () => {
                     <div className="text-sm text-slate-500 mt-1">{a.reason}</div>
                   </div>
                   <span className={`px-3 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wide whitespace-nowrap ml-2 ${a.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                      a.status === 'CONFIRMED' || a.status === 'CHECKED_IN' ? 'bg-green-100 text-green-800 border border-green-200' :
-                        a.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-                          a.status === 'COMPLETED' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
-                            'bg-red-100 text-red-800 border border-red-200'}`}>
+                    a.status === 'CONFIRMED' || a.status === 'CHECKED_IN' ? 'bg-green-100 text-green-800 border border-green-200' :
+                      a.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                        a.status === 'COMPLETED' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                          'bg-red-100 text-red-800 border border-red-200'}`}>
                     {a.status === 'CHECKED_IN' ? 'IN QUEUE' : a.status}
                   </span>
                 </div>
@@ -752,6 +765,18 @@ const PatientAppointments = () => {
                     >
                       <Phone size={18} />
                       Contact Hospital
+                    </button>
+                  </div>
+                )}
+
+                {/* Feature: Book Again for completed appointments */}
+                {a.status === 'COMPLETED' && (
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      onClick={() => handleBookAgain(a)}
+                      className="px-6 py-2 bg-white border-2 border-slate-900 text-slate-900 rounded-full font-bold text-sm hover:bg-slate-900 hover:text-white transition-all active:scale-95 shadow-sm"
+                    >
+                      book again
                     </button>
                   </div>
                 )}
