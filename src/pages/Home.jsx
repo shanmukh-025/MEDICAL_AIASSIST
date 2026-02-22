@@ -1,4 +1,4 @@
-// Force build 1
+// Final build check - syntax fixed
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
