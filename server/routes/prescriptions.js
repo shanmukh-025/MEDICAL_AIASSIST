@@ -17,11 +17,27 @@ router.post('/', auth, async (req, res) => {
         }
 
         const {
-            patientId, appointmentId, diagnosis, medicines, specialInstructions, symptoms
+            patientId, appointmentId, diagnosis, medicines, specialInstructions, symptoms, pharmacyId
         } = req.body;
 
         if (!patientId || !mongoose.Types.ObjectId.isValid(patientId)) {
             return res.status(400).json({ msg: 'Valid Patient ID is required' });
+        }
+
+        // Feature: Explicit Pharmacy Routing
+        // If hospital has pharmacies, require one to be selected
+        if (caller.hospitalId && !pharmacyId) {
+            const hospital = await User.findById(caller.hospitalId?._id || caller.hospitalId);
+            if (hospital && hospital.pharmacies && hospital.pharmacies.filter(p => p.isRegistered).length > 0) {
+                return res.status(400).json({ msg: 'Please select a specific pharmacy for this prescription.' });
+            }
+        }
+
+        // Fetch selected pharmacy name if provided
+        let targetPharmacyName = '';
+        if (pharmacyId) {
+            const pharmUser = await User.findById(pharmacyId);
+            if (pharmUser) targetPharmacyName = pharmUser.name;
         }
 
         // Validate appointmentId if provided
@@ -43,6 +59,8 @@ router.post('/', auth, async (req, res) => {
             doctorName: caller.name,
             hospitalId: caller.hospitalId?._id || caller.hospitalId,
             hospitalName: caller.hospitalId?.name || '',
+            pharmacyId: pharmacyId || null,
+            pharmacyName: targetPharmacyName,
             diagnosis: diagnosis || 'Not specified',
             medicines,
             specialInstructions: specialInstructions || '',
@@ -57,19 +75,24 @@ router.post('/', auth, async (req, res) => {
         if (patientId) {
             Notification.create({
                 userId: patientId,
-                message: `🩺 Dr. ${caller.name} has issued a new digital prescription for you.`,
+                message: `🩺 Dr. ${caller.name} has issued a new digital prescription for you.${targetPharmacyName ? ` (Sent to ${targetPharmacyName})` : ''}`,
                 type: 'PRESCRIPTION'
             }).catch(err => console.error('Patient notification failed:', err.message));
         }
 
         // Notify Pharmacies
-        const pQuery = { role: 'PHARMACY' };
-        if (caller.hospitalId) pQuery.hospitalId = caller.hospitalId;
+        let targetPharmacies = [];
+        if (pharmacyId) {
+            targetPharmacies = await User.find({ _id: pharmacyId });
+        } else {
+            const pQuery = { role: 'PHARMACY' };
+            if (caller.hospitalId) pQuery.hospitalId = caller.hospitalId;
+            targetPharmacies = await User.find(pQuery);
+        }
 
-        const pharmacies = await User.find(pQuery);
-        console.log(`📢 Notifying ${pharmacies.length} pharmacies`);
+        console.log(`📢 Notifying ${targetPharmacies.length} pharmacies`);
 
-        pharmacies.forEach(pharmacy => {
+        targetPharmacies.forEach(pharmacy => {
             Notification.create({
                 userId: pharmacy._id,
                 message: `💊 New prescription received from Dr. ${caller.name}.`,
@@ -87,8 +110,10 @@ router.post('/', auth, async (req, res) => {
                 prescriptionId: prescription._id
             });
 
-            // Notify hospital pharmacies
-            if (caller.hospitalId) {
+            // Notify specific pharmacy OR hospital pharmacies
+            if (pharmacyId) {
+                io.to(`user_${pharmacyId}`).emit('new_prescription', { prescriptionId: prescription._id });
+            } else if (caller.hospitalId) {
                 console.log('🏥 Notifying hospital room:', caller.hospitalId);
                 io.to(`hospital_${caller.hospitalId}`).emit('new_prescription', { prescriptionId: prescription._id });
             } else {
@@ -129,10 +154,21 @@ router.get('/pharmacy', auth, async (req, res) => {
         }
 
         // If pharmacy is linked to a hospital, show only that hospital's prescriptions
-        // Otherwise show all (for standalone pharmacies)
-        let query = { status: 'PENDING' };
+        // Also respect specific pharmacyId if it was set by the doctor
+        let query = { $or: [{ status: 'PENDING' }, { status: 'DISPENSED' }] };
+
         if (caller.hospitalId) {
-            query.hospitalId = caller.hospitalId;
+            // Either specifically for this pharmacy, OR for the whole hospital (legacy/unassigned)
+            query = {
+                ...query,
+                $and: [
+                    { hospitalId: caller.hospitalId },
+                    { $or: [{ pharmacyId: caller._id }, { pharmacyId: { $exists: false } }, { pharmacyId: null }] }
+                ]
+            };
+        } else {
+            // Standalone pharmacy filter
+            query.pharmacyId = caller._id;
         }
 
         const prescriptions = await Prescription.find(query)

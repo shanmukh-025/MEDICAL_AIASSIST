@@ -4,7 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
     ArrowLeft, CheckCircle, XCircle, Calendar, Clock, User,
-    Loader2, Check, Phone, FileText, LogOut, Menu, Activity, Stethoscope, Pill, Plus, X, AlignLeft
+    Loader2, Check, Phone, FileText, LogOut, Menu, Activity, Stethoscope, Pill, Plus, X, AlignLeft, AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -27,11 +27,14 @@ const DoctorDashboard = () => {
     const [selectedAppt, setSelectedAppt] = useState(null);
     const [prescriptionForm, setPrescriptionForm] = useState({
         diagnosis: '',
+        pharmacyId: '',
         medicines: [{ name: '', dosage: '', frequency: 'twice', duration: 5, instructions: { beforeFood: false, afterFood: true, notes: '' } }],
         specialInstructions: '',
         symptoms: []
     });
     const [newSymptom, setNewSymptom] = useState('');
+    const [hospitalPharmacies, setHospitalPharmacies] = useState([]);
+    const [selectedDateFilter, setSelectedDateFilter] = useState(new Date().toLocaleDateString('en-CA'));
 
     const initiateCall = (patientId, patientName) => {
         if (!socket) {
@@ -52,7 +55,27 @@ const DoctorDashboard = () => {
             return;
         }
         fetchAppointments();
+        fetchHospitalPharmacies();
     }, [user]);
+
+    const fetchHospitalPharmacies = async () => {
+        if (!user) return;
+        try {
+            console.log('🏥 Fetching hospital pharmacies...');
+            const res = await axios.get(`${API}/api/hospitals/profile`, {
+                headers: { 'x-auth-token': token }
+            });
+            console.log('🏥 Hospital Profile Response:', res.data);
+            // Extract registered pharmacies from hospital profile
+            if (res.data && res.data.pharmacies) {
+                const registered = res.data.pharmacies.filter(p => p.isRegistered && p.userId);
+                console.log('💊 Registered & Linked Pharmacies:', registered);
+                setHospitalPharmacies(registered);
+            }
+        } catch (err) {
+            console.error('❌ Failed to fetch pharmacies:', err);
+        }
+    };
 
     // Socket for calls
     useEffect(() => {
@@ -130,6 +153,13 @@ const DoctorDashboard = () => {
                 return;
             }
 
+            if (hospitalPharmacies.length > 0 && !prescriptionForm.pharmacyId) {
+                toast.error('⚠️ Please select a target pharmacy from the dropdown.');
+                return;
+            }
+
+            console.log('💊 Target Pharmacy ID:', prescriptionForm.pharmacyId);
+
             const pId = selectedAppt.patientId?._id || selectedAppt.patientId;
             if (!pId) {
                 toast.error('Could not identify patient. Please refresh.');
@@ -142,7 +172,8 @@ const DoctorDashboard = () => {
                 diagnosis: prescriptionForm.diagnosis,
                 medicines: prescriptionForm.medicines,
                 specialInstructions: prescriptionForm.specialInstructions,
-                symptoms: prescriptionForm.symptoms
+                symptoms: prescriptionForm.symptoms,
+                pharmacyId: prescriptionForm.pharmacyId
             };
 
             console.log('🚀 Sending prescription:', data);
@@ -164,6 +195,7 @@ const DoctorDashboard = () => {
     const resetPrescriptionForm = () => {
         setPrescriptionForm({
             diagnosis: '',
+            pharmacyId: '',
             medicines: [{ name: '', dosage: '', frequency: 'twice', duration: 5, instructions: { beforeFood: false, afterFood: true, notes: '' } }],
             specialInstructions: '',
             symptoms: []
@@ -207,6 +239,7 @@ const DoctorDashboard = () => {
         if (activeTab === 'TODAY') return a.appointmentDate === today && a.status !== 'COMPLETED' && a.status !== 'REJECTED';
         if (activeTab === 'PENDING') return a.status === 'PENDING';
         if (activeTab === 'COMPLETED') return a.status === 'COMPLETED';
+        if (activeTab === 'SCHEDULING') return a.appointmentDate === selectedDateFilter;
         return true;
     });
 
@@ -252,15 +285,36 @@ const DoctorDashboard = () => {
                         >
                             <CheckCircle size={18} /> Completed
                         </button>
+                        <button
+                            onClick={() => setActiveTab('SCHEDULING')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition ${activeTab === 'SCHEDULING' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}
+                        >
+                            <Calendar size={18} /> Scheduling
+                        </button>
                     </div>
                 )}
 
                 {/* Content */}
                 <div className="flex-1 p-6">
                     <div className="max-w-4xl mx-auto space-y-4">
-                        <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                            {activeTab === 'TODAY' ? "Today's Schedule" : activeTab === 'PENDING' ? "Pending Requests" : "Waitlist History"}
-                        </h2>
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-2xl font-bold text-slate-900">
+                                {activeTab === 'TODAY' ? "Today's Schedule" :
+                                    activeTab === 'PENDING' ? "Pending Requests" :
+                                        activeTab === 'SCHEDULING' ? "Daily Schedule" : "Waitlist History"}
+                            </h2>
+                            {activeTab === 'SCHEDULING' && (
+                                <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-slate-200">
+                                    <Calendar size={16} className="text-slate-400" />
+                                    <input
+                                        type="date"
+                                        className="text-sm font-bold bg-transparent outline-none"
+                                        value={selectedDateFilter}
+                                        onChange={(e) => setSelectedDateFilter(e.target.value)}
+                                    />
+                                </div>
+                            )}
+                        </div>
 
                         {loading ? (
                             <div className="flex justify-center py-20"><Loader2 className="animate-spin text-emerald-600" size={32} /></div>
@@ -369,6 +423,35 @@ const DoctorDashboard = () => {
 
                         {/* Modal Body */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                            {/* Pharmacy Selection Section */}
+                            <div>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">
+                                    Send To Pharmacy <span className="text-red-500">*</span>
+                                </label>
+                                {hospitalPharmacies.length > 0 ? (
+                                    <div className="relative">
+                                        <Pill className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                                        <select
+                                            className="w-full pl-11 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition appearance-none"
+                                            value={prescriptionForm.pharmacyId}
+                                            required
+                                            onChange={e => setPrescriptionForm({ ...prescriptionForm, pharmacyId: e.target.value })}
+                                        >
+                                            <option value="">-- Select Target Pharmacy --</option>
+                                            {hospitalPharmacies.map(p => (
+                                                <option key={p.userId} value={p.userId}>{p.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 text-amber-700 text-xs font-bold flex items-center gap-2">
+                                        <AlertTriangle size={16} />
+                                        No registered pharmacies found for this hospital.
+                                        Please add them in Hospital Dashboard.
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Diagnosis Section */}
                             <div>
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Diagnosis / Condition</label>

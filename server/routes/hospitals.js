@@ -38,13 +38,77 @@ const upload = multer({
 // Get current hospital's profile
 router.get('/profile', auth, async (req, res) => {
   try {
-    const hospital = await User.findById(req.user.id).select('-password');
-    if (!hospital || hospital.role !== 'HOSPITAL') {
-      return res.status(403).json({ msg: 'Access denied' });
+    const caller = await User.findById(req.user.id);
+    if (!caller) return res.status(404).json({ msg: 'User not found' });
+
+    let hospitalId = null;
+    const role = (caller.role || '').toUpperCase();
+
+    if (role === 'HOSPITAL') {
+      hospitalId = caller._id;
+    } else if (role === 'DOCTOR' || role === 'PHARMACY') {
+      // Aggressive Search: Always try to verify the link if it seems broken
+      let foundViaSearch = false;
+
+      console.log(`🏥 Verifying hospital link for ${role}: ${caller.email}`);
+
+      const hospitalUser = await User.findOne({
+        role: 'HOSPITAL',
+        $or: [
+          { "doctors.userId": caller._id },
+          { "doctors.email": { $regex: new RegExp(`^${caller.email}$`, 'i') } },
+          { "pharmacies.userId": caller._id },
+          { "pharmacies.email": { $regex: new RegExp(`^${caller.email}$`, 'i') } }
+        ]
+      });
+
+      if (hospitalUser) {
+        hospitalId = hospitalUser._id;
+        foundViaSearch = true;
+        // If the stored hospitalId is wrong or missing, fix it
+        if (!caller.hospitalId || caller.hospitalId.toString() !== hospitalUser._id.toString()) {
+          console.log(`🔧 Fixing corrupted/missing hospitalId for ${caller.email}`);
+          caller.hospitalId = hospitalUser._id;
+          await caller.save();
+        }
+      } else if (caller.hospitalId) {
+        // Fallback to stored ID if search failed but ID exists
+        hospitalId = caller.hospitalId;
+      }
     }
+
+    if (!hospitalId) {
+      console.error(`❌ No hospital found for ${role}: ${caller.email}`);
+      return res.status(403).json({
+        message: `Your account (${role}) is not yet linked to a hospital profile.`,
+        debug: { role, email: caller.email, hasId: !!caller.hospitalId }
+      });
+    }
+
+    const hospital = await User.findById(hospitalId).select('-password');
+    if (!hospital) {
+      console.error(`❌ Hospital ${hospitalId} not found in DB`);
+      return res.status(404).json({ message: 'Linked hospital profile not found (ID might be invalid)' });
+    }
+
+    // Self-healing: If pharmacies are registered but missing userId, try to link them
+    let changed = false;
+    if (hospital.pharmacies && hospital.pharmacies.length > 0) {
+      for (let pharm of hospital.pharmacies) {
+        if (pharm.isRegistered && !pharm.userId && pharm.email) {
+          console.log(`🔧 Self-healing: Linking pharmacy ${pharm.email} for hospital ${hospitalId}`);
+          const pUser = await User.findOne({ email: pharm.email, role: 'PHARMACY' });
+          if (pUser) {
+            pharm.userId = pUser._id;
+            changed = true;
+          }
+        }
+      }
+    }
+    if (changed) await hospital.save();
     res.json(hospital);
   } catch (err) {
-    console.error(err.message);
+    console.error('Error fetching profile:', err.message);
     res.status(500).send('Server Error');
   }
 });
@@ -433,6 +497,15 @@ router.post('/doctors', auth, async (req, res) => {
         doctorUser.hospitalId = hospitalId;
         // Update other fields if provided
         if (name) doctorUser.name = name;
+
+        // If a password was provided for an existing user, update it
+        if (password && password.length >= 6) {
+          const bcrypt = require('bcryptjs');
+          const salt = await bcrypt.genSalt(10);
+          doctorUser.password = await bcrypt.hash(password, salt);
+          console.log(`🔑 Updated password for existing doctor: ${email}`);
+        }
+
         await doctorUser.save();
       } else {
         // Create new doctor user
@@ -497,19 +570,36 @@ router.post('/pharmacies', auth, async (req, res) => {
     const hospitalId = req.user.id;
     const { name, email, password } = req.body;
 
+    console.log(`🏥 Hospital ${hospitalId} adding pharmacy: ${email}`);
+
+    if (!email || !name) {
+      return res.status(400).json({ message: 'Name and email are required' });
+    }
+
     const hospital = await User.findById(hospitalId);
     if (!hospital || hospital.role !== 'HOSPITAL') {
-      return res.status(403).json({ msg: 'Only hospitals can add pharmacies' });
+      return res.status(403).json({ message: 'Only hospitals can add pharmacies' });
     }
 
     let pharmacyUser = await User.findOne({ email });
 
     if (pharmacyUser) {
+      console.log(`👤 User already exists: ${email}. Updating role and hospital link.`);
       pharmacyUser.role = 'PHARMACY';
       pharmacyUser.hospitalId = hospitalId;
       if (name) pharmacyUser.name = name;
+
+      // If a password was provided for an existing user, update it
+      if (password && password.length >= 6) {
+        const bcrypt = require('bcryptjs');
+        const salt = await bcrypt.genSalt(10);
+        pharmacyUser.password = await bcrypt.hash(password, salt);
+        console.log(`🔑 Updated password for existing user: ${email}`);
+      }
+
       await pharmacyUser.save();
     } else {
+      console.log(`✨ Creating NEW pharmacy user: ${email}`);
       const bcrypt = require('bcryptjs');
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(password || 'pharmacy123', salt);
@@ -522,6 +612,7 @@ router.post('/pharmacies', auth, async (req, res) => {
         hospitalId: hospitalId
       });
       await pharmacyUser.save();
+      console.log(`✅ NEW pharmacy user saved: ${pharmacyUser._id}`);
     }
 
     // Update hospital's pharmacies list
@@ -539,11 +630,12 @@ router.post('/pharmacies', auth, async (req, res) => {
       });
     }
     await hospital.save();
+    console.log(`🏥 Hospital ${hospitalId} linked with pharmacy ${pharmacyUser._id}`);
 
-    res.json({ msg: 'Pharmacy registered and linked successfully', pharmacy: pharmacyUser });
+    res.json({ message: 'Pharmacy registered and linked successfully', pharmacy: pharmacyUser });
   } catch (err) {
-    console.error('❌ Pharmacy registration error:', err.message);
-    res.status(500).json({ msg: 'Server Error: ' + err.message });
+    console.error('❌ Pharmacy registration error:', err);
+    res.status(500).json({ message: 'Server error: ' + err.message });
   }
 });
 

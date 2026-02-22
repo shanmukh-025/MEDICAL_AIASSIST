@@ -1078,11 +1078,17 @@ const HospitalDashboard = () => {
                                 return;
                               }
                               try {
+                                if (!pharmacy.name || !pharmacy.email) {
+                                  toast.error('Name and email are required');
+                                  return;
+                                }
+                                console.log('📝 Registering pharmacy:', pharmacy.email);
                                 const res = await axios.post(`${API}/api/hospitals/pharmacies`, pharmacy, { headers: { 'x-auth-token': token } });
                                 toast.success('Pharmacy Registered!');
                                 fetchProfile();
                               } catch (err) {
-                                toast.error(err.response?.data?.msg || 'Failed to register');
+                                console.error('Registration error:', err);
+                                toast.error(err.response?.data?.message || err.response?.data?.msg || 'Failed to register');
                               }
                             }}
                             className="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-emerald-100"
@@ -1346,7 +1352,8 @@ const HospitalDashboard = () => {
                                       toast.success('Doctor Registered!');
                                       fetchProfile(); // Refresh to get the generated _id and isRegistered status
                                     } catch (err) {
-                                      toast.error(err.response?.data?.msg || 'Registration failed');
+                                      console.error('Doctor registration error:', err);
+                                      toast.error(err.response?.data?.message || err.response?.data?.msg || 'Registration failed');
                                     }
                                   }}
                                   className="w-full bg-emerald-100 text-emerald-700 py-2 rounded-lg font-bold text-xs"

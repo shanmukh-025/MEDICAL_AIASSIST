@@ -31,8 +31,8 @@ const PatientAppointments = () => {
 
   const token = localStorage.getItem('token');
 
-  useEffect(() => { 
-    fetchList(); 
+  useEffect(() => {
+    fetchList();
     getUserLocation();
   }, []);
 
@@ -75,13 +75,13 @@ const PatientAppointments = () => {
   // Check if user's selected appointment time falls within emergency period
   const isAppointmentDuringEmergency = () => {
     if (!emergencyAlert || !form.appointmentDate || !form.appointmentTime) return false;
-    
+
     try {
       // Combine user's selected date and time
       const appointmentDateTime = new Date(`${form.appointmentDate}T${form.appointmentTime}`);
       const emergencyStart = new Date(emergencyAlert.alertStartTime);
       const emergencyEnd = new Date(emergencyAlert.alertEndTime);
-      
+
       // Check if appointment falls within emergency period
       return appointmentDateTime >= emergencyStart && appointmentDateTime <= emergencyEnd;
     } catch (e) {
@@ -93,12 +93,12 @@ const PatientAppointments = () => {
   // Check if user's selected appointment time falls within doctor break period
   const isAppointmentDuringBreak = () => {
     if (!doctorBreak || !form.appointmentDate || !form.appointmentTime) return false;
-    
+
     try {
       const appointmentDateTime = new Date(`${form.appointmentDate}T${form.appointmentTime}`);
       const breakStart = new Date(doctorBreak.breakStartTime);
       const breakEnd = new Date(doctorBreak.breakEndTime);
-      
+
       return appointmentDateTime >= breakStart && appointmentDateTime <= breakEnd;
     } catch (e) {
       console.error('Error checking break overlap:', e);
@@ -109,12 +109,12 @@ const PatientAppointments = () => {
   // Check if user's selected appointment time falls within delay period
   const isAppointmentDuringDelay = () => {
     if (!doctorDelay || !form.appointmentDate || !form.appointmentTime) return false;
-    
+
     try {
       const appointmentDateTime = new Date(`${form.appointmentDate}T${form.appointmentTime}`);
       const delayStart = new Date(doctorDelay.delayStartTime);
       const delayEnd = new Date(doctorDelay.delayEndTime);
-      
+
       return appointmentDateTime >= delayStart && appointmentDateTime <= delayEnd;
     } catch (e) {
       console.error('Error checking delay overlap:', e);
@@ -125,15 +125,15 @@ const PatientAppointments = () => {
   // Separate effect for auto-refreshing queue data
   useEffect(() => {
     if (appointments.length === 0) return;
-    
+
     // Fetch immediately when appointments change
     fetchQueueDataForAppointments();
-    
+
     // Auto-refresh queue data every 15 seconds
     const interval = setInterval(() => {
       fetchQueueDataForAppointments();
     }, 15000);
-    
+
     return () => clearInterval(interval);
   }, [appointments]); // Depend on appointments array
 
@@ -154,7 +154,7 @@ const PatientAppointments = () => {
     // Listen for queue updates with detailed messages
     const handleQueueUpdate = (data) => {
       console.log('📊 Queue updated:', data);
-      
+
       // Show specific notifications based on update type
       if (data.type === 'DOCTOR_BREAK') {
         toast(
@@ -174,7 +174,7 @@ const PatientAppointments = () => {
       } else if (data.type === 'WALK_IN_ADDED') {
         console.log('👥 Walk-in patient added to queue');
       }
-      
+
       // Trigger re-fetch of appointments which will trigger queue data fetch
       fetchList();
       // Also immediately refresh queue data for active appointments
@@ -193,9 +193,9 @@ const PatientAppointments = () => {
   const fetchQueueDataForAppointments = async () => {
     const today = new Date().toISOString().split('T')[0];
     const todayAppointments = appointments.filter(
-      a => a.appointmentDate === today && 
-      (a.status === 'CONFIRMED' || a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS') &&
-      a.queueNumber
+      a => a.appointmentDate === today &&
+        (a.status === 'CONFIRMED' || a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS') &&
+        a.queueNumber
     );
 
     console.log('🔄 Fetching queue data for', todayAppointments.length, 'appointments');
@@ -236,7 +236,7 @@ const PatientAppointments = () => {
       const result = await api.getAppointments();
       setAppointments(result.data);
       setIsFromCache(result.fromCache);
-      
+
       if (result.fromCache) {
         toast('📦 Viewing offline appointments', { icon: '📱', duration: 2000 });
       }
@@ -253,7 +253,7 @@ const PatientAppointments = () => {
         `${API}/api/smart-queue/peak-hour/${form.doctor || 'DR001'}/${dateTime}`,
         { headers: { 'x-auth-token': token } }
       );
-      
+
       if (response.data.isPeak) {
         setPeakHourWarning(response.data);
         return false; // Cannot book
@@ -268,7 +268,7 @@ const PatientAppointments = () => {
 
   const submit = async (e) => {
     e.preventDefault();
-    
+
     if (!navigator.onLine) {
       toast.error('Cannot book appointments offline. Please connect to internet.');
       return;
@@ -286,7 +286,7 @@ const PatientAppointments = () => {
       // Feature 11: Check peak hour before booking
       const dateTimeString = `${form.appointmentDate}T${form.appointmentTime}`;
       const canBook = await checkPeakHour(dateTimeString);
-      
+
       if (!canBook) {
         toast.error('🔥 Peak hour! Please choose suggested time slots.', { duration: 5000 });
         return;
@@ -299,12 +299,12 @@ const PatientAppointments = () => {
         appointmentTime: form.appointmentTime,
         type: form.type,
         reason: form.reason
-      }, { 
-        headers: { 'x-auth-token': token } 
+      }, {
+        headers: { 'x-auth-token': token }
       });
 
       setBookedToken(response.data);
-      
+
       // Show extra warning if appointment was during emergency period
       const serverEmergency = response.data.emergencyWarning;
       if (isAppointmentDuringEmergency() || serverEmergency) {
@@ -314,7 +314,7 @@ const PatientAppointments = () => {
           { duration: 8000, icon: '🚨', style: { background: '#FEF2F2', border: '2px solid #EF4444', color: '#991B1B' } }
         );
       }
-      
+
       // Show warning if appointment is during break
       if (isAppointmentDuringBreak()) {
         toast(
@@ -322,7 +322,7 @@ const PatientAppointments = () => {
           { duration: 6000, icon: '☕', style: { background: '#FEF3C7', border: '2px solid #F59E0B', color: '#92400E' } }
         );
       }
-      
+
       // Show warning if appointment is during delay
       if (isAppointmentDuringDelay()) {
         toast(
@@ -330,20 +330,22 @@ const PatientAppointments = () => {
           { duration: 6000, icon: '⏰', style: { background: '#FED7AA', border: '2px solid #EA580C', color: '#7C2D12' } }
         );
       }
-      
+
       toast.success(
         `✅ Appointment Booked!\n🎫 Your Queue Number: ${response.data.serialNumber}`,
         { duration: 6000 }
       );
-      
+
       setForm({ hospitalName: '', doctor: '', appointmentDate: '', appointmentTime: '', reason: '', type: 'REGULAR' });
       fetchList();
-      
+
     } catch (err) {
       console.error(err);
       if (err.response?.status === 429) {
         toast.error('🔥 Peak hour! Please choose another time slot.', { duration: 5000 });
         setPeakHourWarning(err.response.data);
+      } else if (err.response?.data?.msg) {
+        toast.error(`❌ ${err.response.data.msg}`);
       } else {
         toast.error('❌ Booking failed');
       }
@@ -395,8 +397,8 @@ const PatientAppointments = () => {
             </div>
           </div>
           <div className="mt-3 bg-white/10 rounded-full h-2 overflow-hidden">
-            <div 
-              className="bg-white/60 h-full rounded-full transition-all duration-1000" 
+            <div
+              className="bg-white/60 h-full rounded-full transition-all duration-1000"
               style={{ width: `${Math.max(0, (emergencySeconds / ((emergencyAlert.estimatedDuration || 20) * 60)) * 100)}%` }}
             />
           </div>
@@ -427,8 +429,8 @@ const PatientAppointments = () => {
             </div>
           </div>
           <div className="mt-3 bg-white/10 rounded-full h-2 overflow-hidden">
-            <div 
-              className="bg-white/60 h-full rounded-full transition-all duration-1000" 
+            <div
+              className="bg-white/60 h-full rounded-full transition-all duration-1000"
               style={{ width: `${Math.max(0, (breakSeconds / (doctorBreak.breakDurationMinutes * 60)) * 100)}%` }}
             />
           </div>
@@ -459,8 +461,8 @@ const PatientAppointments = () => {
             </div>
           </div>
           <div className="mt-3 bg-white/10 rounded-full h-2 overflow-hidden">
-            <div 
-              className="bg-white/60 h-full rounded-full transition-all duration-1000" 
+            <div
+              className="bg-white/60 h-full rounded-full transition-all duration-1000"
               style={{ width: `${Math.max(0, (delaySeconds / (doctorDelay.delayMinutes * 60)) * 100)}%` }}
             />
           </div>
@@ -496,7 +498,7 @@ const PatientAppointments = () => {
                 Change Time
               </button>
               <button
-                onClick={() => { setShowEmergencyConfirm(false); submit({ preventDefault: () => {} }); }}
+                onClick={() => { setShowEmergencyConfirm(false); submit({ preventDefault: () => { } }); }}
                 className="flex-1 bg-red-100 text-red-700 py-3 rounded-xl font-bold hover:bg-red-200 transition border border-red-200"
               >
                 Book Anyway
@@ -590,7 +592,7 @@ const PatientAppointments = () => {
             <User className="absolute left-4 top-3.5 text-slate-400" size={20} />
             <input value={form.doctor} onChange={e => setForm({ ...form, doctor: e.target.value })} placeholder="Doctor ID (e.g., DR001)" className="w-full bg-slate-50 border border-slate-200 py-3 pl-12 pr-4 rounded-xl font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 transition" />
           </div>
-          
+
           {/* Feature 7: Follow-up Selection */}
           <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl">
             <label className="block text-sm font-bold text-blue-900 mb-3">Appointment Type</label>
@@ -598,11 +600,10 @@ const PatientAppointments = () => {
               <button
                 type="button"
                 onClick={() => setForm({ ...form, type: 'REGULAR' })}
-                className={`p-3 rounded-lg font-bold text-sm transition ${
-                  form.type === 'REGULAR'
+                className={`p-3 rounded-lg font-bold text-sm transition ${form.type === 'REGULAR'
                     ? 'bg-blue-600 text-white shadow-md'
                     : 'bg-white text-blue-700 border border-blue-300 hover:bg-blue-100'
-                }`}
+                  }`}
               >
                 <div>Regular Visit</div>
                 <div className="text-xs font-normal opacity-80">~15 minutes</div>
@@ -610,11 +611,10 @@ const PatientAppointments = () => {
               <button
                 type="button"
                 onClick={() => setForm({ ...form, type: 'FOLLOW_UP' })}
-                className={`p-3 rounded-lg font-bold text-sm transition ${
-                  form.type === 'FOLLOW_UP'
+                className={`p-3 rounded-lg font-bold text-sm transition ${form.type === 'FOLLOW_UP'
                     ? 'bg-emerald-600 text-white shadow-md'
                     : 'bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-100'
-                }`}
+                  }`}
               >
                 <div>Follow-up</div>
                 <div className="text-xs font-normal opacity-80">~5 minutes</div>
@@ -664,99 +664,98 @@ const PatientAppointments = () => {
             const queueInfo = liveQueueData[a._id];
             const isToday = a.appointmentDate === new Date().toISOString().split('T')[0];
             const hasQueue = a.queueNumber && (a.status === 'CONFIRMED' || a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS');
-            
+
             return (
-            <div key={a._id} className="p-5 bg-white rounded-3xl shadow-sm border border-slate-100">
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="font-bold text-slate-900">{a.hospitalName || a.doctor || 'Hospital'}</div>
-                    {a.queueNumber && (
-                      <span className="bg-emerald-600 text-white px-2 py-1 rounded-lg text-xs font-bold">
-                        Queue #{a.queueNumber}
-                      </span>
+              <div key={a._id} className="p-5 bg-white rounded-3xl shadow-sm border border-slate-100">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="font-bold text-slate-900">{a.hospitalName || a.doctor || 'Hospital'}</div>
+                      {a.queueNumber && (
+                        <span className="bg-emerald-600 text-white px-2 py-1 rounded-lg text-xs font-bold">
+                          Queue #{a.queueNumber}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-slate-500 mt-1">{a.reason}</div>
+                  </div>
+                  <span className={`px-3 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wide whitespace-nowrap ml-2 ${a.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                      a.status === 'CONFIRMED' || a.status === 'CHECKED_IN' ? 'bg-green-100 text-green-800 border border-green-200' :
+                        a.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
+                          a.status === 'COMPLETED' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
+                            'bg-red-100 text-red-800 border border-red-200'}`}>
+                    {a.status === 'CHECKED_IN' ? 'IN QUEUE' : a.status}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 p-3 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-blue-500" />
+                    <span className="font-bold">{a.appointmentDate}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Clock size={14} className="text-orange-500" />
+                    <span className="font-bold">{a.appointmentTime}</span>
+                  </div>
+                </div>
+
+                {/* Live Queue Status for Today's Appointments */}
+                {isToday && hasQueue && queueInfo && (
+                  <div className="mt-3 bg-gradient-to-r from-blue-50 to-emerald-50 border-2 border-blue-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users size={18} className="text-blue-600" />
+                      <h4 className="font-bold text-blue-900">Live Queue Status</h4>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-white rounded-lg p-3 text-center">
+                        <div className="text-xs text-slate-600 mb-1">Now Serving</div>
+                        <div className="text-2xl font-black text-emerald-600">
+                          {queueInfo.currentlyServing || '-'}
+                        </div>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 text-center">
+                        <div className="text-xs text-slate-600 mb-1">Your Number</div>
+                        <div className="text-2xl font-black text-blue-600">#{a.queueNumber}</div>
+                      </div>
+                      <div className="bg-white rounded-lg p-3 text-center">
+                        <div className="text-xs text-slate-600 mb-1">Ahead of You</div>
+                        <div className="text-2xl font-black text-orange-600">
+                          {queueInfo.patientsAhead >= 0 ? queueInfo.patientsAhead : '-'}
+                        </div>
+                      </div>
+                    </div>
+                    {queueInfo.estimatedWaitTime && (
+                      <div className="mt-3 text-center text-sm text-slate-700">
+                        <Clock size={14} className="inline mr-1" />
+                        Est. wait: <span className="font-bold">{queueInfo.estimatedWaitTime} mins</span>
+                      </div>
+                    )}
+                    {queueInfo.message && (
+                      <div className="mt-2 text-xs text-center font-bold text-blue-700">
+                        {queueInfo.message}
+                      </div>
                     )}
                   </div>
-                  <div className="text-sm text-slate-500 mt-1">{a.reason}</div>
-                </div>
-                <span className={`px-3 py-1.5 rounded-full text-xs font-extrabold uppercase tracking-wide whitespace-nowrap ml-2 ${
-                  a.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' : 
-                  a.status === 'CONFIRMED' || a.status === 'CHECKED_IN' ? 'bg-green-100 text-green-800 border border-green-200' :
-                  a.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-                  a.status === 'COMPLETED' ? 'bg-purple-100 text-purple-800 border border-purple-200' :
-                  'bg-red-100 text-red-800 border border-red-200'}`}>
-                  {a.status === 'CHECKED_IN' ? 'IN QUEUE' : a.status}
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-sm text-slate-600 bg-slate-50 p-3 rounded-xl">
-                <div className="flex items-center gap-2">
-                  <Calendar size={14} className="text-blue-500" />
-                  <span className="font-bold">{a.appointmentDate}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock size={14} className="text-orange-500" />
-                  <span className="font-bold">{a.appointmentTime}</span>
-                </div>
-              </div>
+                )}
 
-              {/* Live Queue Status for Today's Appointments */}
-              {isToday && hasQueue && queueInfo && (
-                <div className="mt-3 bg-gradient-to-r from-blue-50 to-emerald-50 border-2 border-blue-200 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Users size={18} className="text-blue-600" />
-                    <h4 className="font-bold text-blue-900">Live Queue Status</h4>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-white rounded-lg p-3 text-center">
-                      <div className="text-xs text-slate-600 mb-1">Now Serving</div>
-                      <div className="text-2xl font-black text-emerald-600">
-                        {queueInfo.currentlyServing || '-'}
-                      </div>
-                    </div>
-                    <div className="bg-white rounded-lg p-3 text-center">
-                      <div className="text-xs text-slate-600 mb-1">Your Number</div>
-                      <div className="text-2xl font-black text-blue-600">#{a.queueNumber}</div>
-                    </div>
-                    <div className="bg-white rounded-lg p-3 text-center">
-                      <div className="text-xs text-slate-600 mb-1">Ahead of You</div>
-                      <div className="text-2xl font-black text-orange-600">
-                        {queueInfo.patientsAhead >= 0 ? queueInfo.patientsAhead : '-'}
-                      </div>
-                    </div>
-                  </div>
-                  {queueInfo.estimatedWaitTime && (
-                    <div className="mt-3 text-center text-sm text-slate-700">
-                      <Clock size={14} className="inline mr-1" />
-                      Est. wait: <span className="font-bold">{queueInfo.estimatedWaitTime} mins</span>
-                    </div>
-                  )}
-                  {queueInfo.message && (
-                    <div className="mt-2 text-xs text-center font-bold text-blue-700">
-                      {queueInfo.message}
-                    </div>
-                  )}
-                </div>
-              )}
+                {a.rejectionReason && <div className="text-sm text-red-600 mt-2 bg-red-50 p-2 rounded">Reason: {a.rejectionReason}</div>}
 
-              {a.rejectionReason && <div className="text-sm text-red-600 mt-2 bg-red-50 p-2 rounded">Reason: {a.rejectionReason}</div>}
-              
-              {/* Contact Hospital Button */}
-              {(a.status === 'CONFIRMED' || a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS') && (
-                <div className="mt-3">
-                  <button
-                    onClick={() => setCallModalData({
-                      hospitalName: a.hospitalName || a.doctor || 'Hospital',
-                      hospitalPhone: a.hospitalPhone,
-                      appointmentId: a._id
-                    })}
-                    className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white py-3 px-4 rounded-xl font-semibold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
-                  >
-                    <Phone size={18} />
-                    Contact Hospital
-                  </button>
-                </div>
-              )}
-            </div>
+                {/* Contact Hospital Button */}
+                {(a.status === 'CONFIRMED' || a.status === 'CHECKED_IN' || a.status === 'IN_PROGRESS') && (
+                  <div className="mt-3">
+                    <button
+                      onClick={() => setCallModalData({
+                        hospitalName: a.hospitalName || a.doctor || 'Hospital',
+                        hospitalPhone: a.hospitalPhone,
+                        appointmentId: a._id
+                      })}
+                      className="w-full bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white py-3 px-4 rounded-xl font-semibold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                    >
+                      <Phone size={18} />
+                      Contact Hospital
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

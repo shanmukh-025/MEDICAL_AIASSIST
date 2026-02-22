@@ -96,6 +96,38 @@ router.post('/book-smart', auth, async (req, res) => {
 
     const scheduledTime = new Date(`${appointmentDate}T${appointmentTime}`);
 
+    // Feature: Hospital Working Hours Validation
+    const hospital = await User.findById(doctorId);
+    if (hospital && hospital.role === 'HOSPITAL' && hospital.workingHours) {
+      try {
+        // Assume format: "HH:MM AM - HH:MM PM"
+        const [startPart, endPart] = hospital.workingHours.split(' - ');
+
+        const parseTime = (timeStr) => {
+          const [time, modifier] = timeStr.split(' ');
+          let [hours, minutes] = time.split(':').map(Number);
+          if (modifier === 'PM' && hours < 12) hours += 12;
+          if (modifier === 'AM' && hours === 12) hours = 0;
+          return hours * 60 + minutes;
+        };
+
+        const startMinutes = parseTime(startPart);
+        const endMinutes = parseTime(endPart);
+
+        const [apptHours, apptMins] = appointmentTime.split(':').map(Number);
+        const apptTotalMinutes = apptHours * 60 + apptMins;
+
+        if (apptTotalMinutes < startMinutes || apptTotalMinutes >= endMinutes) {
+          return res.status(400).json({
+            msg: `Hospital is closed. Working hours: ${hospital.workingHours}`,
+            isClosed: true
+          });
+        }
+      } catch (e) {
+        console.error('Working hours parsing failed:', e.message);
+      }
+    }
+
     // Check peak hour first (Feature 11)
     const peakCheck = queueManager.checkPeakHour(doctorId, scheduledTime);
     if (!peakCheck.canBook) {

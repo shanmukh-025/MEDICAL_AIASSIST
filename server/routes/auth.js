@@ -10,19 +10,19 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 router.post('/google', async (req, res) => {
   try {
     const { credential } = req.body;
-    
+
     // Verify Google token
     const ticket = await client.verifyIdToken({
       idToken: credential,
       audience: process.env.GOOGLE_CLIENT_ID
     });
-    
+
     const payload = ticket.getPayload();
     const { email, name, picture } = payload;
-    
+
     // Check if user exists
     let user = await User.findOne({ email });
-    
+
     if (!user) {
       // Create new user with Google data
       user = new User({
@@ -35,10 +35,10 @@ router.post('/google', async (req, res) => {
       });
       await user.save();
     }
-    
+
     // Create token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
-    
+
     res.json({
       token,
       user: {
@@ -46,7 +46,8 @@ router.post('/google', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        photoUrl: user.photoUrl
+        photoUrl: user.photoUrl,
+        hospitalId: user.hospitalId
       }
     });
   } catch (err) {
@@ -77,7 +78,7 @@ router.post('/register', async (req, res) => {
     // Add phone if provided
     if (req.body.phone) {
       userData.phone = req.body.phone;
-      
+
       // Add verification status if provided
       if (req.body.phoneVerified) {
         userData.phoneVerified = true;
@@ -94,18 +95,18 @@ router.post('/register', async (req, res) => {
 
     const newUser = new User(userData);
     const savedUser = await newUser.save();
-    
+
     // 4. Create Token
     const token = jwt.sign({ id: savedUser._id }, process.env.JWT_SECRET);
-    
-    res.status(201).json({ 
-      token, 
-      user: { 
-        id: savedUser._id, 
-        name: savedUser.name, 
+
+    res.status(201).json({
+      token,
+      user: {
+        id: savedUser._id,
+        name: savedUser.name,
         email: savedUser.email,
         role: savedUser.role
-      } 
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -126,14 +127,15 @@ router.post('/login', async (req, res) => {
     // 3. Create Token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
 
-    res.json({ 
-      token, 
-      user: { 
-        id: user._id, 
-        name: user.name, 
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
         email: user.email,
-        role: user.role || 'PATIENT'
-      } 
+        role: user.role || 'PATIENT',
+        hospitalId: user.hospitalId
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -148,9 +150,9 @@ router.get('/verify', async (req, res) => {
 
     const verified = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(verified.id).select('-password');
-    
+
     if (!user) return res.status(404).json({ message: 'User not found' });
-    
+
     res.json({ user });
   } catch (err) {
     res.status(401).json({ message: 'Invalid token' });

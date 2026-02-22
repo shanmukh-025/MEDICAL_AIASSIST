@@ -23,6 +23,12 @@ const PrescriptionSchema = new mongoose.Schema({
     },
     doctorName: { type: String, required: true },
     hospitalName: { type: String },
+    pharmacyId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: false
+    },
+    pharmacyName: { type: String },
     prescriptionNumber: { type: String, unique: true, sparse: true },
     diagnosis: { type: String },
 

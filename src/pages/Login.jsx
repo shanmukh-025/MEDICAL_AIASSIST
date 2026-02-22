@@ -101,7 +101,7 @@ const Login = () => {
           navigate('/dashboard');
         }
       } else {
-        toast.error(data.msg || "Invalid credentials");
+        toast.error(data.message || data.msg || "Invalid credentials");
       }
     } catch (err) {
       console.error(err);
