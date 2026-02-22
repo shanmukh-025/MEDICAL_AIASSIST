@@ -171,8 +171,6 @@ const Register = () => {
             >
               <option value="PATIENT">Patient / User</option>
               <option value="HOSPITAL">Hospital / Clinic</option>
-              <option value="DOCTOR">Doctor</option>
-              <option value="PHARMACY">Pharmacy</option>
             </select>
           </div>
 
