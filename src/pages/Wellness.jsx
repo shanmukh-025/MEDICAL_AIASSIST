@@ -126,7 +126,11 @@ const Wellness = () => {
   // Listen for Vani voice commands
   useEffect(() => {
     const handleAddWater = () => {
-      addWater();
+      // Add one more glass of water (up to 8 max)
+      if (hydration < 8) {
+        setHydration(hydration + 1);
+        saveToDb({ hydration: hydration + 1 });
+      }
     };
     
     const handleSetMood = (event) => {

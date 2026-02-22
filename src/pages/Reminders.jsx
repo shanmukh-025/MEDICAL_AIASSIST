@@ -46,6 +46,17 @@ const Reminders = () => {
   }, []);
 
   // --- 2. SMART CLOCK ENGINE ---
+  // --- 3. ALARM ACTIONS ---
+  const triggerAlarm = (reminder) => {
+    setActiveAlarm(reminder);
+    setShowConfirmation(false); // Reset confirmation screen
+    
+    // Play Sound
+    audioRef.current.currentTime = 0;
+    audioRef.current.loop = true;
+    audioRef.current.play().catch(e => console.log("Audio blocked:", e));
+  };
+
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -71,17 +82,6 @@ const Reminders = () => {
 
     return () => clearInterval(interval);
   }, [reminders, activeAlarm]);
-
-  // --- 3. ALARM ACTIONS ---
-  const triggerAlarm = (reminder) => {
-    setActiveAlarm(reminder);
-    setShowConfirmation(false); // Reset confirmation screen
-    
-    // Play Sound
-    audioRef.current.currentTime = 0;
-    audioRef.current.loop = true;
-    audioRef.current.play().catch(e => console.log("Audio blocked:", e));
-  };
 
   const stopSound = () => {
     audioRef.current.pause();

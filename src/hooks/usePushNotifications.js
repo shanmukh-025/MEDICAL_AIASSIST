@@ -5,8 +5,6 @@ const API_URL = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
 
 /**
  * Hook to manage push notifications globally.
- * Call this once in your App or main layout component.
- * It registers the service worker, requests permission, and subscribes to push.
  */
 export const usePushNotifications = () => {
     const [isSupported, setIsSupported] = useState(false);
@@ -22,23 +20,14 @@ export const usePushNotifications = () => {
         }
     }, []);
 
-    // Auto-subscribe if user is logged in and permission is already granted
-    useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (isSupported && token && Notification.permission === 'granted') {
-            subscribeToPush(token);
-        }
-    }, [isSupported]);
-
+    // Define subscribeToPush before using it in useEffect
     const subscribeToPush = useCallback(async (authToken) => {
         try {
             const token = authToken || localStorage.getItem('token');
             if (!token) return false;
 
-            // Wait for the service worker registered by Vite PWA plugin
             const registration = await navigator.serviceWorker.ready;
 
-            // Get VAPID public key from server
             let vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
             if (!vapidKey) {
                 try {
@@ -54,7 +43,6 @@ export const usePushNotifications = () => {
                 return false;
             }
 
-            // Convert VAPID key to Uint8Array
             const urlBase64ToUint8Array = (base64String) => {
                 const padding = '='.repeat((4 - base64String.length % 4) % 4);
                 const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -62,18 +50,15 @@ export const usePushNotifications = () => {
                 return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
             };
 
-            // Check for existing subscription
             let subscription = await registration.pushManager.getSubscription();
 
             if (!subscription) {
-                // Create new subscription
                 subscription = await registration.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: urlBase64ToUint8Array(vapidKey)
                 });
             }
 
-            // Send subscription to server
             await axios.post(
                 `${API_URL}/api/notifications/subscribe`,
                 { subscription: subscription.toJSON() },
@@ -88,6 +73,14 @@ export const usePushNotifications = () => {
             return false;
         }
     }, []);
+
+    // Auto-subscribe if user is logged in and permission is already granted
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        if (isSupported && token && Notification.permission === 'granted') {
+            subscribeToPush(token);
+        }
+    }, [isSupported, subscribeToPush]);
 
     const requestPermissionAndSubscribe = useCallback(async () => {
         if (!isSupported) return false;
@@ -143,3 +136,4 @@ export const usePushNotifications = () => {
 };
 
 export default usePushNotifications;
+

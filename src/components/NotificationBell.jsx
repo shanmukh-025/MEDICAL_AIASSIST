@@ -11,14 +11,14 @@ const NotificationBell = () => {
   const [open, setOpen] = useState(false);
   const token = localStorage.getItem('token');
 
-  useEffect(() => { fetchNotifications(); }, []);
-
   const fetchNotifications = async () => {
     try {
       const res = await axios.get(`${API}/api/notifications`, { headers: { 'x-auth-token': token } });
       setDbNotifications(res.data);
     } catch (err) { console.error(err); }
   };
+
+  useEffect(() => { fetchNotifications(); }, []);
 
   const markRead = async (id) => {
     try {
