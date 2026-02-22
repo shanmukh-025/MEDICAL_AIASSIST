@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Camera, Search, Calendar, Bell, BrainCircuit, FileText, Utensils,
-  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee, Stethoscope, Receipt
+  ChevronRight, MapPin, Activity, Globe, LogOut, BarChart2, Users, User, Pill, Clock, Navigation2, Coffee, Stethoscope, Receipt, ShieldCheck
 } from 'lucide-react';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
@@ -10,6 +10,8 @@ import { useSocket } from '../context/SocketContext';
 
 
 const API = import.meta.env.VITE_API_BASE || 'http://localhost:5000';
+
+const CREATOR_EMAILS = ['shanmukhasai250@gmail.com', 'varunmeruga@gmail.com'];
 
 const Home = () => {
   const navigate = useNavigate();
@@ -22,6 +24,7 @@ const Home = () => {
   const [breakSeconds, setBreakSeconds] = useState(0);
   const [delaySeconds, setDelaySeconds] = useState(0);
   const [emergencySeconds, setEmergencySeconds] = useState(0);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
 
   useEffect(() => {
     // Redirect hospitals to their dashboard
@@ -38,6 +41,12 @@ const Home = () => {
       navigate('/pharmacy-dashboard');
       return;
     }
+
+    // Check if user is a creator for admin dashboard access
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const isOwner = user && user.email && CREATOR_EMAILS.includes(user.email.toLowerCase());
+    const isAdmin = userRole === 'ADMIN';
+    setShowAdminPanel(isOwner || isAdmin);
 
     const savedName = localStorage.getItem('userName');
     if (savedName) setUserName(savedName);
@@ -455,6 +464,24 @@ const Home = () => {
           </div>
           <ChevronRight size={16} className="text-white/60" />
         </div>
+
+        {/* ADMIN DASHBOARD - Only for Owners/Admins */}
+        {showAdminPanel && (
+          <div onClick={() => navigate('/admin-dashboard')} className="bg-gradient-to-r from-slate-800 to-slate-900 p-5 rounded-3xl shadow-lg border border-slate-700 flex items-center justify-between hover:shadow-xl transition cursor-pointer group">
+            <div className="flex items-center gap-4">
+              <div className="bg-amber-500/20 text-amber-500 p-3 rounded-2xl group-hover:bg-amber-500 group-hover:text-slate-900 transition-all">
+                <ShieldCheck size={24} />
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-base">Admin Command Center</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">Manage Hospitals, Users & Platform Stats</p>
+              </div>
+            </div>
+            <div className="bg-white/5 p-2 rounded-full text-white/40 group-hover:text-white group-hover:bg-white/10 transition">
+              <ChevronRight size={20} />
+            </div>
+          </div>
+        )}
 
       </div >
     </div >
