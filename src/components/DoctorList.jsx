@@ -58,7 +58,7 @@ const LocationSearch = ({ onLocationSelect }) => {
   };
 
   return (
-    <form onSubmit={handleSearch} className="absolute top-20 left-4 right-4 z-[400]">
+    <form onSubmit={handleSearch} className="absolute top-4 left-4 right-4 z-[1001]">
       <div className="bg-white rounded-xl shadow-xl flex items-center p-1 border border-slate-200">
         <Search className="ml-3 text-slate-400" size={20} />
         <input
@@ -124,6 +124,7 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null, f
   const [contactInfo, setContactInfo] = useState(null);
   const [searchingFamilyCity, setSearchingFamilyCity] = useState(false);
   const [familyCitySearched, setFamilyCitySearched] = useState(false);
+  const [hospitalSearchQuery, setHospitalSearchQuery] = useState('');
 
   // --- 1. SIMULATION ENGINE (The "Bulletproof" Fix) ---
   const generateMockHospitals = (lat, lng) => {
@@ -775,12 +776,6 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null, f
       {/* MAP AREA */}
       <div className="h-[50vh] w-full relative z-0 shadow-inner overflow-hidden">
 
-        <LocationSearch onLocationSelect={(loc) => {
-          setMapCenter(loc);
-          setDragCenter(loc);
-          fetchNearbyHospitals(loc.lat, loc.lng);
-        }} />
-
         <MapContainer center={mapCenter} zoom={14} className="h-full w-full">
           <TileLayer
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
@@ -818,143 +813,163 @@ const DoctorList = ({ onClose, familyMemberName = null, familyMemberId = null, f
           >
             <Crosshair size={18} className="text-blue-500" /> {t.locateMe}
           </button>
-
-          <button
-            onClick={() => {
-              setMapCenter(dragCenter);
-              fetchNearbyHospitals(dragCenter.lat, dragCenter.lng);
-            }}
-            className="bg-slate-900 text-white px-6 py-3 rounded-xl font-bold text-xs shadow-xl flex items-center gap-2 hover:bg-slate-800 transition pointer-events-auto active:scale-95"
-          >
-            {loading ? <Loader2 className="animate-spin" size={16} /> : <Search size={16} />}
-            {t.searchArea}
-          </button>
         </div>
       </div>
 
       {/* LIST AREA */}
       <div className="flex-1 overflow-y-auto bg-slate-50 p-4 space-y-3 pb-24">
-        {hospitals.map(h => (
-          <div key={h.id} className={`bg-white p-5 rounded-2xl shadow-sm border ${h.isRegistered ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-100'} flex flex-col gap-3 group hover:border-emerald-300 hover:shadow-md transition duration-300`}>
-            <div className="flex justify-between items-start gap-3">
-              {/* Hospital Logo - Always show for registered hospitals */}
-              {h.isRegistered && (
-                <div className="shrink-0">
-                  <div className="w-20 h-20 rounded-xl overflow-hidden bg-white border-2 border-emerald-300 flex items-center justify-center shadow-sm">
-                    {h.logo ? (
-                      <img
-                        src={h.logo}
-                        alt={`${h.name} logo`}
-                        className="w-full h-full object-contain"
-                        onError={(e) => {
-                          console.error('Logo failed to load:', h.logo);
-                          e.target.style.display = 'none';
-                          e.target.parentElement.innerHTML = '<div class="text-3xl">🏥</div>';
-                        }}
-                      />
-                    ) : (
-                      <div className="text-3xl">🏥</div>
-                    )}
-                  </div>
-                </div>
-              )}
+        {/* Hospital Name Filter */}
+        <div className="sticky top-0 z-10 bg-slate-50 pb-2">
+          <div className="relative group">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition">
+              <SearchIcon size={18} />
+            </div>
+            <input
+              type="text"
+              value={hospitalSearchQuery}
+              onChange={(e) => setHospitalSearchQuery(e.target.value)}
+              placeholder={lang === 'en' ? "Search hospital by name..." : "ఆసుపత్రి పేరుతో వెతకండి..."}
+              className="w-full bg-white border border-slate-200 rounded-2xl py-3.5 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm transition font-medium"
+            />
+            {hospitalSearchQuery && (
+              <button
+                onClick={() => setHospitalSearchQuery('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
 
-              <div className="flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-slate-800 text-base leading-tight">{h.name}</h3>
-                  {h.isRegistered && (
-                    <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <CheckCircle size={10} /> VERIFIED
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide text-emerald-600 bg-emerald-50 inline-block px-2 py-0.5 rounded">{h.type}</p>
-
-                {/* Show profile details for registered hospitals */}
+        {hospitals
+          .filter(h => h.name.toLowerCase().includes(hospitalSearchQuery.toLowerCase()))
+          .map(h => (
+            <div key={h.id} className={`bg-white p-5 rounded-2xl shadow-sm border ${h.isRegistered ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-100'} flex flex-col gap-3 group hover:border-emerald-300 hover:shadow-md transition duration-300`}>
+              <div className="flex justify-between items-start gap-3">
+                {/* Hospital Logo - Always show for registered hospitals */}
                 {h.isRegistered && (
-                  <div className="mt-3 space-y-2 text-xs text-slate-600">
-                    {h.address && (
-                      <div className="flex items-start gap-2">
-                        <MapPin size={12} className="text-emerald-600 mt-0.5 shrink-0" />
-                        <span>{h.address}</span>
-                      </div>
-                    )}
-                    {h.phone && (
-                      <div className="flex items-center gap-2">
-                        <span className="text-emerald-600">📞</span>
-                        <span>{h.phone}</span>
-                      </div>
-                    )}
-                    {h.workingHours && (
-                      <div className="flex items-center gap-2">
-                        <Clock size={12} className="text-emerald-600" />
-                        <span>{h.workingHours}</span>
-                      </div>
-                    )}
-                    {h.about && (
-                      <div className="bg-white p-2 rounded-lg border border-emerald-100 mt-2">
-                        <p className="text-xs text-slate-600 italic">{h.about}</p>
-                      </div>
-                    )}
-                    {h.doctors && h.doctors.length > 0 && (
-                      <div className="mt-2 bg-white p-2 rounded-lg border border-emerald-100">
-                        <p className="font-bold text-emerald-700 mb-1">👨‍⚕️ Doctors:</p>
-                        {h.doctors.slice(0, 3).map((doc, i) => (
-                          <div key={i} className="text-[11px] ml-2 mb-1">
-                            • <span className="font-semibold">{doc.name}</span> - <span className="text-emerald-600">{doc.specialty}</span>
-                          </div>
-                        ))}
-                        {h.doctors.length > 3 && <p className="text-[10px] text-slate-400 ml-2">+{h.doctors.length - 3} more</p>}
-                      </div>
-                    )}
-                    {h.services && h.services.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {h.services.slice(0, 4).map((service, i) => (
-                          <span key={i} className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-medium">
-                            {service}
-                          </span>
-                        ))}
-                        {h.services.length > 4 && <span className="text-[10px] text-slate-400">+{h.services.length - 4}</span>}
-                      </div>
-                    )}
+                  <div className="shrink-0">
+                    <div className="w-20 h-20 rounded-xl overflow-hidden bg-white border-2 border-emerald-300 flex items-center justify-center shadow-sm">
+                      {h.logo ? (
+                        <img
+                          src={h.logo}
+                          alt={`${h.name} logo`}
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            console.error('Logo failed to load:', h.logo);
+                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<div class="text-3xl">🏥</div>';
+                          }}
+                        />
+                      ) : (
+                        <div className="text-3xl">🏥</div>
+                      )}
+                    </div>
                   </div>
                 )}
-              </div>
-              <button
-                onClick={() => openGoogleMaps(h.lat, h.lng)}
-                className="bg-slate-50 p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
-              >
-                <Navigation size={20} />
-              </button>
-            </div>
 
-            <div className="flex items-center justify-between border-t border-slate-50 pt-3 mt-1">
-              <div className="text-xs text-slate-500 flex items-center gap-1.5">
-                <Clock size={14} className="text-slate-400" /> {h.workingHours || t.hours}
-              </div>
-              {h.isRegistered ? (
-                <button
-                  onClick={() => { setSelectedDoctor(''); setStep('form'); setBookingHospital(h); }}
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1 shadow-lg shadow-emerald-100"
-                >
-                  <Calendar size={14} /> {t.bookBtn}
-                </button>
-              ) : (
-                <button
-                  onClick={() => { setContactModal(h); setContactInfo(null); searchHospitalContact(h); }}
-                  className="bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1 shadow-lg shadow-slate-200"
-                >
-                  <PhoneCall size={14} /> {t.bookBtn}
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-slate-800 text-base leading-tight">{h.name}</h3>
+                    {h.isRegistered && (
+                      <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <CheckCircle size={10} /> VERIFIED
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium mt-1 uppercase tracking-wide text-emerald-600 bg-emerald-50 inline-block px-2 py-0.5 rounded">{h.type}</p>
 
-        {hospitals.length === 0 && !loading && (
+                  {/* Show profile details for registered hospitals */}
+                  {h.isRegistered && (
+                    <div className="mt-3 space-y-2 text-xs text-slate-600">
+                      {h.address && (
+                        <div className="flex items-start gap-2">
+                          <MapPin size={12} className="text-emerald-600 mt-0.5 shrink-0" />
+                          <span>{h.address}</span>
+                        </div>
+                      )}
+                      {h.phone && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-emerald-600">📞</span>
+                          <span>{h.phone}</span>
+                        </div>
+                      )}
+                      {h.workingHours && (
+                        <div className="flex items-center gap-2">
+                          <Clock size={12} className="text-emerald-600" />
+                          <span>{h.workingHours}</span>
+                        </div>
+                      )}
+                      {h.about && (
+                        <div className="bg-white p-2 rounded-lg border border-emerald-100 mt-2">
+                          <p className="text-xs text-slate-600 italic">{h.about}</p>
+                        </div>
+                      )}
+                      {h.doctors && h.doctors.length > 0 && (
+                        <div className="mt-2 bg-white p-2 rounded-lg border border-emerald-100">
+                          <p className="font-bold text-emerald-700 mb-1">👨‍⚕️ Doctors:</p>
+                          {h.doctors.slice(0, 3).map((doc, i) => (
+                            <div key={i} className="text-[11px] ml-2 mb-1">
+                              • <span className="font-semibold">{doc.name}</span> - <span className="text-emerald-600">{doc.specialty}</span>
+                            </div>
+                          ))}
+                          {h.doctors.length > 3 && <p className="text-[10px] text-slate-400 ml-2">+{h.doctors.length - 3} more</p>}
+                        </div>
+                      )}
+                      {h.services && h.services.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {h.services.slice(0, 4).map((service, i) => (
+                            <span key={i} className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-medium">
+                              {service}
+                            </span>
+                          ))}
+                          {h.services.length > 4 && <span className="text-[10px] text-slate-400">+{h.services.length - 4}</span>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => openGoogleMaps(h.lat, h.lng)}
+                  className="bg-slate-50 p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                >
+                  <Navigation size={20} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-slate-50 pt-3 mt-1">
+                <div className="text-xs text-slate-500 flex items-center gap-1.5">
+                  <Clock size={14} className="text-slate-400" /> {h.workingHours || t.hours}
+                </div>
+                {h.isRegistered ? (
+                  <button
+                    onClick={() => { setSelectedDoctor(''); setStep('form'); setBookingHospital(h); }}
+                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1 shadow-lg shadow-emerald-100"
+                  >
+                    <Calendar size={14} /> {t.bookBtn}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setContactModal(h); setContactInfo(null); searchHospitalContact(h); }}
+                    className="bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1 shadow-lg shadow-slate-200"
+                  >
+                    <PhoneCall size={14} /> {t.bookBtn}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+
+        {hospitals.filter(h => h.name.toLowerCase().includes(hospitalSearchQuery.toLowerCase())).length === 0 && !loading && (
           <div className="text-center py-10 opacity-50">
             <AlertTriangle className="mx-auto text-slate-400 mb-2" size={32} />
-            <p className="text-sm font-bold text-slate-400">No data found.</p>
+            <p className="text-sm font-bold text-slate-400">
+              {hospitalSearchQuery
+                ? (lang === 'en' ? 'No hospitals match your search.' : 'మీ శోధనకు సరిపోయే ఆసుపత్రులు లేవు.')
+                : (lang === 'en' ? 'No hospitals found nearby.' : 'సమీపంలో ఆసుపత్రులు కనుగొనబడలేదు.')
+              }
+            </p>
           </div>
         )}
       </div>
