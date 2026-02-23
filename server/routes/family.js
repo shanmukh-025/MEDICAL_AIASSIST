@@ -69,7 +69,7 @@ router.delete('/:id/documents/:docId', auth, async (req, res) => {
 // @desc    Add a new family member
 router.post('/', auth, async (req, res) => {
   try {
-    const { name, relationship, age, gender, bloodGroup, allergies, chronicConditions, emergencyContact, photoUrl, dateOfBirth } = req.body;
+    const { name, relationship, age, gender, bloodGroup, allergies, chronicConditions, emergencyContact, photoUrl, dateOfBirth, city } = req.body;
 
     const newMember = new FamilyMember({
       user: req.user.id,
@@ -82,7 +82,8 @@ router.post('/', auth, async (req, res) => {
       chronicConditions,
       emergencyContact,
       photoUrl,
-      dateOfBirth
+      dateOfBirth,
+      city
     });
 
     const member = await newMember.save();
@@ -108,7 +109,7 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(401).json({ msg: 'Not authorized' });
     }
 
-    const { name, relationship, age, gender, bloodGroup, allergies, chronicConditions, emergencyContact, photoUrl, dateOfBirth } = req.body;
+    const { name, relationship, age, gender, bloodGroup, allergies, chronicConditions, emergencyContact, photoUrl, dateOfBirth, city } = req.body;
 
     const updateFields = {};
     if (name) updateFields.name = name;
@@ -121,6 +122,7 @@ router.put('/:id', auth, async (req, res) => {
     if (emergencyContact) updateFields.emergencyContact = emergencyContact;
     if (photoUrl !== undefined) updateFields.photoUrl = photoUrl;
     if (dateOfBirth) updateFields.dateOfBirth = dateOfBirth;
+    if (city !== undefined) updateFields.city = city;
 
     const updated = await FamilyMember.findByIdAndUpdate(
       req.params.id,
