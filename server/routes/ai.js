@@ -257,7 +257,10 @@ router.post('/chat', auth, async (req, res) => {
     const prompt = `${instruction}\nUser: "${message}"\nMediBot Answer:`;
 
     const text = await callGemini(prompt);
-    res.json({ reply: text });
+    const warning = language === 'te'
+      ? "\n\n**దయచేసి వైద్య ప్రయోజనాల కోసం మాత్రమే ఉపయోగించండి**"
+      : "\n\n**Please use for medical purpose only**";
+    res.json({ reply: text + warning });
 
   } catch (err) {
     console.error("Chat Error:", err.message);

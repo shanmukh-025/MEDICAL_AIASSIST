@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Loader2, ArrowLeft, RefreshCw, AlertTriangle, Mic, MicOff, Volume2, VolumeX, WifiOff } from 'lucide-react';
+import { Send, User, Bot, Loader2, ArrowLeft, RefreshCw, AlertTriangle, Mic, MicOff, Volume2, VolumeX, WifiOff, X, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../utils/apiWrapper';
@@ -28,17 +28,20 @@ const FirstAid = () => {
   const [autoSpeak, setAutoSpeak] = useState(true);
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
-  
+
   // Store the auto-detected model name here
-  const [activeModel, setActiveModel] = useState(null); 
+  const [activeModel, setActiveModel] = useState(null);
+  const fileInputRef = useRef(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imageMimeType, setImageMimeType] = useState(null);
 
   // Dynamic Greeting
-  const initialMsg = lang === 'en' 
-    ? "Hello! I am your Medical Assistant. How can I help you?" 
-    : "నమస్కారం! నేను మీ వైద్య సహాయకుడిని. నేను మీకు ఎలా సహాయం చేయగలను?";
+  const initialMsg = lang === 'en'
+    ? "Hello! I am your Medical Assistant. How can I help you? You can also upload a photo of any skin issues for analysis."
+    : "నమస్కారం! నేను మీ వైద్య సహాయకుడిని. నేను మీకు ఎలా సహాయం చేయగలను? మీరు విశ్లేషణ కోసం ఏదైనా చర్మ సమస్యల ఫోటోను కూడా అప్‌లోడ్ చేయవచ్చు.";
 
   const [messages, setMessages] = useState([{ role: 'bot', text: initialMsg }]);
-  
+
   // API History (Strict Google Format)
   const [apiHistory, setApiHistory] = useState([
     {
@@ -56,27 +59,27 @@ const FirstAid = () => {
   // 1. AUTO-DETECT MODEL ON LOAD (The Fix)
   useEffect(() => {
     const findWorkingModel = async () => {
-        if (!apiKey) return;
-        try {
-            // Ask Google what models are available
-            const req = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-            const data = await req.json();
-            
-            // Find the first one that supports 'generateContent'
-            const validModel = data.models?.find(m => 
-                m.supportedGenerationMethods?.includes("generateContent") &&
-                m.name.includes("gemini")
-            );
+      if (!apiKey) return;
+      try {
+        // Ask Google what models are available
+        const req = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const data = await req.json();
 
-            if (validModel) {
-                console.log("Chat using model:", validModel.name);
-                setActiveModel(validModel.name);
-            } else {
-                console.error("No Gemini models found.");
-            }
-        } catch (e) {
-            console.error("Model Detection Failed:", e);
+        // Find the first one that supports 'generateContent'
+        const validModel = data.models?.find(m =>
+          m.supportedGenerationMethods?.includes("generateContent") &&
+          m.name.includes("gemini")
+        );
+
+        if (validModel) {
+          console.log("Chat using model:", validModel.name);
+          setActiveModel(validModel.name);
+        } else {
+          console.error("No Gemini models found.");
         }
+      } catch (e) {
+        console.error("Model Detection Failed:", e);
+      }
     };
     findWorkingModel();
   }, [apiKey]);
@@ -88,16 +91,16 @@ const FirstAid = () => {
 
   // Reset chat if language changes
   useEffect(() => {
-     setMessages([{ role: 'bot', text: initialMsg }]);
-     setApiHistory([
-        { role: "user", parts: [{ text: "You are MediBot, a helpful medical assistant. You ONLY answer medical and health-related questions. If someone asks non-medical questions (like sports, entertainment, general knowledge, etc.), politely decline and ask them to ask medical questions only. Provide simple, safe medical advice. If symptoms are severe, tell them to see a doctor immediately." }] },
-        { role: "model", parts: [{ text: "Understood. I will only answer medical and health-related questions and politely decline non-medical queries." }] }
-     ]);
-     
-     // Speak initial greeting
-     if (autoSpeak) {
-       speakText(initialMsg);
-     }
+    setMessages([{ role: 'bot', text: initialMsg }]);
+    setApiHistory([
+      { role: "user", parts: [{ text: "You are MediBot, a helpful medical assistant. You ONLY answer medical and health-related questions. If someone asks non-medical questions (like sports, entertainment, general knowledge, etc.), politely decline and ask them to ask medical questions only. Provide simple, safe medical advice. If symptoms are severe, tell them to see a doctor immediately." }] },
+      { role: "model", parts: [{ text: "Understood. I will only answer medical and health-related questions and politely decline non-medical queries." }] }
+    ]);
+
+    // Speak initial greeting
+    if (autoSpeak) {
+      speakText(initialMsg);
+    }
   }, [lang]);
 
   // Initialize Speech Recognition
@@ -107,26 +110,26 @@ const FirstAid = () => {
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
-      
+
       // Set language based on current language setting
       recognitionRef.current.lang = lang === 'te' ? 'te-IN' : 'en-US';
-      
+
       recognitionRef.current.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         setInput(transcript);
         setIsListening(false);
       };
-      
+
       recognitionRef.current.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
         setIsListening(false);
       };
-      
+
       recognitionRef.current.onend = () => {
         setIsListening(false);
       };
     }
-    
+
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
@@ -138,19 +141,19 @@ const FirstAid = () => {
   // Text-to-Speech Function
   const speakText = (text) => {
     if (!autoSpeak) return;
-    
+
     // Stop any ongoing speech
     stopSpeaking();
-    
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang === 'te' ? 'te-IN' : 'en-US';
     utterance.rate = 0.9; // Slightly slower for better comprehension
     utterance.pitch = 1;
-    
+
     utterance.onstart = () => setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
-    
+
     synthRef.current.speak(utterance);
   };
 
@@ -163,12 +166,12 @@ const FirstAid = () => {
   // Toggle Voice Input
   const toggleListening = () => {
     if (!recognitionRef.current) {
-      alert(lang === 'en' 
-        ? 'Voice input not supported in this browser. Please use Chrome or Edge.' 
+      alert(lang === 'en'
+        ? 'Voice input not supported in this browser. Please use Chrome or Edge.'
         : 'ఈ బ్రౌజర్‌లో వాయిస్ ఇన్‌పుట్ సపోర్ట్ చేయబడదు. దయచేసి Chrome లేదా Edge ఉపయోగించండి.');
       return;
     }
-    
+
     if (isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
@@ -188,16 +191,53 @@ const FirstAid = () => {
     }
   };
 
+  // Handle Image Upload
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error(lang === 'en' ? 'Please upload an image file.' : 'దయచేసి ఒక చిత్ర ఫైల్‌ను అప్‌లోడ్ చేయండి.');
+      return;
+    }
+
+    setImageMimeType(file.type);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setSelectedImage(event.target.result);
+      toast.success(lang === 'en' ? 'Image added! Now ask about it.' : 'చిత్రం జోడించబడింది! ఇప్పుడు దాని గురించి అడగండి.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Remove Selected Image
+  const removeImage = () => {
+    setSelectedImage(null);
+    setImageMimeType(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() && !selectedImage) return;
 
     const userText = input;
+    const currentImage = selectedImage;
+    const currentMimeType = imageMimeType;
+
     setInput('');
+    setSelectedImage(null);
+    setImageMimeType(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
     setLoading(true);
 
     // Update UI
-    setMessages(prev => [...prev, { role: 'user', text: userText }]);
+    setMessages(prev => [...prev, {
+      role: 'user',
+      text: userText || (lang === 'en' ? '[Image Uploaded]' : '[చిత్రం అప్‌లోడ్ చేయబడింది]'),
+      image: currentImage
+    }]);
 
     // NSFW Content Filter
     const inappropriatePatterns = [
@@ -250,14 +290,14 @@ const FirstAid = () => {
       const rejectionMessage = lang === 'te'
         ? 'క్షమించండి, నేను అనుచితమైన లేదా పరిణతి చెందిన కంటెంట్‌కు సమాధానం ఇవ్వలేను. నేను ఒక వైద్య సహాయకుడిని మాత్రమే. దయచేసి ఆరోగ్య సంబంధిత ప్రశ్నలు మాత్రమే అడగండి.'
         : 'I\'m sorry, I cannot respond to inappropriate or adult content. I am a medical assistant designed to help with health-related questions only. Please ask about symptoms, treatments, or general health concerns.';
-      
+
       setMessages(prev => [...prev, { role: 'bot', text: rejectionMessage }]);
       setLoading(false);
-      
+
       if (autoSpeak) {
         speakText(rejectionMessage);
       }
-      
+
       return;
     }
 
@@ -266,24 +306,24 @@ const FirstAid = () => {
       if (!navigator.onLine) {
         // Try offline first aid tips
         const offlineTip = searchOfflineTips(userText, lang);
-        
+
         if (offlineTip) {
           const response = `📱 **${offlineTip.title}** (Offline Mode)\n\n**Symptoms:** ${offlineTip.symptoms}\n\n**Remedy:**\n${offlineTip.remedy}\n\n**Prevention:** ${offlineTip.prevention}\n\n⚠️ This is offline guidance. For serious conditions, please see a doctor when possible.`;
-          
+
           setMessages(prev => [...prev, { role: 'bot', text: response }]);
-          
+
           if (autoSpeak) {
             speakText(response);
           }
-          
+
           setLoading(false);
           return;
         }
-        
-        const offlineMsg = lang === 'en' 
-          ? "⚠️ You are offline. AI Assistant requires internet.\n\nI can help with basic first aid offline:\n• Fever\n• Headache\n• Cough & Cold\n• Stomach pain\n• Diarrhea\n• Cuts & wounds\n• Burns\n• Sprains\n• Snake bite (emergency)\n• Dehydration\n\nType your symptom above!" 
+
+        const offlineMsg = lang === 'en'
+          ? "⚠️ You are offline. AI Assistant requires internet.\n\nI can help with basic first aid offline:\n• Fever\n• Headache\n• Cough & Cold\n• Stomach pain\n• Diarrhea\n• Cuts & wounds\n• Burns\n• Sprains\n• Snake bite (emergency)\n• Dehydration\n\nType your symptom above!"
           : "⚠️ మీరు ఆఫ్‌లైన్‌లో ఉన్నారు. AI సహాయకుడికి ఇంటర్నెట్ కావాలి.\n\nనేను ఆఫ్‌లైన్‌లో ప్రాథమిక చికిత్సలో సహాయపడగలను:\n• జ్వరం\n• తలనొప్పి\n• దగ్గు మరియు జలుబు\n• కడుపు నొప్పి\n• విరేచనాలు\n• కోతలు మరియు గాయాలు\n• కాలిన గాయాలు\n• బెణుకులు\n• పాము కాటు (అత్యవసరం)\n• నిర్జలీకరణం\n\nమీ లక్షణాన్ని పైన టైప్ చేయండి!";
-        
+
         setMessages(prev => [...prev, { role: 'bot', text: offlineMsg, isError: true }]);
         setLoading(false);
         return;
@@ -292,19 +332,44 @@ const FirstAid = () => {
       if (!apiKey) throw new Error("API Key Missing");
       if (!activeModel) throw new Error("Initializing AI... Please try again in 2 seconds.");
 
+      // Prepare History parts for current message
+      const currentMessageParts = [];
+
+      let promptText = userText;
+      if (currentImage) {
+        promptText = `${userText || "Please analyze this image for any health or skin issues."} 
+        Answer in ${lang === 'te' ? 'Telugu' : 'English'}. 
+        If it's a skin issue, describe what you see (tracing the problem) and provide simple advice.`;
+      } else {
+        promptText = `Answer in ${lang === 'te' ? 'Telugu' : 'English'}: ${userText}`;
+      }
+
+      currentMessageParts.push({ text: promptText });
+
+      if (currentImage) {
+        // Extract base64 data (remove "data:image/jpeg;base64," prefix)
+        const base64Data = currentImage.split(',')[1];
+        currentMessageParts.push({
+          inline_data: {
+            mime_type: currentMimeType,
+            data: base64Data
+          }
+        });
+      }
+
       // Prepare History
       const newHistory = [
         ...apiHistory,
-        { role: "user", parts: [{ text: `Answer in ${lang === 'te' ? 'Telugu' : 'English'}: ${userText}` }] }
+        { role: "user", parts: currentMessageParts }
       ];
 
       // DIRECT FETCH using the DETECTED MODEL
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/${activeModel}:generateContent?key=${apiKey}`,
         {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: newHistory })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: newHistory })
         }
       );
 
@@ -333,7 +398,7 @@ const FirstAid = () => {
       console.error("Chat Error:", err);
       let msg = lang === 'en' ? "Connection Error." : "కనెక్షన్ లోపం.";
       if (err.message.includes("Initializing")) msg = "Please wait, AI is loading...";
-      
+
       setMessages(prev => [...prev, { role: 'bot', text: msg, isError: true }]);
     } finally {
       setLoading(false);
@@ -345,28 +410,28 @@ const FirstAid = () => {
       {/* Header */}
       <div className="bg-white p-4 shadow-sm border-b border-slate-100 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-slate-100 rounded-full transition">
-            <ArrowLeft size={20} className="text-slate-600"/>
-            </button>
-            <div>
+          <button onClick={() => navigate('/dashboard')} className="p-2 hover:bg-slate-100 rounded-full transition">
+            <ArrowLeft size={20} className="text-slate-600" />
+          </button>
+          <div>
             <h1 className="font-bold text-lg text-slate-800">{lang === 'en' ? 'MediBot' : 'మెడి బాట్'}</h1>
             <p className="text-xs text-green-600 flex items-center gap-1 font-medium">
-                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                {activeModel ? (lang === 'en' ? 'Online' : 'ఆన్‌లైన్') : 'Connecting...'}
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              {activeModel ? (lang === 'en' ? 'Online' : 'ఆన్‌లైన్') : 'Connecting...'}
             </p>
-            </div>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-            <button 
-              onClick={toggleAutoSpeak}
-              className={`p-2 rounded-full transition ${autoSpeak ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}
-              title={autoSpeak ? 'Voice responses ON' : 'Voice responses OFF'}
-            >
-              {autoSpeak ? <Volume2 size={18} /> : <VolumeX size={18} />}
-            </button>
-            <button onClick={() => window.location.reload()} className="text-slate-400 hover:text-emerald-600 p-2">
-                <RefreshCw size={18} />
-            </button>
+          <button
+            onClick={toggleAutoSpeak}
+            className={`p-2 rounded-full transition ${autoSpeak ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}
+            title={autoSpeak ? 'Voice responses ON' : 'Voice responses OFF'}
+          >
+            {autoSpeak ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+          <button onClick={() => window.location.reload()} className="text-slate-400 hover:text-emerald-600 p-2">
+            <RefreshCw size={18} />
+          </button>
         </div>
       </div>
 
@@ -375,8 +440,8 @@ const FirstAid = () => {
         <p className="text-xs text-center text-slate-600">
           <span className="font-bold text-blue-600">🎤 {lang === 'en' ? 'Voice Enabled!' : 'వాయిస్ సౌలభ్యం!'}</span>
           {' '}
-          {lang === 'en' 
-            ? 'Speak your symptoms in your language - MediBot will respond in voice + text!' 
+          {lang === 'en'
+            ? 'Speak your symptoms in your language - MediBot will respond in voice + text!'
             : 'మీ భాషలో లక్షణాలు చెప్పండి - మెడిబాట్ వాయిస్ + టెక్స్ట్‌లో స్పందిస్తుంది!'}
         </p>
       </div>
@@ -389,31 +454,76 @@ const FirstAid = () => {
               <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200'}`}>
                 {msg.role === 'user' ? <User size={16} /> : <img src="/logo2.jpeg" alt="MediBot" className="w-full h-full rounded-full object-cover" />}
               </div>
-              <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                msg.isError 
-                    ? 'bg-red-50 text-red-600 border border-red-100' 
-                    : msg.role === 'user' 
-                        ? 'bg-emerald-600 text-white rounded-tr-none' 
-                        : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none'
-              }`}>
+              <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.isError
+                ? 'bg-red-50 text-red-600 border border-red-100'
+                : msg.role === 'user'
+                  ? 'bg-emerald-600 text-white rounded-tr-none'
+                  : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none'
+                }`}>
+                {msg.image && (
+                  <div className="mb-3 rounded-lg overflow-hidden border border-white/20 shadow-sm">
+                    <img src={msg.image} alt="Uploaded" className="max-w-full h-auto max-h-48 object-cover" />
+                  </div>
+                )}
                 <div dangerouslySetInnerHTML={{ __html: parseMarkdown(msg.text) }} />
+                {msg.role === 'bot' && !msg.isError && (
+                  <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-1.5 text-[10px] font-bold text-orange-600 uppercase tracking-wider">
+                    <AlertTriangle size={10} />
+                    <span>{lang === 'en' ? 'please use for medical purpose only' : 'దయచేసి వైద్య ప్రయోజనాల కోసం మాత్రమే ఉపయోగించండి'}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         ))}
         {loading && (
           <div className="flex justify-start">
-             <div className="bg-white p-4 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm flex items-center gap-2 text-sm text-slate-500">
-                <Loader2 className="animate-spin" size={16} /> {lang === 'en' ? 'Thinking...' : 'ఆలోచిస్తోంది...'}
-             </div>
+            <div className="bg-white p-4 rounded-2xl rounded-tl-none border border-slate-100 shadow-sm flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 className="animate-spin" size={16} /> {lang === 'en' ? 'Thinking...' : 'ఆలోచిస్తోంది...'}
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area */}
-      <div className="p-4 bg-white border-t border-slate-100">
+      <div className="p-4 bg-white border-t border-slate-100 relative">
+        {/* Image Preview */}
+        {selectedImage && (
+          <div className="absolute bottom-[calc(100%+1rem)] left-4 animate-in slide-in-from-bottom-2 duration-300">
+            <div className="relative inline-block group">
+              <div className="w-20 h-20 rounded-xl overflow-hidden border-2 border-emerald-500 shadow-xl group-hover:scale-105 transition-transform duration-200">
+                <img src={selectedImage} alt="Preview" className="w-full h-full object-cover" />
+              </div>
+              <button
+                onClick={removeImage}
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 transition ring-2 ring-white"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSend} className="flex gap-2 relative">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+            accept="image/*"
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current.click()}
+            className={`p-3 rounded-xl transition shadow-lg ${selectedImage
+              ? 'bg-emerald-100 text-emerald-600 border border-emerald-200'
+              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+              }`}
+            title={lang === 'en' ? 'Upload Image' : 'చిత్రాన్ని అప్‌లోడ్ చేయండి'}
+          >
+            <Camera size={20} className={selectedImage ? 'animate-pulse' : ''} />
+          </button>
           <input
             type="text"
             value={input}
@@ -421,21 +531,20 @@ const FirstAid = () => {
             placeholder={lang === 'en' ? 'Type or speak your symptoms...' : 'మీ లక్షణాలను టైప్ చేయండి లేదా మాట్లాడండి...'}
             className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition font-medium"
           />
-          <button 
+          <button
             type="button"
             onClick={toggleListening}
-            className={`p-3 rounded-xl transition shadow-lg ${
-              isListening 
-                ? 'bg-red-500 text-white animate-pulse' 
-                : 'bg-blue-500 text-white hover:bg-blue-600'
-            }`}
+            className={`p-3 rounded-xl transition shadow-lg ${isListening
+              ? 'bg-red-500 text-white animate-pulse'
+              : 'bg-blue-500 text-white hover:bg-blue-600'
+              }`}
             title={lang === 'en' ? 'Voice Input' : 'వాయిస్ ఇన్‌పుట్'}
           >
             {isListening ? <MicOff size={20} /> : <Mic size={20} />}
           </button>
-          <button 
-            type="submit" 
-            disabled={loading || !input.trim()}
+          <button
+            type="submit"
+            disabled={loading || (!input.trim() && !selectedImage)}
             className="bg-emerald-600 text-white p-3 rounded-xl hover:bg-emerald-700 transition disabled:opacity-50 shadow-lg shadow-emerald-100"
           >
             <Send size={20} />
@@ -450,7 +559,7 @@ const FirstAid = () => {
         )}
         {isSpeaking && (
           <div className="mt-2 text-center">
-            <button 
+            <button
               onClick={stopSpeaking}
               className="text-sm text-emerald-600 font-medium hover:underline"
             >
